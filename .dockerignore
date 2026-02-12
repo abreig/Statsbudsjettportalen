@@ -1,0 +1,12 @@
+**/.git
+**/node_modules
+**/bin
+**/obj
+**/dist
+**/.vscode
+**/.idea
+**/pgdata
+**/.env
+**/frontend/README.md
+**/.DS_Store
+**/Thumbs.db
