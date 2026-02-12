@@ -20,7 +20,7 @@ export function Header() {
 
   return (
     <header
-      style={{ backgroundColor: '#1B5E99' }}
+      style={{ backgroundColor: '#181c62' }}
       className="flex items-center justify-between px-6 py-3 text-white"
     >
       <div className="flex items-center gap-6">

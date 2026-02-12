@@ -1,12 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore.ts';
-import { canCreateCase, canSubmitToFin, isFinRole, isFagRole } from '../../lib/roles.ts';
+import { canCreateCase, canSubmitToFin, isFinRole, isFagRole, isAdmin } from '../../lib/roles.ts';
 import {
   LayoutList,
   PlusCircle,
   Send,
   Inbox,
   CalendarDays,
+  Settings,
 } from 'lucide-react';
 
 interface NavItem {
@@ -50,6 +51,12 @@ export function Sidebar() {
       label: 'Innspill fra FAG',
       icon: <Inbox size={20} />,
       show: isFinRole(role) && !isFagRole(role),
+    },
+    {
+      to: '/admin/case-types',
+      label: 'Sakstyper',
+      icon: <Settings size={20} />,
+      show: isAdmin(role),
     },
   ];
 

@@ -100,3 +100,13 @@ export interface SubmissionCase {
   status: string;
   amount: number | null;
 }
+
+export interface CaseTypeDefinition {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  isActive: boolean;
+  sortOrder: number;
+  fields: { key: string; label: string; required: boolean }[];
+}

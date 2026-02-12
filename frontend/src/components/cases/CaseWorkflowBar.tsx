@@ -5,7 +5,7 @@ interface CaseWorkflowBarProps {
   currentStatus: string;
 }
 
-const FAG_STEPS = ['draft', 'under_arbeid', 'til_avklaring', 'klarert'];
+const FAG_STEPS = ['draft', 'under_arbeid', 'til_avklaring', 'klarert', 'godkjent_pol'];
 const FIN_STEPS = ['sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin'];
 
 export function CaseWorkflowBar({ currentStatus }: CaseWorkflowBarProps) {

@@ -8,12 +8,14 @@ export const CASE_TYPE_LABELS: Record<string, string> = {
   satsingsforslag: 'Satsingsforslag',
   budsjettiltak: 'Budsjettiltak',
   teknisk_justering: 'Teknisk justering',
+  andre_saker: 'Andre saker',
 };
 
 export const CASE_TYPE_DESCRIPTIONS: Record<string, string> = {
   satsingsforslag: 'Nytt initiativ eller vesentlig styrking. Alle felt tilgjengelige.',
   budsjettiltak: 'Endring i eksisterende bevilgning. Forenklet skjema.',
   teknisk_justering: 'Teknisk justering av bevilgning. Minimalt skjema.',
+  andre_saker: 'Forslag til budsjettet som ikke innebærer endring av bevilgning.',
 };
 
 export const CASE_TYPE_FIELDS: Record<string, CaseFieldConfig[]> = {
@@ -34,6 +36,12 @@ export const CASE_TYPE_FIELDS: Record<string, CaseFieldConfig[]> = {
   teknisk_justering: [
     { key: 'justification', label: 'Begrunnelse', required: true },
     { key: 'comment', label: 'Kommentar' },
+  ],
+  andre_saker: [
+    { key: 'proposalText', label: 'Beskrivelse av saken', required: true },
+    { key: 'justification', label: 'Begrunnelse', required: true },
+    { key: 'verbalConclusion', label: 'Forslag til verbal omtale' },
+    { key: 'comment', label: 'Kommentar (intern)' },
   ],
 };
 
