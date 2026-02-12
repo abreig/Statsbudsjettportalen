@@ -13,33 +13,33 @@ interface TestUser {
 
 const TEST_USERS: TestUser[] = [
   {
-    email: 'anna.hansen@nav.no',
-    name: 'Anna Hansen',
+    email: 'fag.kld@test.no',
+    name: 'Kari Nordmann',
     role: 'saksbehandler_fag',
-    department: 'Arbeids- og inkluderingsdepartementet',
+    department: 'Klima- og miljødepartementet',
   },
   {
-    email: 'bjorn.johansen@nav.no',
-    name: 'Bjorn Johansen',
+    email: 'budsjett.kld@test.no',
+    name: 'Ole Hansen',
     role: 'budsjettenhet_fag',
-    department: 'Arbeids- og inkluderingsdepartementet',
+    department: 'Klima- og miljødepartementet',
   },
   {
-    email: 'carla.berg@nav.no',
-    name: 'Carla Berg',
-    role: 'saksbehandler_fag',
-    department: 'Helse- og omsorgsdepartementet',
-  },
-  {
-    email: 'daniel.fin@nav.no',
-    name: 'Daniel Eriksen',
+    email: 'fin.kld@test.no',
+    name: 'Eva Johansen',
     role: 'saksbehandler_fin',
     department: 'Finansdepartementet',
   },
   {
-    email: 'eva.fin@nav.no',
-    name: 'Eva Nilsen',
+    email: 'undirdir.fin@test.no',
+    name: 'Per Olsen',
     role: 'underdirektor_fin',
+    department: 'Finansdepartementet',
+  },
+  {
+    email: 'admin@test.no',
+    name: 'Admin Bruker',
+    role: 'administrator',
     department: 'Finansdepartementet',
   },
 ];
