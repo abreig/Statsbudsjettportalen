@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     host: true, // Bind 0.0.0.0 – required for Codespaces port forwarding
     port: 5173,
-    allowedHosts: ['.app.github.dev'], // Allow Codespaces forwarded host
+    allowedHosts: 'all', // Allow any forwarded host (Codespaces, Gitpod, etc.)
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
