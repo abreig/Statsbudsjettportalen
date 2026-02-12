@@ -109,6 +109,72 @@ GET    /api/submissions             # Innleveringer
 POST   /api/submissions             # Send innspill til FIN
 ```
 
+## Deployment (Azure Web Apps)
+
+Appen er klargjort for Azure Web Apps som en enkelt container der .NET-backend serverer React-frontend som statiske filer.
+
+### Forutsetninger i Azure
+
+1. **Azure Database for PostgreSQL** (Flexible Server)
+2. **Azure Web App for Containers** (Linux, B1 eller høyere)
+3. **Azure Container Registry** (for container-basert deploy)
+
+### Alternativ A: Container deploy (anbefalt)
+
+```bash
+# Bygg og test lokalt
+docker compose up --build
+
+# Push image til Azure Container Registry
+az acr login --name <din-acr>
+docker build -t <din-acr>.azurecr.io/statsbudsjettportalen:latest .
+docker push <din-acr>.azurecr.io/statsbudsjettportalen:latest
+
+# Oppdater Web App
+az webapp config container set \
+  --name <webapp-navn> \
+  --resource-group <rg> \
+  --container-image-name <din-acr>.azurecr.io/statsbudsjettportalen:latest
+```
+
+### Alternativ B: ZIP deploy
+
+```bash
+# Bygg frontend
+cd frontend && npm ci && npm run build && cd ..
+
+# Publiser backend
+cd backend/Statsbudsjettportalen.Api
+dotnet publish -c Release -o ../../publish
+
+# Kopier frontend til wwwroot
+cp -r ../../frontend/dist/* ../../publish/wwwroot/
+
+# Deploy
+cd ../../publish && zip -r ../deploy.zip .
+az webapp deploy --name <webapp-navn> --resource-group <rg> --src-path ../deploy.zip
+```
+
+### Azure App Settings (konfigurer i Azure Portal)
+
+| Setting | Verdi |
+|---------|-------|
+| `ConnectionStrings__DefaultConnection` | `Host=<pg-server>.postgres.database.azure.com;Database=statsbudsjett;Username=<user>;Password=<pass>;SSL Mode=Require` |
+| `JwtSettings__Secret` | `<tilfeldig-streng-minst-32-tegn>` |
+| `ASPNETCORE_ENVIRONMENT` | `Production` |
+| `WEBSITES_PORT` | `8080` |
+| `EnableSwagger` | `false` |
+
+### CI/CD
+
+To GitHub Actions-workflows er inkludert:
+- `.github/workflows/deploy.yml` - Container deploy via ACR
+- `.github/workflows/deploy-zip.yml` - ZIP deploy (enklere oppsett)
+
+Legg til disse GitHub Secrets:
+- `AZURE_WEBAPP_PUBLISH_PROFILE` - Last ned fra Azure Portal > Web App > Deployment Center
+- For container: `ACR_LOGIN_SERVER`, `ACR_USERNAME`, `ACR_PASSWORD`
+
 ## Prosjektstruktur
 
 ```

@@ -9,6 +9,24 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statsbudsjett"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: "Host=db;Database=statsbudsjett;Username=statsbudsjett;Password=localdev"
+      JwtSettings__Secret: "poc-secret-key-not-for-production-use-only-minimum-32-chars"
+      EnableSwagger: "true"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   pgdata:
