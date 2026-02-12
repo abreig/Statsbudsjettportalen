@@ -106,7 +106,18 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
     try
     {
-        await db.Database.MigrateAsync();
+        try
+        {
+            await db.Database.MigrateAsync();
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+        {
+            // Migration mismatch: tables exist but migration history doesn't match.
+            // Drop and recreate (safe for POC/dev — never do this in production).
+            logger.LogWarning("Migration mismatch detected (tables already exist). Dropping and recreating database...");
+            await db.Database.EnsureDeletedAsync();
+            await db.Database.MigrateAsync();
+        }
         logger.LogInformation("Database migration completed successfully");
 
         // RESET_DATABASE=true → wipe all data and re-seed (useful after testing)
