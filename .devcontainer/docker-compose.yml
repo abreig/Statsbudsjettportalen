@@ -1,0 +1,29 @@
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+    volumes:
+      - ..:/workspaces/Statsbudsjettportalen:cached
+    command: sleep infinity
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=db;Database=statsbudsjett;Username=statsbudsjett;Password=localdev
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: statsbudsjett
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: statsbudsjett
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U statsbudsjett"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  pgdata:

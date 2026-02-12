@@ -1,6 +1,8 @@
 {
   "name": "Statsbudsjettportalen",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 
   "features": {
     "ghcr.io/devcontainers/features/dotnet:2": {
@@ -10,8 +12,6 @@
       "version": "22"
     }
   },
-
-  "service": "app",
 
   "forwardPorts": [5173, 5000],
   "portsAttributes": {
