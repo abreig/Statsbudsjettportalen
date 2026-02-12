@@ -6,6 +6,10 @@ services:
     command: sleep infinity
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Database=statsbudsjett;Username=statsbudsjett;Password=localdev
+      # Pass through Codespaces env vars from host (empty locally, set in Codespaces)
+      - CODESPACES
+      - CODESPACE_NAME
+      - GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN
     depends_on:
       db:
         condition: service_healthy
