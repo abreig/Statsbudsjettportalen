@@ -1,0 +1,38 @@
+@import "tailwindcss";
+@import "@navikt/ds-css";
+
+/* Override Aksel colors with FIN profile */
+:root {
+  --a-surface-action: #1B5E99;
+  --a-surface-action-hover: #164d80;
+  --a-surface-action-active: #123f69;
+  --a-border-action: #1B5E99;
+  --a-border-action-hover: #164d80;
+  --a-text-action: #1B5E99;
+  --a-text-action-hover: #164d80;
+  --a-surface-action-subtle: #e8f0f7;
+  --a-surface-action-subtle-hover: #d1e1ef;
+
+  /* Custom application colors */
+  --color-primary: #1B5E99;
+  --color-primary-light: #2E75B6;
+  --color-fag: #4A7C59;
+  --color-fin: #C65911;
+  --color-success: #06893A;
+  --color-warning: #FF9100;
+  --color-error: #C30000;
+  --color-gray-50: #F5F5F5;
+  --color-gray-200: #E0E0E0;
+}
+
+body {
+  margin: 0;
+  font-family: "Source Sans 3", "Source Sans Pro", Arial, sans-serif;
+  background-color: var(--color-gray-50);
+}
+
+/* Utility classes for role-based coloring */
+.role-fag { color: var(--color-fag); }
+.role-fin { color: var(--color-fin); }
+.bg-fag { background-color: var(--color-fag); }
+.bg-fin { background-color: var(--color-fin); }
