@@ -22,15 +22,40 @@ FAG-FIN datautveksling med 10 P0/P1 brukerhistorier:
 | Database | PostgreSQL 16 |
 | Autentisering | Mock JWT (Entra ID i produksjon) |
 
-## Forutsetninger
+## Komme i gang
+
+### Alternativ A: GitHub Codespaces (anbefalt)
+
+Raskeste måte å komme i gang — ingen lokal installasjon nødvendig.
+
+1. Gå til repositoriet på GitHub
+2. Klikk **Code** → **Codespaces** → **Create codespace on main**
+3. Vent til devcontainer bygges ferdig (ca. 2-3 min). PostgreSQL, .NET 8 og Node 22 installeres automatisk.
+4. Start backend og frontend i to terminaler:
+
+```bash
+# Terminal 1 – Backend
+cd backend/Statsbudsjettportalen.Api && dotnet run
+```
+
+```bash
+# Terminal 2 – Frontend
+cd frontend && npm run dev
+```
+
+5. Codespaces åpner automatisk frontend-URLen (port 5173) i nettleseren. API-kall proxies automatisk til backend via Vite.
+
+> **Merk:** Dersom port 5173 ikke åpnes automatisk, gå til **Ports**-panelet (nederst i VS Code), høyreklikk port 5173, velg **Open in Browser**.
+
+### Alternativ B: Lokal utvikling
+
+#### Forutsetninger
 
 - Node.js 18+ (`node --version`)
 - .NET 8 SDK (`dotnet --version`)
 - PostgreSQL 16 (lokal installasjon eller Docker)
 
-## Komme i gang
-
-### 1. Database
+#### 1. Database
 
 ```bash
 # Start PostgreSQL og opprett database
@@ -43,18 +68,17 @@ Eller med Docker:
 docker compose up -d
 ```
 
-### 2. Backend
+#### 2. Backend
 
 ```bash
 cd backend/Statsbudsjettportalen.Api
 dotnet restore
-dotnet ef database update   # Kjør migrasjoner og seed data
-dotnet run --urls="http://localhost:5000"
+dotnet run
 ```
 
 API-dokumentasjon: http://localhost:5000/swagger
 
-### 3. Frontend
+#### 3. Frontend
 
 ```bash
 cd frontend
