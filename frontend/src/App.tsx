@@ -9,6 +9,7 @@ import { CaseCreatePage } from './pages/CaseCreatePage.tsx';
 import { CaseDetailPage } from './pages/CaseDetailPage.tsx';
 import { SubmissionPage } from './pages/SubmissionPage.tsx';
 import { VersionHistoryPage } from './pages/VersionHistoryPage.tsx';
+import { AdminCaseTypesPage } from './pages/AdminCaseTypesPage.tsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,6 +34,7 @@ function App() {
               <Route path="/cases/:id" element={<CaseDetailPage />} />
               <Route path="/cases/:id/history" element={<VersionHistoryPage />} />
               <Route path="/submissions" element={<SubmissionPage />} />
+              <Route path="/admin/case-types" element={<AdminCaseTypesPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />

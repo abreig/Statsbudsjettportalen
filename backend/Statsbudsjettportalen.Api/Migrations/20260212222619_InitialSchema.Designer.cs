@@ -12,7 +12,7 @@ using Statsbudsjettportalen.Api.Data;
 namespace Statsbudsjettportalen.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260212135309_InitialSchema")]
+    [Migration("20260212222619_InitialSchema")]
     partial class InitialSchema
     {
         /// <inheritdoc />
@@ -94,26 +94,6 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("BudgetRounds");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("30000000-0000-0000-0000-000000000001"),
-                            Deadline = new DateTime(2026, 8, 15, 23, 59, 59, 0, DateTimeKind.Utc),
-                            Name = "AUG2026",
-                            Status = "open",
-                            Type = "august",
-                            Year = 2026
-                        },
-                        new
-                        {
-                            Id = new Guid("30000000-0000-0000-0000-000000000002"),
-                            Deadline = new DateTime(2026, 3, 1, 23, 59, 59, 0, DateTimeKind.Utc),
-                            Name = "MARS2026",
-                            Status = "open",
-                            Type = "mars",
-                            Year = 2026
-                        });
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.Case", b =>
@@ -183,80 +163,6 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.HasIndex("BudgetRoundId", "DepartmentId");
 
                     b.ToTable("Cases");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("40000000-0000-0000-0000-000000000001"),
-                            Amount = 150000L,
-                            AssignedTo = new Guid("20000000-0000-0000-0000-000000000003"),
-                            BudgetRoundId = new Guid("30000000-0000-0000-0000-000000000001"),
-                            CaseName = "Økt bevilgning til Enova",
-                            CaseType = "satsingsforslag",
-                            Chapter = "1428",
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Origin = "fag",
-                            Post = "50",
-                            Status = "sendt_til_fin",
-                            UpdatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("40000000-0000-0000-0000-000000000002"),
-                            Amount = 50000L,
-                            AssignedTo = new Guid("20000000-0000-0000-0000-000000000001"),
-                            BudgetRoundId = new Guid("30000000-0000-0000-0000-000000000001"),
-                            CaseName = "Midler til opprydding i forurenset sjøbunn",
-                            CaseType = "budsjettiltak",
-                            Chapter = "1420",
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Origin = "fag",
-                            Post = "69",
-                            Status = "under_arbeid",
-                            UpdatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("40000000-0000-0000-0000-000000000003"),
-                            Amount = 200000L,
-                            AssignedTo = new Guid("20000000-0000-0000-0000-000000000002"),
-                            BudgetRoundId = new Guid("30000000-0000-0000-0000-000000000001"),
-                            CaseName = "Styrking av Norges bidrag til Det grønne klimafondet (GCF)",
-                            CaseType = "satsingsforslag",
-                            Chapter = "1482",
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Origin = "fag",
-                            Post = "73",
-                            Status = "klarert",
-                            UpdatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("40000000-0000-0000-0000-000000000004"),
-                            Amount = -30000L,
-                            AssignedTo = new Guid("20000000-0000-0000-0000-000000000001"),
-                            BudgetRoundId = new Guid("30000000-0000-0000-0000-000000000001"),
-                            CaseName = "Reduksjon i tilskudd til miljøteknologiordningen",
-                            CaseType = "teknisk_justering",
-                            Chapter = "1428",
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Origin = "fag",
-                            Post = "72",
-                            Status = "draft",
-                            UpdatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            Version = 1
-                        });
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseContent", b =>
@@ -313,57 +219,6 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("CaseContents");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("50000000-0000-0000-0000-000000000001"),
-                            BenefitPlan = "Kort sikt (1-2 år): Økt prosjektaktivitet. Mellomlang sikt (3-5 år): Reduksjon i energiforbruk. Lang sikt (5+ år): Varig reduksjon i utslipp.",
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000001"),
-                            Comment = "Sjekk tallgrunnlag mot Enovas siste årsrapport.",
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            GoalIndicator = "Reduserte klimagassutslipp under innsatsfordelingen",
-                            Justification = "Industrien står for en betydelig andel av Norges samlede klimagassutslipp. Flere aktører har meldt prosjekter som kan gi store utslippskutt, men mangler lønnsomhet uten støtte.",
-                            ProposalText = "Styrke Enovas arbeid med energieffektivisering i industrien for å redusere klimagassutslipp.",
-                            SocioeconomicAnalysis = "Tiltaket forventes å gi en kostnad på om lag 800-1000 kroner per tonn redusert CO2-ekvivalent.",
-                            VerbalConclusion = "Det varsles i Prop. 1 S at regjeringen tar sikte på å legge frem en opptrappingsplan for energieffektivisering innen 2050.",
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("50000000-0000-0000-0000-000000000002"),
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000002"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            Justification = "Flere havneområder har dokumentert forurensning som påvirker marint miljø og folkehelse.",
-                            ProposalText = "Bevilge midler til opprydding av forurenset sjøbunn i prioriterte havneområder.",
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("50000000-0000-0000-0000-000000000003"),
-                            BenefitPlan = "Årlig rapportering gjennom GCFs resultatrammeverk.",
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000003"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            GoalIndicator = "Økt internasjonal klimafinansiering",
-                            Justification = "Norge har forpliktet seg til økt klimafinansiering gjennom Parisavtalen.",
-                            ProposalText = "Øke Norges bidrag til Det grønne klimafondet for å styrke internasjonal klimafinansiering.",
-                            SocioeconomicAnalysis = "Investeringen forventes å gi betydelig avkastning i form av global utslippsreduksjon.",
-                            VerbalConclusion = "Regjeringen foreslår å øke bidraget til GCF som del av Norges internasjonale klimainnsats.",
-                            Version = 1
-                        },
-                        new
-                        {
-                            Id = new Guid("50000000-0000-0000-0000-000000000004"),
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000004"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            CreatedBy = new Guid("20000000-0000-0000-0000-000000000001"),
-                            Justification = "Tilpasning til faktisk forbruksmønster.",
-                            ProposalText = "Teknisk justering av bevilgningen til miljøteknologiordningen.",
-                            Version = 1
-                        });
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseEvent", b =>
@@ -394,44 +249,51 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.HasIndex("CaseId");
 
                     b.ToTable("CaseEvents");
+                });
 
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("60000000-0000-0000-0000-000000000001"),
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000001"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            EventData = "{\"case_name\":\"Økt bevilgning til Enova\"}",
-                            EventType = "created",
-                            UserId = new Guid("20000000-0000-0000-0000-000000000001")
-                        },
-                        new
-                        {
-                            Id = new Guid("60000000-0000-0000-0000-000000000002"),
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000002"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            EventData = "{\"case_name\":\"Midler til opprydding i forurenset sjøbunn\"}",
-                            EventType = "created",
-                            UserId = new Guid("20000000-0000-0000-0000-000000000001")
-                        },
-                        new
-                        {
-                            Id = new Guid("60000000-0000-0000-0000-000000000003"),
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000003"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            EventData = "{\"case_name\":\"Styrking av Norges bidrag til Det grønne klimafondet (GCF)\"}",
-                            EventType = "created",
-                            UserId = new Guid("20000000-0000-0000-0000-000000000001")
-                        },
-                        new
-                        {
-                            Id = new Guid("60000000-0000-0000-0000-000000000004"),
-                            CaseId = new Guid("40000000-0000-0000-0000-000000000004"),
-                            CreatedAt = new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc),
-                            EventData = "{\"case_name\":\"Reduksjon i tilskudd til miljøteknologiordningen\"}",
-                            EventType = "created",
-                            UserId = new Guid("20000000-0000-0000-0000-000000000001")
-                        });
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseTypeDefinition", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FieldsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("CaseTypeDefinitions");
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.Clearance", b =>
@@ -496,20 +358,6 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Departments");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Code = "KLD",
-                            Name = "Klima- og miljødepartementet"
-                        },
-                        new
-                        {
-                            Id = new Guid("10000000-0000-0000-0000-000000000002"),
-                            Code = "FIN",
-                            Name = "Finansdepartementet"
-                        });
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.Question", b =>
@@ -627,53 +475,6 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = new Guid("20000000-0000-0000-0000-000000000001"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Email = "fag.kld@test.no",
-                            FullName = "Kari Nordmann",
-                            IsActive = true,
-                            Role = "saksbehandler_fag"
-                        },
-                        new
-                        {
-                            Id = new Guid("20000000-0000-0000-0000-000000000002"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000001"),
-                            Email = "budsjett.kld@test.no",
-                            FullName = "Ole Hansen",
-                            IsActive = true,
-                            Role = "budsjettenhet_fag"
-                        },
-                        new
-                        {
-                            Id = new Guid("20000000-0000-0000-0000-000000000003"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000002"),
-                            Email = "fin.kld@test.no",
-                            FullName = "Eva Johansen",
-                            IsActive = true,
-                            Role = "saksbehandler_fin"
-                        },
-                        new
-                        {
-                            Id = new Guid("20000000-0000-0000-0000-000000000004"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000002"),
-                            Email = "undirdir.fin@test.no",
-                            FullName = "Per Olsen",
-                            IsActive = true,
-                            Role = "underdirektor_fin"
-                        },
-                        new
-                        {
-                            Id = new Guid("20000000-0000-0000-0000-000000000005"),
-                            DepartmentId = new Guid("10000000-0000-0000-0000-000000000002"),
-                            Email = "admin@test.no",
-                            FullName = "Admin Bruker",
-                            IsActive = true,
-                            Role = "administrator"
-                        });
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.Attachment", b =>

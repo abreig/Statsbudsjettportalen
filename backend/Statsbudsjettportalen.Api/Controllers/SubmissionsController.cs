@@ -62,9 +62,9 @@ public class SubmissionsController : ControllerBase
             .Where(c => dto.CaseIds.Contains(c.Id))
             .ToListAsync();
 
-        var invalidCases = cases.Where(c => c.Status != "klarert").ToList();
+        var invalidCases = cases.Where(c => c.Status != "godkjent_pol").ToList();
         if (invalidCases.Any())
-            return BadRequest(new { message = "Alle saker må ha status 'klarert' før de kan sendes til FIN" });
+            return BadRequest(new { message = "Alle saker må ha status 'Godkjent av POL' før de kan sendes til FIN" });
 
         var submission = new Submission
         {

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Statsbudsjettportalen.Api.Models;
 
@@ -5,138 +6,309 @@ namespace Statsbudsjettportalen.Api.Data;
 
 public static class SeedData
 {
-    // Deterministic GUIDs for seed data
-    public static readonly Guid DeptKldId = new("10000000-0000-0000-0000-000000000001");
-    public static readonly Guid DeptFinId = new("10000000-0000-0000-0000-000000000002");
-
-    public static readonly Guid UserFagKld = new("20000000-0000-0000-0000-000000000001");
-    public static readonly Guid UserBudsjettKld = new("20000000-0000-0000-0000-000000000002");
-    public static readonly Guid UserFinKld = new("20000000-0000-0000-0000-000000000003");
-    public static readonly Guid UserUndirdirFin = new("20000000-0000-0000-0000-000000000004");
-    public static readonly Guid UserAdmin = new("20000000-0000-0000-0000-000000000005");
-
-    public static readonly Guid RoundAug2026 = new("30000000-0000-0000-0000-000000000001");
-    public static readonly Guid RoundMars2026 = new("30000000-0000-0000-0000-000000000002");
-
-    public static readonly Guid Case1 = new("40000000-0000-0000-0000-000000000001");
-    public static readonly Guid Case2 = new("40000000-0000-0000-0000-000000000002");
-    public static readonly Guid Case3 = new("40000000-0000-0000-0000-000000000003");
-    public static readonly Guid Case4 = new("40000000-0000-0000-0000-000000000004");
-
-    public static readonly Guid Content1 = new("50000000-0000-0000-0000-000000000001");
-    public static readonly Guid Content2 = new("50000000-0000-0000-0000-000000000002");
-    public static readonly Guid Content3 = new("50000000-0000-0000-0000-000000000003");
-    public static readonly Guid Content4 = new("50000000-0000-0000-0000-000000000004");
-
-    public static readonly Guid Event1 = new("60000000-0000-0000-0000-000000000001");
-    public static readonly Guid Event2 = new("60000000-0000-0000-0000-000000000002");
-    public static readonly Guid Event3 = new("60000000-0000-0000-0000-000000000003");
-    public static readonly Guid Event4 = new("60000000-0000-0000-0000-000000000004");
+    // Deterministic GUID helper: namespace + index → stable GUID
+    private static Guid G(int ns, int idx) =>
+        new($"{ns:D8}-0000-0000-0000-{idx:D12}");
 
     private static readonly DateTime SeedDate = new(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc);
 
-    public static void Seed(ModelBuilder modelBuilder)
+    private static readonly (string Code, string Name)[] Departments =
+    [
+        ("AID", "Arbeids- og inkluderingsdepartementet"),
+        ("BFD", "Barne- og familiedepartementet"),
+        ("DFD", "Digitaliserings- og forvaltningsdepartementet"),
+        ("ED",  "Energidepartementet"),
+        ("FIN", "Finansdepartementet"),
+        ("FD",  "Forsvarsdepartementet"),
+        ("HOD", "Helse- og omsorgsdepartementet"),
+        ("JD",  "Justis- og beredskapsdepartementet"),
+        ("KLD", "Klima- og miljødepartementet"),
+        ("KDD", "Kommunal- og distriktsdepartementet"),
+        ("KUD", "Kultur- og likestillingsdepartementet"),
+        ("KD",  "Kunnskapsdepartementet"),
+        ("LMD", "Landbruks- og matdepartementet"),
+        ("NFD", "Nærings- og fiskeridepartementet"),
+        ("SD",  "Samferdselsdepartementet"),
+        ("UD",  "Utenriksdepartementet"),
+    ];
+
+    private static readonly string[] FagFirstNames =
+    [
+        "Kari", "Ole", "Eva", "Per", "Anna", "Bjørn", "Ingrid", "Erik",
+        "Marit", "Lars", "Hilde", "Tor", "Silje", "Hans", "Berit", "Jon",
+        "Marte", "Stein", "Gro", "Geir", "Randi", "Odd", "Turid", "Dag",
+        "Liv", "Alf", "Siri", "Nils", "Kristin", "Svein", "Else", "Trond",
+    ];
+
+    private static readonly string[] LastNames =
+    [
+        "Nordmann", "Hansen", "Johansen", "Olsen", "Larsen", "Andersen",
+        "Pedersen", "Nilsen", "Kristiansen", "Jensen", "Berg", "Haugen",
+        "Hagen", "Eriksen", "Bakken", "Solberg", "Moen", "Strand",
+        "Aas", "Lie", "Dahl", "Lund", "Svendsen", "Aasen",
+        "Brekke", "Fjeld", "Vik", "Rønning", "Hauge", "Bye",
+        "Tangen", "Borge",
+    ];
+
+    private static readonly string[] CaseTypes = ["satsingsforslag", "budsjettiltak", "teknisk_justering", "andre_saker"];
+    private static readonly string[] Statuses = ["draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol", "sendt_til_fin", "under_vurdering_fin"];
+
+    private static readonly string[] CaseNameTemplates =
+    [
+        "Økt bevilgning til {0}",
+        "Styrking av {0}",
+        "Midler til {0}",
+        "Reduksjon i tilskudd til {0}",
+        "Teknisk justering av {0}",
+        "Ny satsing på {0}",
+        "Videreføring av {0}",
+        "Effektivisering av {0}",
+        "Modernisering av {0}",
+        "Utredning av {0}",
+    ];
+
+    private static readonly Dictionary<string, string[]> DeptTopics = new()
     {
-        // Departments
-        modelBuilder.Entity<Department>().HasData(
-            new Department { Id = DeptKldId, Code = "KLD", Name = "Klima- og miljødepartementet" },
-            new Department { Id = DeptFinId, Code = "FIN", Name = "Finansdepartementet" }
-        );
+        ["AID"] = ["arbeidsmarkedstiltak", "inkluderingstilskudd", "NAV-digitalisering", "trygdeordninger", "integreringsprogram", "attføringstiltak", "dagpengeordningen", "arbeidsmiljøtilsyn"],
+        ["BFD"] = ["barnevernet", "familievern", "kontantstøtte", "foreldrepenger", "barnehager", "ungdomstiltak", "adopsjonsstøtte", "fritidskortet"],
+        ["DFD"] = ["digital infrastruktur", "Altinn 3", "ID-porten", "Digitaliseringsdirektoratet", "bredbåndsutbygging", "offentlig IT-sikkerhet", "felles datakatalog", "e-helse"],
+        ["ED"]  = ["fornybar energi", "Enova-ordningen", "energieffektivisering", "havvind", "hydrogen", "kraftnett", "petroleumstilsyn", "CO2-lagring"],
+        ["FD"]  = ["Forsvaret", "Heimevernet", "cyberforsvar", "militær infrastruktur", "alliert trening", "forsvarsmateriell", "veterantiltak", "beredskapslagre"],
+        ["HOD"] = ["sykehusøkonomi", "psykisk helse", "fastlegeordningen", "legemidler", "folkehelse", "eldreomsorg", "rusbehandling", "helseteknologi"],
+        ["JD"]  = ["politiet", "kriminalomsorgen", "domstolene", "sivil beredskap", "brannsikkerhet", "nødnett", "utlendingsforvaltning", "rettshjelp"],
+        ["KLD"] = ["klimatilpasning", "naturvern", "forurensning", "Enova", "klimafondet", "miljøteknologi", "artsmangfold", "vannforvaltning"],
+        ["KDD"] = ["kommuneøkonomi", "distriktspolitikk", "plan og bygg", "husbanken", "boligpolitikk", "regionalpolitikk", "kommunal digitalisering", "valggjennomføring"],
+        ["KUD"] = ["kultursektoren", "mediestøtte", "idrettsanlegg", "kulturfondet", "Norsk filminstitutt", "frivillighet", "likestillingstiltak", "språkpolitikk"],
+        ["KD"]  = ["høyere utdanning", "forskning", "grunnopplæring", "studentvelferd", "fagskolene", "kompetansereform", "lærerutdanning", "Forskningsrådet"],
+        ["LMD"] = ["jordbruksavtalen", "skogbruk", "reindrift", "matforskning", "Mattilsynet", "økologisk landbruk", "importvern", "dyrevelferd"],
+        ["NFD"] = ["næringsutvikling", "Innovasjon Norge", "sjømatnæringen", "eksportfremme", "havbruk", "mineralnæring", "romvirksomhet", "konkurransepolitikk"],
+        ["SD"]  = ["vegutbygging", "jernbane", "luftfart", "sjøtransport", "kollektivtransport", "Nye Veier", "Bane NOR", "trafikksikkerhet"],
+        ["UD"]  = ["utviklingshjelp", "humanitær bistand", "FN-bidrag", "EØS-midler", "utenrikstjenesten", "eksportkontroll", "freds- og forsoningsarbeid", "nordområdepolitikk"],
+    };
 
-        // Users
-        modelBuilder.Entity<User>().HasData(
-            new User { Id = UserFagKld, Email = "fag.kld@test.no", FullName = "Kari Nordmann", DepartmentId = DeptKldId, Role = "saksbehandler_fag" },
-            new User { Id = UserBudsjettKld, Email = "budsjett.kld@test.no", FullName = "Ole Hansen", DepartmentId = DeptKldId, Role = "budsjettenhet_fag" },
-            new User { Id = UserFinKld, Email = "fin.kld@test.no", FullName = "Eva Johansen", DepartmentId = DeptFinId, Role = "saksbehandler_fin" },
-            new User { Id = UserUndirdirFin, Email = "undirdir.fin@test.no", FullName = "Per Olsen", DepartmentId = DeptFinId, Role = "underdirektor_fin" },
-            new User { Id = UserAdmin, Email = "admin@test.no", FullName = "Admin Bruker", DepartmentId = DeptFinId, Role = "administrator" }
-        );
+    /// <summary>
+    /// Seeds the database at runtime (called from Program.cs after migration).
+    /// Idempotent: skips if departments already exist.
+    /// </summary>
+    public static async Task SeedAsync(AppDbContext db)
+    {
+        if (await db.Departments.AnyAsync())
+            return; // Already seeded
 
-        // Budget Rounds
-        modelBuilder.Entity<BudgetRound>().HasData(
-            new BudgetRound { Id = RoundAug2026, Name = "AUG2026", Type = "august", Year = 2026, Status = "open", Deadline = new DateTime(2026, 8, 15, 23, 59, 59, DateTimeKind.Utc) },
-            new BudgetRound { Id = RoundMars2026, Name = "MARS2026", Type = "mars", Year = 2026, Status = "open", Deadline = new DateTime(2026, 3, 1, 23, 59, 59, DateTimeKind.Utc) }
-        );
+        // ── Case Type Definitions ───────────────────────
+        var caseTypeDefs = new List<CaseTypeDefinition>
+        {
+            new()
+            {
+                Id = G(90, 1), Code = "satsingsforslag", Name = "Satsingsforslag",
+                Description = "Nytt initiativ eller vesentlig styrking. Alle felt tilgjengelige.",
+                SortOrder = 1,
+                FieldsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { key = "proposalText", label = "Forslag til omtale i materialet", required = true },
+                    new { key = "justification", label = "Begrunnelse for forslaget", required = true },
+                    new { key = "verbalConclusion", label = "FAGs forslag til verbalkonklusjon", required = false },
+                    new { key = "socioeconomicAnalysis", label = "Samfunnsøkonomisk analyse", required = false },
+                    new { key = "goalIndicator", label = "Mål og resultatindikator", required = false },
+                    new { key = "benefitPlan", label = "Gevinstrealiseringsplan", required = false },
+                    new { key = "comment", label = "Kommentar (intern)", required = false },
+                }),
+            },
+            new()
+            {
+                Id = G(90, 2), Code = "budsjettiltak", Name = "Budsjettiltak",
+                Description = "Endring i eksisterende bevilgning. Forenklet skjema.",
+                SortOrder = 2,
+                FieldsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { key = "proposalText", label = "Forslag til omtale", required = true },
+                    new { key = "justification", label = "Begrunnelse", required = true },
+                    new { key = "comment", label = "Kommentar", required = false },
+                }),
+            },
+            new()
+            {
+                Id = G(90, 3), Code = "teknisk_justering", Name = "Teknisk justering",
+                Description = "Teknisk justering av bevilgning. Minimalt skjema.",
+                SortOrder = 3,
+                FieldsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { key = "justification", label = "Begrunnelse", required = true },
+                    new { key = "comment", label = "Kommentar", required = false },
+                }),
+            },
+            new()
+            {
+                Id = G(90, 4), Code = "andre_saker", Name = "Andre saker",
+                Description = "Forslag til budsjettet som ikke innebærer endring av bevilgning.",
+                SortOrder = 4,
+                FieldsJson = JsonSerializer.Serialize(new[]
+                {
+                    new { key = "proposalText", label = "Beskrivelse av saken", required = true },
+                    new { key = "justification", label = "Begrunnelse", required = true },
+                    new { key = "verbalConclusion", label = "Forslag til verbal omtale", required = false },
+                    new { key = "comment", label = "Kommentar (intern)", required = false },
+                }),
+            },
+        };
+        db.CaseTypeDefinitions.AddRange(caseTypeDefs);
 
-        // Sample Cases
-        modelBuilder.Entity<Case>().HasData(
-            new Case
+        // ── Departments ─────────────────────────────────
+        var deptEntities = new List<Department>();
+        for (var i = 0; i < Departments.Length; i++)
+        {
+            deptEntities.Add(new Department
             {
-                Id = Case1, BudgetRoundId = RoundAug2026, DepartmentId = DeptKldId,
-                CaseName = "Økt bevilgning til Enova", Chapter = "1428", Post = "50",
-                Amount = 150000, CaseType = "satsingsforslag", Status = "sendt_til_fin",
-                AssignedTo = UserFinKld, CreatedBy = UserFagKld, Version = 1,
-                CreatedAt = SeedDate, UpdatedAt = SeedDate
-            },
-            new Case
+                Id = G(10, i + 1),
+                Code = Departments[i].Code,
+                Name = Departments[i].Name,
+            });
+        }
+        db.Departments.AddRange(deptEntities);
+
+        // ── Users ───────────────────────────────────────
+        var userEntities = new List<User>();
+        var finDeptId = deptEntities.First(d => d.Code == "FIN").Id;
+        var nameIdx = 0;
+
+        foreach (var dept in deptEntities)
+        {
+            if (dept.Code == "FIN")
             {
-                Id = Case2, BudgetRoundId = RoundAug2026, DepartmentId = DeptKldId,
-                CaseName = "Midler til opprydding i forurenset sjøbunn", Chapter = "1420", Post = "69",
-                Amount = 50000, CaseType = "budsjettiltak", Status = "under_arbeid",
-                AssignedTo = UserFagKld, CreatedBy = UserFagKld, Version = 1,
-                CreatedAt = SeedDate, UpdatedAt = SeedDate
-            },
-            new Case
-            {
-                Id = Case3, BudgetRoundId = RoundAug2026, DepartmentId = DeptKldId,
-                CaseName = "Styrking av Norges bidrag til Det grønne klimafondet (GCF)", Chapter = "1482", Post = "73",
-                Amount = 200000, CaseType = "satsingsforslag", Status = "klarert",
-                AssignedTo = UserBudsjettKld, CreatedBy = UserFagKld, Version = 1,
-                CreatedAt = SeedDate, UpdatedAt = SeedDate
-            },
-            new Case
-            {
-                Id = Case4, BudgetRoundId = RoundAug2026, DepartmentId = DeptKldId,
-                CaseName = "Reduksjon i tilskudd til miljøteknologiordningen", Chapter = "1428", Post = "72",
-                Amount = -30000, CaseType = "teknisk_justering", Status = "draft",
-                AssignedTo = UserFagKld, CreatedBy = UserFagKld, Version = 1,
-                CreatedAt = SeedDate, UpdatedAt = SeedDate
+                // FIN gets saksbehandler_fin, underdirektor_fin, administrator
+                userEntities.Add(new User
+                {
+                    Id = G(20, 100), Email = "saksbehandler.fin@test.no",
+                    FullName = "Eva Johansen", DepartmentId = dept.Id, Role = "saksbehandler_fin",
+                });
+                userEntities.Add(new User
+                {
+                    Id = G(20, 101), Email = "undirdir.fin@test.no",
+                    FullName = "Per Olsen", DepartmentId = dept.Id, Role = "underdirektor_fin",
+                });
+                userEntities.Add(new User
+                {
+                    Id = G(20, 102), Email = "admin@test.no",
+                    FullName = "Admin Bruker", DepartmentId = dept.Id, Role = "administrator",
+                });
             }
-        );
+            else
+            {
+                var fn1 = FagFirstNames[nameIdx % FagFirstNames.Length];
+                var ln1 = LastNames[nameIdx % LastNames.Length];
+                nameIdx++;
+                var fn2 = FagFirstNames[nameIdx % FagFirstNames.Length];
+                var ln2 = LastNames[nameIdx % LastNames.Length];
+                nameIdx++;
 
-        // Case Content (version 1 for each case)
-        modelBuilder.Entity<CaseContent>().HasData(
-            new CaseContent
-            {
-                Id = Content1, CaseId = Case1, Version = 1, CreatedBy = UserFagKld, CreatedAt = SeedDate,
-                ProposalText = "Styrke Enovas arbeid med energieffektivisering i industrien for å redusere klimagassutslipp.",
-                Justification = "Industrien står for en betydelig andel av Norges samlede klimagassutslipp. Flere aktører har meldt prosjekter som kan gi store utslippskutt, men mangler lønnsomhet uten støtte.",
-                VerbalConclusion = "Det varsles i Prop. 1 S at regjeringen tar sikte på å legge frem en opptrappingsplan for energieffektivisering innen 2050.",
-                SocioeconomicAnalysis = "Tiltaket forventes å gi en kostnad på om lag 800-1000 kroner per tonn redusert CO2-ekvivalent.",
-                GoalIndicator = "Reduserte klimagassutslipp under innsatsfordelingen",
-                BenefitPlan = "Kort sikt (1-2 år): Økt prosjektaktivitet. Mellomlang sikt (3-5 år): Reduksjon i energiforbruk. Lang sikt (5+ år): Varig reduksjon i utslipp.",
-                Comment = "Sjekk tallgrunnlag mot Enovas siste årsrapport."
-            },
-            new CaseContent
-            {
-                Id = Content2, CaseId = Case2, Version = 1, CreatedBy = UserFagKld, CreatedAt = SeedDate,
-                ProposalText = "Bevilge midler til opprydding av forurenset sjøbunn i prioriterte havneområder.",
-                Justification = "Flere havneområder har dokumentert forurensning som påvirker marint miljø og folkehelse."
-            },
-            new CaseContent
-            {
-                Id = Content3, CaseId = Case3, Version = 1, CreatedBy = UserFagKld, CreatedAt = SeedDate,
-                ProposalText = "Øke Norges bidrag til Det grønne klimafondet for å styrke internasjonal klimafinansiering.",
-                Justification = "Norge har forpliktet seg til økt klimafinansiering gjennom Parisavtalen.",
-                VerbalConclusion = "Regjeringen foreslår å øke bidraget til GCF som del av Norges internasjonale klimainnsats.",
-                SocioeconomicAnalysis = "Investeringen forventes å gi betydelig avkastning i form av global utslippsreduksjon.",
-                GoalIndicator = "Økt internasjonal klimafinansiering",
-                BenefitPlan = "Årlig rapportering gjennom GCFs resultatrammeverk."
-            },
-            new CaseContent
-            {
-                Id = Content4, CaseId = Case4, Version = 1, CreatedBy = UserFagKld, CreatedAt = SeedDate,
-                ProposalText = "Teknisk justering av bevilgningen til miljøteknologiordningen.",
-                Justification = "Tilpasning til faktisk forbruksmønster."
+                var code = dept.Code.ToLower();
+                userEntities.Add(new User
+                {
+                    Id = G(20, nameIdx - 1),
+                    Email = $"fag.{code}@test.no",
+                    FullName = $"{fn1} {ln1}",
+                    DepartmentId = dept.Id,
+                    Role = "saksbehandler_fag",
+                });
+                userEntities.Add(new User
+                {
+                    Id = G(20, nameIdx),
+                    Email = $"budsjett.{code}@test.no",
+                    FullName = $"{fn2} {ln2}",
+                    DepartmentId = dept.Id,
+                    Role = "budsjettenhet_fag",
+                });
             }
-        );
+        }
+        db.Users.AddRange(userEntities);
 
-        // Case Events (created events)
-        modelBuilder.Entity<CaseEvent>().HasData(
-            new CaseEvent { Id = Event1, CaseId = Case1, EventType = "created", UserId = UserFagKld, CreatedAt = SeedDate, EventData = "{\"case_name\":\"Økt bevilgning til Enova\"}" },
-            new CaseEvent { Id = Event2, CaseId = Case2, EventType = "created", UserId = UserFagKld, CreatedAt = SeedDate, EventData = "{\"case_name\":\"Midler til opprydding i forurenset sjøbunn\"}" },
-            new CaseEvent { Id = Event3, CaseId = Case3, EventType = "created", UserId = UserFagKld, CreatedAt = SeedDate, EventData = "{\"case_name\":\"Styrking av Norges bidrag til Det grønne klimafondet (GCF)\"}" },
-            new CaseEvent { Id = Event4, CaseId = Case4, EventType = "created", UserId = UserFagKld, CreatedAt = SeedDate, EventData = "{\"case_name\":\"Reduksjon i tilskudd til miljøteknologiordningen\"}" }
-        );
+        // ── Budget Rounds ───────────────────────────────
+        var roundAug = new BudgetRound
+        {
+            Id = G(30, 1), Name = "AUG2026", Type = "august", Year = 2026,
+            Status = "open", Deadline = new DateTime(2026, 8, 15, 23, 59, 59, DateTimeKind.Utc),
+        };
+        var roundMars = new BudgetRound
+        {
+            Id = G(30, 2), Name = "MARS2026", Type = "mars", Year = 2026,
+            Status = "open", Deadline = new DateTime(2026, 3, 1, 23, 59, 59, DateTimeKind.Utc),
+        };
+        db.BudgetRounds.AddRange(roundAug, roundMars);
+
+        // ── Cases (40 per FAG department = 600 total) ───
+        var caseCount = 0;
+        var chapters = new[] { "200", "225", "260", "300", "400", "500", "600", "700", "800", "900",
+            "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900" };
+
+        foreach (var dept in deptEntities.Where(d => d.Code != "FIN"))
+        {
+            var fagUser = userEntities.First(u => u.DepartmentId == dept.Id && u.Role == "saksbehandler_fag");
+            var budsjettUser = userEntities.First(u => u.DepartmentId == dept.Id && u.Role == "budsjettenhet_fag");
+            var topics = DeptTopics.GetValueOrDefault(dept.Code, ["generelt tiltak", "internt prosjekt", "driftsoptimalisering"]);
+
+            for (var i = 0; i < 40; i++)
+            {
+                caseCount++;
+                var caseType = CaseTypes[i % CaseTypes.Length];
+                var statusIdx = i % Statuses.Length;
+                var status = Statuses[statusIdx];
+                var topic = topics[i % topics.Length];
+                var template = CaseNameTemplates[i % CaseNameTemplates.Length];
+                var caseName = string.Format(template, topic);
+                var chapter = chapters[i % chapters.Length];
+                var post = ((i % 9) * 10 + 1).ToString("D2");
+                var isAndreSaker = caseType == "andre_saker";
+                var amount = isAndreSaker ? (long?)null : (long)((i + 1) * 10000 * (i % 3 == 0 ? -1 : 1));
+
+                var caseId = G(40, caseCount);
+                var assignedTo = statusIdx >= 3 ? budsjettUser.Id : fagUser.Id; // advanced statuses → budsjettenhet
+
+                db.Cases.Add(new Case
+                {
+                    Id = caseId,
+                    BudgetRoundId = i < 30 ? roundAug.Id : roundMars.Id,
+                    DepartmentId = dept.Id,
+                    CaseName = caseName,
+                    Chapter = isAndreSaker ? null : chapter,
+                    Post = isAndreSaker ? null : post,
+                    Amount = amount,
+                    CaseType = caseType,
+                    Status = status,
+                    AssignedTo = assignedTo,
+                    CreatedBy = fagUser.Id,
+                    Version = 1,
+                    CreatedAt = SeedDate.AddDays(caseCount),
+                    UpdatedAt = SeedDate.AddDays(caseCount).AddHours(caseCount % 24),
+                });
+
+                // Content version 1
+                db.CaseContents.Add(new CaseContent
+                {
+                    Id = G(50, caseCount),
+                    CaseId = caseId,
+                    Version = 1,
+                    ProposalText = caseType != "teknisk_justering"
+                        ? $"Forslag: {caseName}. Dette er et forslag knyttet til {dept.Name}."
+                        : null,
+                    Justification = $"Begrunnelse for {caseName.ToLower()}. Tiltaket er nødvendig for å oppnå målene i {dept.Code}s sektor.",
+                    Comment = i % 5 == 0 ? "Intern kommentar: sjekk tallgrunnlag." : null,
+                    CreatedBy = fagUser.Id,
+                    CreatedAt = SeedDate.AddDays(caseCount),
+                });
+
+                // Created event
+                db.CaseEvents.Add(new CaseEvent
+                {
+                    Id = G(60, caseCount),
+                    CaseId = caseId,
+                    EventType = "created",
+                    UserId = fagUser.Id,
+                    EventData = JsonSerializer.Serialize(new { case_name = caseName, case_type = caseType }),
+                    CreatedAt = SeedDate.AddDays(caseCount),
+                });
+            }
+        }
+
+        await db.SaveChangesAsync();
     }
 }

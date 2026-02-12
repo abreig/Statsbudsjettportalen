@@ -18,6 +18,7 @@ public class AppDbContext : DbContext
     public DbSet<Submission> Submissions => Set<Submission>();
     public DbSet<SubmissionCase> SubmissionCases => Set<SubmissionCase>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
+    public DbSet<CaseTypeDefinition> CaseTypeDefinitions => Set<CaseTypeDefinition>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -87,7 +88,8 @@ public class AppDbContext : DbContext
             .HasIndex(d => d.Code)
             .IsUnique();
 
-        // Seed data
-        SeedData.Seed(modelBuilder);
+        modelBuilder.Entity<CaseTypeDefinition>()
+            .HasIndex(ct => ct.Code)
+            .IsUnique();
     }
 }

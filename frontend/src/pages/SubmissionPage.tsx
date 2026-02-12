@@ -26,7 +26,7 @@ export function SubmissionPage() {
   const { data: cases, isLoading: casesLoading } = useCases({
     budget_round_id: selectedRound?.id,
     department_id: user?.departmentId,
-    status: 'klarert',
+    status: 'godkjent_pol',
   });
 
   const { data: submissions, isLoading: subsLoading } = useSubmissions({
@@ -92,7 +92,7 @@ export function SubmissionPage() {
         Send innspill til FIN
       </Heading>
       <BodyShort className="mb-6 text-gray-600">
-        {selectedRound.name} &mdash; Velg klarerte saker som skal sendes.
+        {selectedRound.name} &mdash; Velg godkjente saker som skal sendes.
       </BodyShort>
 
       {submitSuccess && (
@@ -107,7 +107,7 @@ export function SubmissionPage() {
       {/* Klarerte cases */}
       <div className="mb-8">
         <Heading size="small" level="2" className="mb-3">
-          Klarerte saker
+          Godkjente saker (POL)
         </Heading>
 
         {casesLoading && (
@@ -118,7 +118,7 @@ export function SubmissionPage() {
 
         {cases && cases.length === 0 && (
           <Alert variant="info">
-            Ingen klarerte saker tilgjengelig for innsending.
+            Ingen godkjente saker tilgjengelig for innsending.
           </Alert>
         )}
 

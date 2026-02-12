@@ -7,7 +7,8 @@ public class WorkflowService
         ["draft"] = ["under_arbeid"],
         ["under_arbeid"] = ["til_avklaring", "draft"],
         ["til_avklaring"] = ["klarert", "under_arbeid"],
-        ["klarert"] = ["sendt_til_fin", "under_arbeid"],
+        ["klarert"] = ["godkjent_pol", "under_arbeid"],
+        ["godkjent_pol"] = ["sendt_til_fin", "under_arbeid"],
         ["sendt_til_fin"] = ["under_vurdering_fin"],
         ["under_vurdering_fin"] = ["returnert_til_fag", "ferdigbehandlet_fin"],
         ["returnert_til_fag"] = ["under_arbeid"],
@@ -19,10 +20,10 @@ public class WorkflowService
     private static readonly Dictionary<string, HashSet<string>> RoleTransitions = new()
     {
         ["saksbehandler_fag"] = ["draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft"],
-        ["budsjettenhet_fag"] = ["draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft", "til_avklaring->klarert", "til_avklaring->under_arbeid", "klarert->sendt_til_fin", "klarert->under_arbeid"],
+        ["budsjettenhet_fag"] = ["draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft", "til_avklaring->klarert", "til_avklaring->under_arbeid", "klarert->godkjent_pol", "klarert->under_arbeid", "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid"],
         ["saksbehandler_fin"] = ["sendt_til_fin->under_vurdering_fin", "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin"],
         ["underdirektor_fin"] = ["under_vurdering_fin->ferdigbehandlet_fin"],
-        ["administrator"] = ["draft->under_arbeid", "under_arbeid->til_avklaring", "til_avklaring->klarert", "klarert->sendt_til_fin", "sendt_til_fin->under_vurdering_fin", "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin", "returnert_til_fag->under_arbeid"],
+        ["administrator"] = ["draft->under_arbeid", "under_arbeid->til_avklaring", "til_avklaring->klarert", "klarert->godkjent_pol", "godkjent_pol->sendt_til_fin", "sendt_til_fin->under_vurdering_fin", "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin", "returnert_til_fag->under_arbeid"],
     };
 
     public bool IsValidTransition(string currentStatus, string newStatus)

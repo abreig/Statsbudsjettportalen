@@ -14,6 +14,10 @@ export function isFinRole(role: string): boolean {
   return role === 'saksbehandler_fin' || role === 'underdirektor_fin';
 }
 
+export function isAdmin(role: string): boolean {
+  return role === 'administrator';
+}
+
 export function canCreateCase(role: string): boolean {
   return isFagRole(role);
 }

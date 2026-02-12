@@ -3,8 +3,6 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-#pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
-
 namespace Statsbudsjettportalen.Api.Migrations
 {
     /// <inheritdoc />
@@ -27,6 +25,25 @@ namespace Statsbudsjettportalen.Api.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_BudgetRounds", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CaseTypeDefinitions",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    IsActive = table.Column<bool>(type: "boolean", nullable: false),
+                    SortOrder = table.Column<int>(type: "integer", nullable: false),
+                    FieldsJson = table.Column<string>(type: "text", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CaseTypeDefinitions", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -279,69 +296,6 @@ namespace Statsbudsjettportalen.Api.Migrations
                         onDelete: ReferentialAction.Cascade);
                 });
 
-            migrationBuilder.InsertData(
-                table: "BudgetRounds",
-                columns: new[] { "Id", "Deadline", "Name", "Status", "Type", "Year" },
-                values: new object[,]
-                {
-                    { new Guid("30000000-0000-0000-0000-000000000001"), new DateTime(2026, 8, 15, 23, 59, 59, 0, DateTimeKind.Utc), "AUG2026", "open", "august", 2026 },
-                    { new Guid("30000000-0000-0000-0000-000000000002"), new DateTime(2026, 3, 1, 23, 59, 59, 0, DateTimeKind.Utc), "MARS2026", "open", "mars", 2026 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Departments",
-                columns: new[] { "Id", "Code", "Name" },
-                values: new object[,]
-                {
-                    { new Guid("10000000-0000-0000-0000-000000000001"), "KLD", "Klima- og miljødepartementet" },
-                    { new Guid("10000000-0000-0000-0000-000000000002"), "FIN", "Finansdepartementet" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Cases",
-                columns: new[] { "Id", "Amount", "AssignedTo", "BudgetRoundId", "CaseName", "CaseType", "Chapter", "CreatedAt", "CreatedBy", "DepartmentId", "Origin", "Post", "Status", "UpdatedAt", "Version" },
-                values: new object[,]
-                {
-                    { new Guid("40000000-0000-0000-0000-000000000001"), 150000L, new Guid("20000000-0000-0000-0000-000000000003"), new Guid("30000000-0000-0000-0000-000000000001"), "Økt bevilgning til Enova", "satsingsforslag", "1428", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), new Guid("10000000-0000-0000-0000-000000000001"), "fag", "50", "sendt_til_fin", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), 1 },
-                    { new Guid("40000000-0000-0000-0000-000000000002"), 50000L, new Guid("20000000-0000-0000-0000-000000000001"), new Guid("30000000-0000-0000-0000-000000000001"), "Midler til opprydding i forurenset sjøbunn", "budsjettiltak", "1420", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), new Guid("10000000-0000-0000-0000-000000000001"), "fag", "69", "under_arbeid", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), 1 },
-                    { new Guid("40000000-0000-0000-0000-000000000003"), 200000L, new Guid("20000000-0000-0000-0000-000000000002"), new Guid("30000000-0000-0000-0000-000000000001"), "Styrking av Norges bidrag til Det grønne klimafondet (GCF)", "satsingsforslag", "1482", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), new Guid("10000000-0000-0000-0000-000000000001"), "fag", "73", "klarert", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), 1 },
-                    { new Guid("40000000-0000-0000-0000-000000000004"), -30000L, new Guid("20000000-0000-0000-0000-000000000001"), new Guid("30000000-0000-0000-0000-000000000001"), "Reduksjon i tilskudd til miljøteknologiordningen", "teknisk_justering", "1428", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), new Guid("10000000-0000-0000-0000-000000000001"), "fag", "72", "draft", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), 1 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "Users",
-                columns: new[] { "Id", "DepartmentId", "Email", "FullName", "IsActive", "Role" },
-                values: new object[,]
-                {
-                    { new Guid("20000000-0000-0000-0000-000000000001"), new Guid("10000000-0000-0000-0000-000000000001"), "fag.kld@test.no", "Kari Nordmann", true, "saksbehandler_fag" },
-                    { new Guid("20000000-0000-0000-0000-000000000002"), new Guid("10000000-0000-0000-0000-000000000001"), "budsjett.kld@test.no", "Ole Hansen", true, "budsjettenhet_fag" },
-                    { new Guid("20000000-0000-0000-0000-000000000003"), new Guid("10000000-0000-0000-0000-000000000002"), "fin.kld@test.no", "Eva Johansen", true, "saksbehandler_fin" },
-                    { new Guid("20000000-0000-0000-0000-000000000004"), new Guid("10000000-0000-0000-0000-000000000002"), "undirdir.fin@test.no", "Per Olsen", true, "underdirektor_fin" },
-                    { new Guid("20000000-0000-0000-0000-000000000005"), new Guid("10000000-0000-0000-0000-000000000002"), "admin@test.no", "Admin Bruker", true, "administrator" }
-                });
-
-            migrationBuilder.InsertData(
-                table: "CaseContents",
-                columns: new[] { "Id", "BenefitPlan", "CaseId", "Comment", "CreatedAt", "CreatedBy", "FinAssessment", "FinRConclusion", "FinVerbal", "GoalIndicator", "Justification", "ProposalText", "SocioeconomicAnalysis", "VerbalConclusion", "Version" },
-                values: new object[,]
-                {
-                    { new Guid("50000000-0000-0000-0000-000000000001"), "Kort sikt (1-2 år): Økt prosjektaktivitet. Mellomlang sikt (3-5 år): Reduksjon i energiforbruk. Lang sikt (5+ år): Varig reduksjon i utslipp.", new Guid("40000000-0000-0000-0000-000000000001"), "Sjekk tallgrunnlag mot Enovas siste årsrapport.", new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), null, null, null, "Reduserte klimagassutslipp under innsatsfordelingen", "Industrien står for en betydelig andel av Norges samlede klimagassutslipp. Flere aktører har meldt prosjekter som kan gi store utslippskutt, men mangler lønnsomhet uten støtte.", "Styrke Enovas arbeid med energieffektivisering i industrien for å redusere klimagassutslipp.", "Tiltaket forventes å gi en kostnad på om lag 800-1000 kroner per tonn redusert CO2-ekvivalent.", "Det varsles i Prop. 1 S at regjeringen tar sikte på å legge frem en opptrappingsplan for energieffektivisering innen 2050.", 1 },
-                    { new Guid("50000000-0000-0000-0000-000000000002"), null, new Guid("40000000-0000-0000-0000-000000000002"), null, new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), null, null, null, null, "Flere havneområder har dokumentert forurensning som påvirker marint miljø og folkehelse.", "Bevilge midler til opprydding av forurenset sjøbunn i prioriterte havneområder.", null, null, 1 },
-                    { new Guid("50000000-0000-0000-0000-000000000003"), "Årlig rapportering gjennom GCFs resultatrammeverk.", new Guid("40000000-0000-0000-0000-000000000003"), null, new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), null, null, null, "Økt internasjonal klimafinansiering", "Norge har forpliktet seg til økt klimafinansiering gjennom Parisavtalen.", "Øke Norges bidrag til Det grønne klimafondet for å styrke internasjonal klimafinansiering.", "Investeringen forventes å gi betydelig avkastning i form av global utslippsreduksjon.", "Regjeringen foreslår å øke bidraget til GCF som del av Norges internasjonale klimainnsats.", 1 },
-                    { new Guid("50000000-0000-0000-0000-000000000004"), null, new Guid("40000000-0000-0000-0000-000000000004"), null, new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), new Guid("20000000-0000-0000-0000-000000000001"), null, null, null, null, "Tilpasning til faktisk forbruksmønster.", "Teknisk justering av bevilgningen til miljøteknologiordningen.", null, null, 1 }
-                });
-
-            migrationBuilder.InsertData(
-                table: "CaseEvents",
-                columns: new[] { "Id", "CaseId", "CreatedAt", "EventData", "EventType", "UserId" },
-                values: new object[,]
-                {
-                    { new Guid("60000000-0000-0000-0000-000000000001"), new Guid("40000000-0000-0000-0000-000000000001"), new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), "{\"case_name\":\"Økt bevilgning til Enova\"}", "created", new Guid("20000000-0000-0000-0000-000000000001") },
-                    { new Guid("60000000-0000-0000-0000-000000000002"), new Guid("40000000-0000-0000-0000-000000000002"), new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), "{\"case_name\":\"Midler til opprydding i forurenset sjøbunn\"}", "created", new Guid("20000000-0000-0000-0000-000000000001") },
-                    { new Guid("60000000-0000-0000-0000-000000000003"), new Guid("40000000-0000-0000-0000-000000000003"), new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), "{\"case_name\":\"Styrking av Norges bidrag til Det grønne klimafondet (GCF)\"}", "created", new Guid("20000000-0000-0000-0000-000000000001") },
-                    { new Guid("60000000-0000-0000-0000-000000000004"), new Guid("40000000-0000-0000-0000-000000000004"), new DateTime(2026, 1, 15, 10, 0, 0, 0, DateTimeKind.Utc), "{\"case_name\":\"Reduksjon i tilskudd til miljøteknologiordningen\"}", "created", new Guid("20000000-0000-0000-0000-000000000001") }
-                });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Attachments_CaseId",
                 table: "Attachments",
@@ -372,6 +326,12 @@ namespace Statsbudsjettportalen.Api.Migrations
                 name: "IX_Cases_Status",
                 table: "Cases",
                 column: "Status");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CaseTypeDefinitions_Code",
+                table: "CaseTypeDefinitions",
+                column: "Code",
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_Clearances_CaseId",
@@ -427,6 +387,9 @@ namespace Statsbudsjettportalen.Api.Migrations
 
             migrationBuilder.DropTable(
                 name: "CaseEvents");
+
+            migrationBuilder.DropTable(
+                name: "CaseTypeDefinitions");
 
             migrationBuilder.DropTable(
                 name: "Clearances");
