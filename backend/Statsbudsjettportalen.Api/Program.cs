@@ -84,13 +84,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Port binding
-if (isCodespaces)
+// Port binding – always bind 0.0.0.0 so port forwarding works in Codespaces / Docker
+if (builder.Environment.IsDevelopment())
 {
-    // Codespaces: bind to 0.0.0.0 so port forwarder can reach the backend
     builder.WebHost.UseUrls("http://0.0.0.0:5000");
 }
-else if (!builder.Environment.IsDevelopment())
+else
 {
     // Azure / production: use PORT env var
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
