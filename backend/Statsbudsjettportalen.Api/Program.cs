@@ -108,7 +108,19 @@ using (var scope = app.Services.CreateScope())
     {
         await db.Database.MigrateAsync();
         logger.LogInformation("Database migration completed successfully");
-        await SeedData.SeedAsync(db);
+
+        // RESET_DATABASE=true → wipe all data and re-seed (useful after testing)
+        var resetDb = Environment.GetEnvironmentVariable("RESET_DATABASE");
+        if (string.Equals(resetDb, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("RESET_DATABASE=true detected - wiping and re-seeding...");
+            await SeedData.ResetAndReseedAsync(db);
+            logger.LogInformation("Database reset and reseed completed");
+        }
+        else
+        {
+            await SeedData.SeedAsync(db);
+        }
         logger.LogInformation("Seed data check completed");
     }
     catch (Exception ex)

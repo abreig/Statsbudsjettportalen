@@ -90,20 +90,56 @@ Applikasjonen: http://localhost:5173
 
 ## Testbrukere
 
-| Bruker | E-post | Rolle | Departement |
-|--------|--------|-------|-------------|
-| Kari Nordmann | fag.kld@test.no | Saksbehandler FAG | KLD |
-| Ole Hansen | budsjett.kld@test.no | Budsjettenhet FAG | KLD |
-| Eva Johansen | fin.kld@test.no | Saksbehandler FIN | FIN |
-| Per Olsen | undirdir.fin@test.no | Underdirektør FIN | FIN |
-| Admin Bruker | admin@test.no | Administrator | FIN |
+Appen har 33 testbrukere: 2 per fagdepartement (15 dept.) + 3 FIN-brukere.
+
+**FIN / Admin:**
+
+| Bruker | E-post | Rolle |
+|--------|--------|-------|
+| Eva Johansen | saksbehandler.fin@test.no | Saksbehandler FIN |
+| Per Olsen | undirdir.fin@test.no | Underdirektør FIN |
+| Admin Bruker | admin@test.no | Administrator |
+
+**FAG-departement (eksempel KLD):**
+
+| Bruker | E-post | Rolle |
+|--------|--------|-------|
+| Berit Bakken | fag.kld@test.no | Saksbehandler FAG |
+| Jon Solberg | budsjett.kld@test.no | Budsjettenhet FAG |
+
+Alle 16 departementer (AID, BFD, DFD, ED, FIN, FD, HOD, JD, KLD, KDD, KUD, KD, LMD, NFD, SD, UD) følger mønsteret `fag.{kode}@test.no` og `budsjett.{kode}@test.no`.
 
 ## Statusflyt
 
 ```
-FAG: draft → under_arbeid → til_avklaring → klarert → sendt_til_fin
+FAG: draft → under_arbeid → til_avklaring → klarert → godkjent_pol → sendt_til_fin
 FIN: under_vurdering_fin → returnert_til_fag | ferdigbehandlet_fin
 ```
+
+## Nullstille databasen
+
+Hvis databasen havner i en ugyldig tilstand etter testing, kan den nullstilles til opprinnelig seed-data:
+
+**Alternativ 1: Miljøvariabel (ved oppstart)**
+```bash
+# Stopp backend, sett variabel, start på nytt
+RESET_DATABASE=true dotnet run --project backend/Statsbudsjettportalen.Api
+# Deretter kan du starte normalt igjen uten variabelen
+```
+
+**Alternativ 2: API-kall (uten omstart, krever admin-innlogging)**
+```bash
+# Først logg inn som admin og hent JWT-token
+TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@test.no"}' | jq -r .token)
+
+# Nullstill databasen
+curl -X POST http://localhost:5000/api/admin/reset-database \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+> Nullstilling sletter all data (inkl. endringer gjort via frontend) og gjenskaper 600 testsaker, 33 brukere og 16 departementer.
 
 ## API-endepunkter
 
@@ -131,6 +167,13 @@ PATCH  /api/questions/:id/answer    # Svar på spørsmål
 
 GET    /api/submissions             # Innleveringer
 POST   /api/submissions             # Send innspill til FIN
+
+GET    /api/case-types              # Sakstyper (alle)
+POST   /api/case-types              # Opprett sakstype (admin)
+PUT    /api/case-types/:id          # Oppdater sakstype (admin)
+DELETE /api/case-types/:id          # Slett sakstype (admin)
+
+POST   /api/admin/reset-database   # Nullstill database (admin, kun dev)
 ```
 
 ## Deployment (Azure Web Apps)
