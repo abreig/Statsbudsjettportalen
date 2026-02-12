@@ -34,16 +34,18 @@ Raskeste måte å komme i gang — ingen lokal installasjon nødvendig.
 4. Start backend og frontend i to terminaler:
 
 ```bash
-# Terminal 1 – Backend
-cd backend/Statsbudsjettportalen.Api && dotnet run
+# Terminal 1 – Backend (bruk --project så du slipper å tenke på riktig mappe)
+dotnet run --project backend/Statsbudsjettportalen.Api
 ```
 
 ```bash
 # Terminal 2 – Frontend
-cd frontend && npm run dev
+npm run dev --prefix frontend
 ```
 
 5. Codespaces åpner automatisk frontend-URLen (port 5173) i nettleseren. API-kall proxies automatisk til backend via Vite.
+
+> **Tips:** Du kan også starte begge med én kommando via VS Code: **Ctrl+Shift+P** → **Tasks: Run Build Task** → velg **Start hele appen (backend + frontend)**.
 
 > **Merk:** Dersom port 5173 ikke åpnes automatisk, gå til **Ports**-panelet (nederst i VS Code), høyreklikk port 5173, velg **Open in Browser**.
 

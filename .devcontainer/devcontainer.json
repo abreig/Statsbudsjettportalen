@@ -2,7 +2,7 @@
   "name": "Statsbudsjettportalen",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
-  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "workspaceFolder": "/workspaces/Statsbudsjettportalen",
 
   "features": {
     "ghcr.io/devcontainers/features/dotnet:2": {
