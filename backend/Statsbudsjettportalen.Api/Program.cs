@@ -39,18 +39,44 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// CORS - read allowed origins from config
+// CORS
+var isCodespaces = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CODESPACES"));
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
     ?? ["http://localhost:5173"];
+
+// In Codespaces, dynamically allow the forwarded frontend origin
+if (isCodespaces)
+{
+    var codespaceName = Environment.GetEnvironmentVariable("CODESPACE_NAME") ?? "";
+    var domain = Environment.GetEnvironmentVariable("GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN")
+        ?? "app.github.dev";
+    allowedOrigins =
+    [
+        ..allowedOrigins,
+        $"https://{codespaceName}-5173.{domain}",
+        $"https://{codespaceName}-5000.{domain}",
+    ];
+}
 
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        if (builder.Environment.IsDevelopment() || isCodespaces)
+        {
+            // In dev/Codespaces: reflect any origin (needed for dynamic Codespaces URLs)
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
     });
 });
 
@@ -58,10 +84,16 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Azure App Service sets PORT env var
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-if (!builder.Environment.IsDevelopment())
+// Port binding
+if (isCodespaces)
 {
+    // Codespaces: bind to 0.0.0.0 so port forwarder can reach the backend
+    builder.WebHost.UseUrls("http://0.0.0.0:5000");
+}
+else if (!builder.Environment.IsDevelopment())
+{
+    // Azure / production: use PORT env var
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
     builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 }
 
