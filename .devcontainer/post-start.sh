@@ -1,22 +1,62 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Ensure local PostgreSQL is running (installed via devcontainer features)
-if command -v pg_lsclusters &>/dev/null; then
-  if pg_lsclusters -h | grep -q "down"; then
-    echo "Starting PostgreSQL..."
-    pg_ctlcluster 16 main start || true
+echo "=== Statsbudsjettportalen: Starting services ==="
+
+# ── Determine PostgreSQL host ───────────────────────
+# In docker-compose the db container is reachable as "db".
+# Locally (no docker-compose) it runs on localhost.
+if getent hosts db &>/dev/null; then
+  DB_HOST="db"
+else
+  DB_HOST="localhost"
+  # Start local PostgreSQL if installed and not running
+  if command -v pg_lsclusters &>/dev/null; then
+    if pg_lsclusters -h | grep -q "down"; then
+      echo "Starting local PostgreSQL..."
+      pg_ctlcluster 16 main start || true
+    fi
   fi
 fi
 
-# Wait for PostgreSQL to accept connections
-for i in {1..10}; do
-  pg_isready -h localhost -p 5432 &>/dev/null && break
+# ── Wait for PostgreSQL ─────────────────────────────
+echo "Waiting for PostgreSQL at ${DB_HOST}:5432..."
+for i in {1..30}; do
+  if command -v pg_isready &>/dev/null; then
+    pg_isready -h "$DB_HOST" -p 5432 -q && break
+  else
+    # pg_isready not installed — try a raw TCP check
+    (echo >/dev/tcp/"$DB_HOST"/5432) 2>/dev/null && break
+  fi
   sleep 1
 done
+echo "PostgreSQL is ready at ${DB_HOST}:5432"
 
-# Ensure role and database exist
-su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='statsbudsjett'\" | grep -q 1 || psql -c \"CREATE ROLE statsbudsjett WITH LOGIN PASSWORD 'localdev' CREATEDB;\"" 2>/dev/null || true
-su - postgres -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname='statsbudsjett'\" | grep -q 1 || psql -c \"CREATE DATABASE statsbudsjett OWNER statsbudsjett;\"" 2>/dev/null || true
+# ── Start backend (.NET API) ────────────────────────
+WORKSPACE="${CODESPACE_VSCODE_FOLDER:-$(pwd)}"
+BACKEND_DIR="${WORKSPACE}/backend/Statsbudsjettportalen.Api"
 
-echo "PostgreSQL is ready on localhost:5432"
+if [ -d "$BACKEND_DIR" ]; then
+  echo "Starting backend..."
+  cd "$BACKEND_DIR"
+  ASPNETCORE_ENVIRONMENT=Development \
+    nohup dotnet run --urls "http://0.0.0.0:5000" \
+    > /tmp/backend.log 2>&1 &
+  echo "Backend started (PID $!, log: /tmp/backend.log)"
+fi
+
+# ── Start frontend (Vite) ───────────────────────────
+FRONTEND_DIR="${WORKSPACE}/frontend"
+
+if [ -d "$FRONTEND_DIR" ]; then
+  echo "Starting frontend..."
+  cd "$FRONTEND_DIR"
+  nohup npm run dev > /tmp/frontend.log 2>&1 &
+  echo "Frontend started (PID $!, log: /tmp/frontend.log)"
+fi
+
+echo ""
+echo "=== Services started ==="
+echo "Backend:  http://localhost:5000  (log: /tmp/backend.log)"
+echo "Frontend: http://localhost:5173  (log: /tmp/frontend.log)"
+echo ""
