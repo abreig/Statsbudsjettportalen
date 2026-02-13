@@ -28,8 +28,8 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   content_updated: 'Innhold oppdatert',
   submitted: 'Sendt til FIN',
   returned: 'Returnert til FAG',
-  question_asked: 'Sporsmal stilt',
-  question_answered: 'Sporsmal besvart',
+  question_asked: 'Spørsmål stilt',
+  question_answered: 'Spørsmål besvart',
   assigned: 'Tildelt',
 };
 

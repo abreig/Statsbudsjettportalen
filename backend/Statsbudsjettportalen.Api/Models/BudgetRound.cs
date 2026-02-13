@@ -20,6 +20,9 @@ public class BudgetRound
 
     public DateTime? Deadline { get; set; }
 
+    public DateTime? ClosedAt { get; set; }
+
     public ICollection<Case> Cases { get; set; } = new List<Case>();
     public ICollection<Submission> Submissions { get; set; } = new List<Submission>();
+    public ICollection<RoundFieldOverride> FieldOverrides { get; set; } = new List<RoundFieldOverride>();
 }

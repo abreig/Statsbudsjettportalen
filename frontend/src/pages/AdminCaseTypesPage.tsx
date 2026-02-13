@@ -342,7 +342,7 @@ export function AdminCaseTypesPage() {
       >
         <Modal.Body>
           <BodyShort>
-            Er du sikker pa at du vil slette sakstypen{' '}
+            Er du sikker på at du vil slette sakstypen{' '}
             <strong>{deleteConfirm?.name}</strong>? Sakstypen vil bli
             deaktivert og ikke lenger tilgjengelig for nye saker.
           </BodyShort>

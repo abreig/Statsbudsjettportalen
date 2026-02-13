@@ -67,6 +67,9 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime?>("Deadline")
                         .HasColumnType("timestamp with time zone");
 
@@ -135,6 +138,10 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<string>("ResponsibleDivision")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<string>("Post")
                         .HasMaxLength(10)
@@ -216,6 +223,42 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("CaseContents");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseOpinion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AssignedTo")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OpinionText")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RequestedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.ToTable("CaseOpinions");
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseEvent", b =>
@@ -392,6 +435,38 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.ToTable("Questions");
                 });
 
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.RoundFieldOverride", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BudgetRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CaseTypeCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FinFieldKeysJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BudgetRoundId", "CaseTypeCode")
+                        .IsUnique();
+
+                    b.ToTable("RoundFieldOverrides");
+                });
+
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.Submission", b =>
                 {
                     b.Property<Guid>("Id")
@@ -446,6 +521,10 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<Guid>("DepartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("Division")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(200)
@@ -463,6 +542,10 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Section")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
 
@@ -597,9 +680,33 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Navigation("Department");
                 });
 
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseOpinion", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.Case", "Case")
+                        .WithMany("Opinions")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.RoundFieldOverride", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.BudgetRound", "BudgetRound")
+                        .WithMany("FieldOverrides")
+                        .HasForeignKey("BudgetRoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BudgetRound");
+                });
+
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.BudgetRound", b =>
                 {
                     b.Navigation("Cases");
+
+                    b.Navigation("FieldOverrides");
 
                     b.Navigation("Submissions");
                 });
@@ -611,6 +718,8 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Navigation("ContentVersions");
 
                     b.Navigation("Events");
+
+                    b.Navigation("Opinions");
 
                     b.Navigation("Questions");
                 });

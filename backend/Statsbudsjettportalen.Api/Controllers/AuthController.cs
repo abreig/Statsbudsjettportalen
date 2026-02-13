@@ -31,7 +31,7 @@ public class AuthController : ControllerBase
         return Ok(new LoginResponse(token, new UserDto(
             user.Id, user.Email, user.FullName,
             user.DepartmentId, user.Department.Code, user.Department.Name,
-            user.Role
+            user.Role, user.Division, user.Section
         )));
     }
 
@@ -49,7 +49,7 @@ public class AuthController : ControllerBase
         return Ok(new UserDto(
             user.Id, user.Email, user.FullName,
             user.DepartmentId, user.Department.Code, user.Department.Name,
-            user.Role
+            user.Role, user.Division, user.Section
         ));
     }
 
@@ -63,7 +63,7 @@ public class AuthController : ControllerBase
             .Select(u => new UserDto(
                 u.Id, u.Email, u.FullName,
                 u.DepartmentId, u.Department.Code, u.Department.Name,
-                u.Role
+                u.Role, u.Division, u.Section
             ))
             .ToListAsync();
 

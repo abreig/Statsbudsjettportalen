@@ -6,6 +6,8 @@ export interface User {
   departmentCode: string;
   departmentName: string;
   role: string;
+  division: string | null;
+  section: string | null;
 }
 
 export interface BudgetRound {
@@ -15,6 +17,7 @@ export interface BudgetRound {
   year: number;
   status: string;
   deadline: string | null;
+  closedAt: string | null;
   caseCount: number;
 }
 
@@ -34,10 +37,25 @@ export interface BudgetCase {
   createdBy: string;
   createdByName: string;
   origin: string;
+  responsibleDivision: string | null;
   version: number;
   createdAt: string;
   updatedAt: string;
   currentContent: CaseContent | null;
+  opinions: CaseOpinion[] | null;
+}
+
+export interface CaseOpinion {
+  id: string;
+  caseId: string;
+  requestedBy: string;
+  requestedByName: string;
+  assignedTo: string;
+  assignedToName: string;
+  status: string;
+  opinionText: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
 }
 
 export interface CaseContent {

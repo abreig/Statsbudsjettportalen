@@ -2,11 +2,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCases,
   fetchCase,
+  fetchHistory,
   createCase,
   saveContent,
   changeStatus,
+  createOpinion,
+  resolveOpinion,
 } from '../api/cases.ts';
-import type { CaseCreatePayload, ContentUpdatePayload } from '../api/cases.ts';
+import type {
+  CaseCreatePayload,
+  ContentUpdatePayload,
+  CreateOpinionPayload,
+  ResolveOpinionPayload,
+  HistoryFilters,
+} from '../api/cases.ts';
 
 interface CaseFilters {
   budget_round_id?: string;
@@ -14,6 +23,7 @@ interface CaseFilters {
   status?: string;
   case_type?: string;
   search?: string;
+  division?: string;
 }
 
 export function useCases(filters: CaseFilters) {
@@ -29,6 +39,13 @@ export function useCase(id: string | undefined) {
     queryKey: ['cases', id],
     queryFn: () => fetchCase(id!),
     enabled: !!id,
+  });
+}
+
+export function useHistory(filters: HistoryFilters) {
+  return useQuery({
+    queryKey: ['history', filters],
+    queryFn: () => fetchHistory(filters),
   });
 }
 
@@ -59,6 +76,27 @@ export function useChangeStatus(caseId: string) {
       changeStatus(caseId, params.status, params.reason),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases'] });
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
+  });
+}
+
+export function useCreateOpinion(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateOpinionPayload) => createOpinion(caseId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
+  });
+}
+
+export function useResolveOpinion(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { opinionId: string; payload: ResolveOpinionPayload }) =>
+      resolveOpinion(params.opinionId, params.payload),
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
     },
   });

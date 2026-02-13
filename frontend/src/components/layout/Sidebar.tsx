@@ -8,6 +8,8 @@ import {
   Inbox,
   CalendarDays,
   Settings,
+  Building2,
+  Archive,
 } from 'lucide-react';
 
 interface NavItem {
@@ -47,10 +49,22 @@ export function Sidebar() {
       show: canSubmitToFin(role),
     },
     {
+      to: '/at-fin',
+      label: 'Hos FIN',
+      icon: <Building2 size={20} />,
+      show: isFagRole(role),
+    },
+    {
       to: '/cases',
       label: 'Innspill fra FAG',
       icon: <Inbox size={20} />,
       show: isFinRole(role) && !isFagRole(role),
+    },
+    {
+      to: '/history',
+      label: 'Historikk',
+      icon: <Archive size={20} />,
+      show: true,
     },
     {
       to: '/admin/case-types',

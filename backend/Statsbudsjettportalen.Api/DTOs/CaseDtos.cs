@@ -58,10 +58,35 @@ public record CaseResponseDto(
     Guid CreatedBy,
     string CreatedByName,
     string Origin,
+    string? ResponsibleDivision,
     int Version,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    CaseContentDto? CurrentContent
+    CaseContentDto? CurrentContent,
+    List<CaseOpinionDto>? Opinions
+);
+
+// Opinion (uttalelse) DTOs
+public record CaseOpinionDto(
+    Guid Id,
+    Guid CaseId,
+    Guid RequestedBy,
+    string RequestedByName,
+    Guid AssignedTo,
+    string AssignedToName,
+    string Status,
+    string? OpinionText,
+    DateTime CreatedAt,
+    DateTime? ResolvedAt
+);
+
+public record CreateOpinionDto(
+    Guid AssignedTo
+);
+
+public record ResolveOpinionDto(
+    string Status,   // "given" or "declined"
+    string? OpinionText
 );
 
 public record CaseContentDto(

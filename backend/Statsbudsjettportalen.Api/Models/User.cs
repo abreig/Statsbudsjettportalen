@@ -20,5 +20,11 @@ public class User
     [Required, MaxLength(30)]
     public string Role { get; set; } = string.Empty;
 
+    [MaxLength(100)]
+    public string? Division { get; set; } // Avdeling
+
+    [MaxLength(100)]
+    public string? Section { get; set; } // Seksjon (kun FIN)
+
     public bool IsActive { get; set; } = true;
 }
