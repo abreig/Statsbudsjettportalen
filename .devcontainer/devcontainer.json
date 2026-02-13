@@ -17,15 +17,19 @@
   "portsAttributes": {
     "5173": {
       "label": "Frontend (Vite)",
-      "onAutoForward": "openBrowser"
+      "onAutoForward": "openBrowser",
+      "requireLocalPort": true,
+      "protocol": "http"
     },
     "5000": {
       "label": "Backend (.NET API)",
-      "onAutoForward": "silent"
+      "onAutoForward": "silent",
+      "requireLocalPort": true,
+      "protocol": "http"
     },
     "5432": {
       "label": "PostgreSQL",
-      "onAutoForward": "silent"
+      "onAutoForward": "ignore"
     }
   },
 
