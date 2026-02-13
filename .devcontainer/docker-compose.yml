@@ -6,6 +6,14 @@ services:
     command: sleep infinity
     environment:
       - ConnectionStrings__DefaultConnection=Host=db;Database=statsbudsjett;Username=statsbudsjett;Password=localdev
+      # Ensure backend binds to all interfaces (required for Codespaces port forwarding)
+      - ASPNETCORE_URLS=http://0.0.0.0:5000
+      - ASPNETCORE_ENVIRONMENT=Development
+      # Codespaces detection – hardcoded so CORS/dynamic origins always activate
+      - CODESPACES=true
+      # Pass through dynamic Codespaces env vars from host
+      - CODESPACE_NAME
+      - GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN
     depends_on:
       db:
         condition: service_healthy

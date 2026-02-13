@@ -87,6 +87,31 @@ public static class SeedData
     };
 
     /// <summary>
+    /// Drops all data and re-seeds from scratch.
+    /// Use when the database gets into a bad state from testing.
+    /// </summary>
+    public static async Task ResetAndReseedAsync(AppDbContext db)
+    {
+        // Delete in dependency order (children first)
+        db.Attachments.RemoveRange(db.Attachments);
+        db.CaseEvents.RemoveRange(db.CaseEvents);
+        db.CaseContents.RemoveRange(db.CaseContents);
+        db.Clearances.RemoveRange(db.Clearances);
+        db.SubmissionCases.RemoveRange(db.SubmissionCases);
+        db.Submissions.RemoveRange(db.Submissions);
+        db.Questions.RemoveRange(db.Questions);
+        db.Cases.RemoveRange(db.Cases);
+        db.Users.RemoveRange(db.Users);
+        db.BudgetRounds.RemoveRange(db.BudgetRounds);
+        db.CaseTypeDefinitions.RemoveRange(db.CaseTypeDefinitions);
+        db.Departments.RemoveRange(db.Departments);
+        await db.SaveChangesAsync();
+
+        // Now re-seed
+        await SeedAsync(db);
+    }
+
+    /// <summary>
     /// Seeds the database at runtime (called from Program.cs after migration).
     /// Idempotent: skips if departments already exist.
     /// </summary>

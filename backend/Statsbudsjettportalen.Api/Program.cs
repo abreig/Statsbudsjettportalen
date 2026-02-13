@@ -84,13 +84,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Port binding
-if (isCodespaces)
+// Port binding – always bind 0.0.0.0 so port forwarding works in Codespaces / Docker
+if (builder.Environment.IsDevelopment())
 {
-    // Codespaces: bind to 0.0.0.0 so port forwarder can reach the backend
     builder.WebHost.UseUrls("http://0.0.0.0:5000");
 }
-else if (!builder.Environment.IsDevelopment())
+else
 {
     // Azure / production: use PORT env var
     var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
@@ -106,9 +105,32 @@ using (var scope = app.Services.CreateScope())
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<AppDbContext>>();
     try
     {
-        await db.Database.MigrateAsync();
+        try
+        {
+            await db.Database.MigrateAsync();
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+        {
+            // Migration mismatch: tables exist but migration history doesn't match.
+            // Drop and recreate (safe for POC/dev — never do this in production).
+            logger.LogWarning("Migration mismatch detected (tables already exist). Dropping and recreating database...");
+            await db.Database.EnsureDeletedAsync();
+            await db.Database.MigrateAsync();
+        }
         logger.LogInformation("Database migration completed successfully");
-        await SeedData.SeedAsync(db);
+
+        // RESET_DATABASE=true → wipe all data and re-seed (useful after testing)
+        var resetDb = Environment.GetEnvironmentVariable("RESET_DATABASE");
+        if (string.Equals(resetDb, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            logger.LogWarning("RESET_DATABASE=true detected - wiping and re-seeding...");
+            await SeedData.ResetAndReseedAsync(db);
+            logger.LogInformation("Database reset and reseed completed");
+        }
+        else
+        {
+            await SeedData.SeedAsync(db);
+        }
         logger.LogInformation("Seed data check completed");
     }
     catch (Exception ex)
