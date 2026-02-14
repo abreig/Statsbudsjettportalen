@@ -240,6 +240,11 @@ public class CasesController : ControllerBase
             Id = Guid.NewGuid(),
             CaseId = newCase.Id,
             Version = 1,
+            CaseName = dto.CaseName,
+            Chapter = dto.Chapter,
+            Post = dto.Post,
+            Amount = dto.Amount,
+            Status = "draft",
             ProposalText = dto.ProposalText,
             Justification = dto.Justification,
             VerbalConclusion = dto.VerbalConclusion,
@@ -271,22 +276,6 @@ public class CasesController : ControllerBase
 
         return CreatedAtAction(nameof(GetById), new { id = newCase.Id },
             MapToDto(newCase, content, users, dept?.Code));
-    }
-
-    [HttpPut("{id}")]
-    public async Task<ActionResult<CaseResponseDto>> Update(Guid id, [FromBody] CaseUpdateDto dto)
-    {
-        var c = await _db.Cases.Include(c => c.Department).FirstOrDefaultAsync(c => c.Id == id);
-        if (c == null) return NotFound();
-
-        if (dto.CaseName != null) c.CaseName = dto.CaseName;
-        if (dto.Chapter != null) c.Chapter = dto.Chapter;
-        if (dto.Post != null) c.Post = dto.Post;
-        if (dto.Amount.HasValue) c.Amount = dto.Amount;
-        c.UpdatedAt = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-        return Ok(new { message = "Sak oppdatert" });
     }
 
     [HttpPatch("{id}/status")]
@@ -390,6 +379,13 @@ public class CasesController : ControllerBase
             Id = Guid.NewGuid(),
             CaseId = id,
             Version = newVersion,
+            // Snapshot case-level fields
+            CaseName = dto.CaseName ?? c.CaseName,
+            Chapter = dto.Chapter ?? c.Chapter,
+            Post = dto.Post ?? c.Post,
+            Amount = dto.Amount ?? c.Amount,
+            Status = c.Status,
+            // Content fields
             ProposalText = dto.ProposalText,
             Justification = dto.Justification,
             VerbalConclusion = dto.VerbalConclusion,
@@ -405,6 +401,11 @@ public class CasesController : ControllerBase
         };
         _db.CaseContents.Add(content);
 
+        // Keep Case-level fields in sync
+        if (dto.CaseName != null) c.CaseName = dto.CaseName;
+        if (dto.Chapter != null) c.Chapter = dto.Chapter;
+        if (dto.Post != null) c.Post = dto.Post;
+        if (dto.Amount.HasValue) c.Amount = dto.Amount;
         c.Version = newVersion;
         c.UpdatedAt = DateTime.UtcNow;
 
@@ -423,6 +424,7 @@ public class CasesController : ControllerBase
         var user = await _db.Users.FindAsync(userId);
         return Ok(new CaseContentDto(
             content.Id, content.Version,
+            content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
             content.ProposalText, content.Justification, content.VerbalConclusion,
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
             content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
@@ -442,7 +444,8 @@ public class CasesController : ControllerBase
         var users = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
 
         return Ok(contents.Select(c => new CaseContentDto(
-            c.Id, c.Version, c.ProposalText, c.Justification, c.VerbalConclusion,
+            c.Id, c.Version, c.CaseName, c.Chapter, c.Post, c.Amount, c.Status,
+            c.ProposalText, c.Justification, c.VerbalConclusion,
             c.SocioeconomicAnalysis, c.GoalIndicator, c.BenefitPlan, c.Comment,
             c.FinAssessment, c.FinVerbal, c.FinRConclusion,
             c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""), c.CreatedAt
@@ -459,10 +462,11 @@ public class CasesController : ControllerBase
 
         var user = await _db.Users.FindAsync(content.CreatedBy);
         return Ok(new CaseContentDto(
-            content.Id, content.Version, content.ProposalText, content.Justification,
-            content.VerbalConclusion, content.SocioeconomicAnalysis, content.GoalIndicator,
-            content.BenefitPlan, content.Comment, content.FinAssessment, content.FinVerbal,
-            content.FinRConclusion, content.CreatedBy, user?.FullName ?? "", content.CreatedAt
+            content.Id, content.Version, content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+            content.ProposalText, content.Justification, content.VerbalConclusion,
+            content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan, content.Comment,
+            content.FinAssessment, content.FinVerbal, content.FinRConclusion,
+            content.CreatedBy, user?.FullName ?? "", content.CreatedAt
         ));
     }
 
@@ -672,7 +676,9 @@ public class CasesController : ControllerBase
         if (content != null)
         {
             contentDto = new CaseContentDto(
-                content.Id, content.Version, content.ProposalText, content.Justification,
+                content.Id, content.Version,
+                content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+                content.ProposalText, content.Justification,
                 content.VerbalConclusion, content.SocioeconomicAnalysis, content.GoalIndicator,
                 content.BenefitPlan, content.Comment,
                 showFinFields ? content.FinAssessment : null,

@@ -49,3 +49,101 @@ export const FIN_FIELDS_VISIBLE_TO_FAG = ['sendt_til_regjeringen', 'regjeringsbe
 export const AT_FIN_STATUSES = [
   'sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin',
 ];
+
+// ─── Transition logic (mirrors backend WorkflowService) ────────────
+
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  draft: ['under_arbeid'],
+  under_arbeid: ['til_avklaring', 'draft'],
+  til_avklaring: ['klarert', 'under_arbeid'],
+  klarert: ['godkjent_pol', 'under_arbeid', 'til_avklaring'],
+  godkjent_pol: ['sendt_til_fin', 'under_arbeid', 'til_avklaring', 'klarert'],
+  sendt_til_fin: ['under_vurdering_fin', 'godkjent_pol'],
+  under_vurdering_fin: ['returnert_til_fag', 'ferdigbehandlet_fin', 'sendt_til_fin'],
+  returnert_til_fag: ['under_arbeid'],
+  ferdigbehandlet_fin: ['sendt_til_regjeringen', 'under_vurdering_fin'],
+  sendt_til_regjeringen: ['regjeringsbehandlet', 'ferdigbehandlet_fin'],
+};
+
+const ROLE_TRANSITIONS: Record<string, Set<string>> = {
+  saksbehandler_fag: new Set([
+    'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
+  ]),
+  budsjettenhet_fag: new Set([
+    'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
+    'til_avklaring->klarert', 'til_avklaring->under_arbeid',
+    'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
+    'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
+    'sendt_til_fin->godkjent_pol',
+  ]),
+  saksbehandler_fin: new Set([
+    'sendt_til_fin->under_vurdering_fin',
+    'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
+    'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
+  ]),
+  underdirektor_fin: new Set([
+    'under_vurdering_fin->ferdigbehandlet_fin',
+    'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
+    'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
+  ]),
+  leder_fag: new Set([
+    'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
+    'til_avklaring->klarert', 'til_avklaring->under_arbeid',
+    'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
+    'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
+    'sendt_til_fin->godkjent_pol',
+  ]),
+  leder_fin: new Set([
+    'sendt_til_fin->under_vurdering_fin',
+    'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->sendt_til_fin',
+    'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
+    'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
+  ]),
+  administrator: new Set([
+    'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
+    'til_avklaring->klarert', 'til_avklaring->under_arbeid',
+    'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
+    'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
+    'sendt_til_fin->under_vurdering_fin', 'sendt_til_fin->godkjent_pol',
+    'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
+    'returnert_til_fag->under_arbeid',
+    'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
+    'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
+  ]),
+};
+
+const MAIN_FLOW = [
+  'draft', 'under_arbeid', 'til_avklaring', 'klarert', 'godkjent_pol',
+  'sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin',
+  'sendt_til_regjeringen', 'regjeringsbehandlet',
+];
+
+export interface StatusTransition {
+  status: string;
+  label: string;
+  isBackward: boolean;
+}
+
+export function getAllowedTransitions(currentStatus: string, userRole: string): StatusTransition[] {
+  const allAllowed = VALID_TRANSITIONS[currentStatus] ?? [];
+  const roleAllowed = ROLE_TRANSITIONS[userRole];
+  if (!roleAllowed) return [];
+
+  const currentIdx = MAIN_FLOW.indexOf(currentStatus);
+
+  return allAllowed
+    .filter((s) => roleAllowed.has(`${currentStatus}->${s}`))
+    .map((s) => {
+      const targetIdx = MAIN_FLOW.indexOf(s);
+      const isBackward = targetIdx >= 0 && currentIdx >= 0 && targetIdx < currentIdx;
+      return {
+        status: s,
+        label: s === 'returnert_til_fag'
+          ? 'Returner til FAG'
+          : isBackward
+            ? `Flytt tilbake til ${STATUS_LABELS[s]}`
+            : `Flytt til ${STATUS_LABELS[s]}`,
+        isBackward,
+      };
+    });
+}

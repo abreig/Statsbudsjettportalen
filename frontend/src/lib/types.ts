@@ -65,6 +65,11 @@ export interface CaseOpinion {
 export interface CaseContent {
   id: string;
   version: number;
+  caseName: string | null;
+  chapter: string | null;
+  post: string | null;
+  amount: number | null;
+  status: string | null;
   proposalText: string | null;
   justification: string | null;
   verbalConclusion: string | null;

@@ -25,6 +25,10 @@ public record CaseUpdateDto(
 );
 
 public record CaseContentUpdateDto(
+    string? CaseName,
+    string? Chapter,
+    string? Post,
+    long? Amount,
     string? ProposalText,
     string? Justification,
     string? VerbalConclusion,
@@ -107,6 +111,11 @@ public record ResolveOpinionDto(
 public record CaseContentDto(
     Guid Id,
     int Version,
+    string? CaseName,
+    string? Chapter,
+    string? Post,
+    long? Amount,
+    string? Status,
     string? ProposalText,
     string? Justification,
     string? VerbalConclusion,

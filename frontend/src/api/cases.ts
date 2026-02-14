@@ -54,6 +54,10 @@ export async function changeStatus(id: string, status: string, reason?: string, 
 }
 
 export interface ContentUpdatePayload {
+  caseName?: string | null;
+  chapter?: string | null;
+  post?: string | null;
+  amount?: number | null;
   proposalText?: string | null;
   justification?: string | null;
   verbalConclusion?: string | null;

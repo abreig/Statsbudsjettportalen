@@ -32,9 +32,10 @@ import { CaseWorkflowBar } from '../components/cases/CaseWorkflowBar.tsx';
 import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
-import { STATUS_LABELS, FAG_STATUS_FLOW, FIN_STATUS_FLOW, POST_FIN_FLOW, FIN_FIELDS_VISIBLE_TO_FAG } from '../lib/statusFlow.ts';
+import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, getAllowedTransitions } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
-import { isFagRole, isFinRole, canReturnToFag, canChangeResponsible } from '../lib/roles.ts';
+import { isFagRole, isFinRole, canChangeResponsible } from '../lib/roles.ts';
+import type { ContentUpdatePayload } from '../api/cases.ts';
 import type { CaseContent, CaseOpinion } from '../lib/types.ts';
 import apiClient from '../api/client.ts';
 
@@ -59,6 +60,7 @@ export function CaseDetailPage() {
   const [confirmAction, setConfirmAction] = useState<{
     status: string;
     label: string;
+    isBackward?: boolean;
   } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [statusComment, setStatusComment] = useState('');
@@ -79,9 +81,8 @@ export function CaseDetailPage() {
   const status = budgetCase?.status ?? '';
   const fagFields = CASE_TYPE_FIELDS[caseType] ?? [];
 
-  // Determine editability
-  const fagCanEdit = userIsFag && ['draft', 'under_arbeid', 'returnert_til_fag'].includes(status);
-  const finCanEdit = userIsFin && ['sendt_til_fin', 'under_vurdering_fin'].includes(status);
+  // All fields editable at all stages except when case is closed
+  const canEdit = status !== 'regjeringsbehandlet';
 
   // Punkt 3: FAG cannot see FIN fields between sendt_til_fin and ferdigbehandlet_fin
   // FAG CAN see FIN fields after sendt_til_regjeringen/regjeringsbehandlet
@@ -104,20 +105,29 @@ export function CaseDetailPage() {
   };
 
   const handleSave = () => {
-    if (!id) return;
-    const payload: Record<string, string | null> = {};
+    if (!id || !budgetCase) return;
+    const payload: ContentUpdatePayload = {
+      // Case-level fields
+      caseName: editedFields.caseName ?? budgetCase.caseName ?? null,
+      chapter: editedFields.chapter ?? budgetCase.chapter ?? null,
+      post: editedFields.post ?? budgetCase.post ?? null,
+      amount: editedFields.amount
+        ? Number(editedFields.amount)
+        : budgetCase.amount ?? null,
+    };
+    // Content fields
     for (const f of fagFields) {
-      payload[f.key] = getFieldValue(f.key) || null;
+      (payload as Record<string, unknown>)[f.key] = getFieldValue(f.key) || null;
     }
-    if (showFinFields) {
-      for (const f of FIN_FIELDS) {
-        payload[f.key] = getFieldValue(f.key) || null;
-      }
+    for (const f of FIN_FIELDS) {
+      (payload as Record<string, unknown>)[f.key] = getFieldValue(f.key) || null;
     }
+    // Any manually edited fields
     for (const [k, v] of Object.entries(editedFields)) {
-      payload[k] = v || null;
+      if (['chapter', 'post', 'amount', 'caseName'].includes(k)) continue;
+      (payload as Record<string, unknown>)[k] = v || null;
     }
-    saveContentMut.mutate(payload, {
+    saveContentMut.mutate(payload as Record<string, string | null>, {
       onSuccess: () => {
         setEditedFields({});
         setSaveSuccess(true);
@@ -125,66 +135,8 @@ export function CaseDetailPage() {
     });
   };
 
-  // Compute next status for the current role
-  const getNextStatuses = (): Array<{ status: string; label: string }> => {
-    const result: Array<{ status: string; label: string }> = [];
-
-    if (userIsFag) {
-      const flow = FAG_STATUS_FLOW;
-      const idx = flow.indexOf(status);
-      if (status === 'returnert_til_fag') {
-        result.push({
-          status: 'under_arbeid',
-          label: 'Gjenoppta arbeid',
-        });
-      } else if (idx >= 0 && idx < flow.length - 1) {
-        const next = flow[idx + 1];
-        result.push({
-          status: next,
-          label: `Flytt til ${STATUS_LABELS[next]}`,
-        });
-      }
-    }
-
-    if (userIsFin) {
-      const flow = FIN_STATUS_FLOW;
-      const idx = flow.indexOf(status);
-      if (idx >= 0 && idx < flow.length - 1) {
-        const next = flow[idx + 1];
-        result.push({
-          status: next,
-          label: `Flytt til ${STATUS_LABELS[next]}`,
-        });
-      }
-
-      // Post-FIN flow: ferdigbehandlet_fin → sendt_til_regjeringen → regjeringsbehandlet
-      const postIdx = POST_FIN_FLOW.indexOf(status);
-      if (postIdx >= 0 && postIdx < POST_FIN_FLOW.length - 1) {
-        const next = POST_FIN_FLOW[postIdx + 1];
-        // Only underdirektor_fin can do sendt_til_regjeringen → regjeringsbehandlet
-        if (next === 'regjeringsbehandlet' && role !== 'underdirektor_fin') {
-          // saksbehandler_fin cannot do this transition
-        } else {
-          // Avoid duplicate if already added from FIN_STATUS_FLOW
-          if (!result.some((r) => r.status === next)) {
-            result.push({
-              status: next,
-              label: `Flytt til ${STATUS_LABELS[next]}`,
-            });
-          }
-        }
-      }
-
-      if (canReturnToFag(role) && (status === 'sendt_til_fin' || status === 'under_vurdering_fin')) {
-        result.push({
-          status: 'returnert_til_fag',
-          label: 'Returner til FAG',
-        });
-      }
-    }
-
-    return result;
-  };
+  // Compute allowed status transitions for the current role
+  const getNextStatuses = () => getAllowedTransitions(status, role);
 
   const handleStatusChange = (newStatus: string, reason?: string, comment?: string) => {
     changeStatusMut.mutate(
@@ -290,10 +242,37 @@ export function CaseDetailPage() {
 
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
           <div>
-            <Label size="small" className="text-gray-500">
-              Beløp (1 000 kr)
-            </Label>
-            <BodyShort>{formatAmountNOK(budgetCase.amount)}</BodyShort>
+            <Label size="small" className="text-gray-500">Kapittel</Label>
+            {canEdit ? (
+              <TextField label="" hideLabel size="small"
+                value={editedFields.chapter ?? budgetCase.chapter ?? ''}
+                onChange={(e) => handleFieldChange('chapter', e.target.value)}
+              />
+            ) : (
+              <BodyShort>{budgetCase.chapter ?? '-'}</BodyShort>
+            )}
+          </div>
+          <div>
+            <Label size="small" className="text-gray-500">Post</Label>
+            {canEdit ? (
+              <TextField label="" hideLabel size="small"
+                value={editedFields.post ?? budgetCase.post ?? ''}
+                onChange={(e) => handleFieldChange('post', e.target.value)}
+              />
+            ) : (
+              <BodyShort>{budgetCase.post ?? '-'}</BodyShort>
+            )}
+          </div>
+          <div>
+            <Label size="small" className="text-gray-500">Beløp (1 000 kr)</Label>
+            {canEdit ? (
+              <TextField label="" hideLabel size="small" type="number"
+                value={editedFields.amount ?? String(budgetCase.amount ?? '')}
+                onChange={(e) => handleFieldChange('amount', e.target.value)}
+              />
+            ) : (
+              <BodyShort>{formatAmountNOK(budgetCase.amount)}</BodyShort>
+            )}
           </div>
           <div>
             <Label size="small" className="text-gray-500">
@@ -394,7 +373,7 @@ export function CaseDetailPage() {
               Handlinger:
             </Label>
 
-            {(fagCanEdit || finCanEdit) && (
+            {canEdit && (
               <Button
                 size="small"
                 variant="secondary"
@@ -426,8 +405,8 @@ export function CaseDetailPage() {
                 <Button
                   key={action.status}
                   size="small"
-                  variant="primary"
-                  icon={<ArrowRightCircle size={14} />}
+                  variant={action.isBackward ? 'secondary' : 'primary'}
+                  icon={action.isBackward ? <RotateCcw size={14} /> : <ArrowRightCircle size={14} />}
                   onClick={() => setConfirmAction(action)}
                   disabled={isLocked}
                 >
@@ -626,7 +605,7 @@ export function CaseDetailPage() {
         <div className="space-y-4">
           {fagFields.map((field) => {
             const value = getFieldValue(field.key);
-            const isEditable = fagCanEdit;
+            const isEditable = canEdit;
 
             if (isEditable) {
               return (
@@ -665,7 +644,7 @@ export function CaseDetailPage() {
           <div className="space-y-4">
             {FIN_FIELDS.map((field) => {
               const value = getFieldValue(field.key);
-              const isEditable = finCanEdit;
+              const isEditable = canEdit;
 
               if (isEditable) {
                 return (

@@ -2,19 +2,19 @@ namespace Statsbudsjettportalen.Api.Services;
 
 public class WorkflowService
 {
-    // Main workflow: draft → ... → ferdigbehandlet_fin → sendt_til_regjeringen → regjeringsbehandlet
+    // Main workflow with both forward and backward transitions
     private static readonly Dictionary<string, List<string>> ValidTransitions = new()
     {
         ["draft"] = ["under_arbeid"],
         ["under_arbeid"] = ["til_avklaring", "draft"],
         ["til_avklaring"] = ["klarert", "under_arbeid"],
-        ["klarert"] = ["godkjent_pol", "under_arbeid"],
-        ["godkjent_pol"] = ["sendt_til_fin", "under_arbeid"],
-        ["sendt_til_fin"] = ["under_vurdering_fin"],
-        ["under_vurdering_fin"] = ["returnert_til_fag", "ferdigbehandlet_fin"],
+        ["klarert"] = ["godkjent_pol", "under_arbeid", "til_avklaring"],
+        ["godkjent_pol"] = ["sendt_til_fin", "under_arbeid", "til_avklaring", "klarert"],
+        ["sendt_til_fin"] = ["under_vurdering_fin", "godkjent_pol"],
+        ["under_vurdering_fin"] = ["returnert_til_fag", "ferdigbehandlet_fin", "sendt_til_fin"],
         ["returnert_til_fag"] = ["under_arbeid"],
-        ["ferdigbehandlet_fin"] = ["sendt_til_regjeringen"],
-        ["sendt_til_regjeringen"] = ["regjeringsbehandlet"],
+        ["ferdigbehandlet_fin"] = ["sendt_til_regjeringen", "under_vurdering_fin"],
+        ["sendt_til_regjeringen"] = ["regjeringsbehandlet", "ferdigbehandlet_fin"],
     };
 
     private static readonly HashSet<string> FagRoles = ["saksbehandler_fag", "budsjettenhet_fag", "leder_fag"];
@@ -28,41 +28,52 @@ public class WorkflowService
         ["budsjettenhet_fag"] = [
             "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
             "til_avklaring->klarert", "til_avklaring->under_arbeid",
-            "klarert->godkjent_pol", "klarert->under_arbeid",
-            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid",
+            "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
+            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
+            "sendt_til_fin->godkjent_pol",
         ],
         ["saksbehandler_fin"] = [
             "sendt_til_fin->under_vurdering_fin",
             "under_vurdering_fin->returnert_til_fag",
             "under_vurdering_fin->ferdigbehandlet_fin",
+            "under_vurdering_fin->sendt_til_fin",
             "ferdigbehandlet_fin->sendt_til_regjeringen",
+            "ferdigbehandlet_fin->under_vurdering_fin",
         ],
         ["underdirektor_fin"] = [
             "under_vurdering_fin->ferdigbehandlet_fin",
             "ferdigbehandlet_fin->sendt_til_regjeringen",
+            "ferdigbehandlet_fin->under_vurdering_fin",
             "sendt_til_regjeringen->regjeringsbehandlet",
+            "sendt_til_regjeringen->ferdigbehandlet_fin",
         ],
         ["leder_fag"] = [
             "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
             "til_avklaring->klarert", "til_avklaring->under_arbeid",
-            "klarert->godkjent_pol", "klarert->under_arbeid",
-            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid",
+            "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
+            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
+            "sendt_til_fin->godkjent_pol",
         ],
         ["leder_fin"] = [
             "sendt_til_fin->under_vurdering_fin",
             "under_vurdering_fin->ferdigbehandlet_fin",
             "under_vurdering_fin->returnert_til_fag",
+            "under_vurdering_fin->sendt_til_fin",
             "ferdigbehandlet_fin->sendt_til_regjeringen",
+            "ferdigbehandlet_fin->under_vurdering_fin",
             "sendt_til_regjeringen->regjeringsbehandlet",
+            "sendt_til_regjeringen->ferdigbehandlet_fin",
         ],
         ["administrator"] = [
-            "draft->under_arbeid", "under_arbeid->til_avklaring",
-            "til_avklaring->klarert", "klarert->godkjent_pol",
-            "godkjent_pol->sendt_til_fin", "sendt_til_fin->under_vurdering_fin",
-            "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin",
+            "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
+            "til_avklaring->klarert", "til_avklaring->under_arbeid",
+            "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
+            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
+            "sendt_til_fin->under_vurdering_fin", "sendt_til_fin->godkjent_pol",
+            "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin", "under_vurdering_fin->sendt_til_fin",
             "returnert_til_fag->under_arbeid",
-            "ferdigbehandlet_fin->sendt_til_regjeringen",
-            "sendt_til_regjeringen->regjeringsbehandlet",
+            "ferdigbehandlet_fin->sendt_til_regjeringen", "ferdigbehandlet_fin->under_vurdering_fin",
+            "sendt_til_regjeringen->regjeringsbehandlet", "sendt_til_regjeringen->ferdigbehandlet_fin",
         ],
     };
 
@@ -97,12 +108,6 @@ public class WorkflowService
 
     public bool IsFagRole(string role) => FagRoles.Contains(role);
     public bool IsFinRole(string role) => FinRoles.Contains(role);
-
-    public bool IsFagEditableStatus(string status) =>
-        status is "draft" or "under_arbeid" or "returnert_til_fag";
-
-    public bool IsFinEditableStatus(string status) =>
-        status is "under_vurdering_fin";
 
     /// <summary>Whether FIN fields should be visible in the response for this role+status combo.</summary>
     public bool ShouldShowFinFields(string role, string status)

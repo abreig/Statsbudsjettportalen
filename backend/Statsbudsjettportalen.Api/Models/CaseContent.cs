@@ -12,6 +12,17 @@ public class CaseContent
 
     public int Version { get; set; }
 
+    // Case-level fields snapshotted at this version
+    [MaxLength(500)]
+    public string? CaseName { get; set; }
+    [MaxLength(10)]
+    public string? Chapter { get; set; }
+    [MaxLength(10)]
+    public string? Post { get; set; }
+    public long? Amount { get; set; }
+    [MaxLength(30)]
+    public string? Status { get; set; }
+
     public string? ProposalText { get; set; }
     public string? Justification { get; set; }
     public string? VerbalConclusion { get; set; }
