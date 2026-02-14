@@ -39,7 +39,8 @@ public record CaseContentUpdateDto(
 
 public record StatusChangeDto(
     string Status,
-    string? Reason
+    string? Reason,
+    string? Comment
 );
 
 public record CaseResponseDto(
@@ -66,22 +67,36 @@ public record CaseResponseDto(
     List<CaseOpinionDto>? Opinions
 );
 
-// Opinion (uttalelse) DTOs
+// Opinion (uttalelse/godkjenning) DTOs
 public record CaseOpinionDto(
     Guid Id,
     Guid CaseId,
+    string Type,
     Guid RequestedBy,
     string RequestedByName,
     Guid AssignedTo,
     string AssignedToName,
     string Status,
     string? OpinionText,
+    string? RequestComment,
+    Guid? ForwardedFromId,
+    Guid? OriginalOpinionId,
     DateTime CreatedAt,
     DateTime? ResolvedAt
 );
 
 public record CreateOpinionDto(
-    string AssignedTo
+    string AssignedTo,
+    string Type = "uttalelse",
+    string? Comment = null
+);
+
+public record ForwardApprovalDto(
+    Guid ForwardTo
+);
+
+public record ChangeResponsibleDto(
+    Guid NewAssignedTo
 );
 
 public record ResolveOpinionDto(

@@ -12,6 +12,7 @@ import { VersionHistoryPage } from './pages/VersionHistoryPage.tsx';
 import { AdminCaseTypesPage } from './pages/AdminCaseTypesPage.tsx';
 import { HistoryPage } from './pages/HistoryPage.tsx';
 import { AtFinPage } from './pages/AtFinPage.tsx';
+import { MySakerPage } from './pages/MySakerPage.tsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +33,7 @@ function App() {
             <Route element={<AppShell />}>
               <Route path="/budget-rounds" element={<BudgetRoundSelectPage />} />
               <Route path="/cases" element={<CaseOverviewPage />} />
+              <Route path="/my-cases" element={<MySakerPage />} />
               <Route path="/cases/new" element={<CaseCreatePage />} />
               <Route path="/cases/:id" element={<CaseDetailPage />} />
               <Route path="/cases/:id/history" element={<VersionHistoryPage />} />

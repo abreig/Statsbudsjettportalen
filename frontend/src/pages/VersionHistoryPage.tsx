@@ -31,7 +31,24 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   question_asked: 'Spørsmål stilt',
   question_answered: 'Spørsmål besvart',
   assigned: 'Tildelt',
+  responsible_changed: 'Ansvarlig saksbehandler endret',
+  opinion_requested: 'Uttalelse forespurt',
+  opinion_given: 'Uttalelse avgitt',
+  opinion_declined: 'Uttalelse avslått',
+  approval_requested: 'Godkjenning forespurt',
+  approval_approved: 'Godkjenning gitt',
+  approval_rejected: 'Godkjenning avslått',
+  approval_forwarded: 'Godkjenning videresendt',
 };
+
+function parseEventData(eventData: string | null | undefined): Record<string, unknown> | null {
+  if (!eventData) return null;
+  try {
+    return JSON.parse(eventData);
+  } catch {
+    return null;
+  }
+}
 
 function getEventIcon(eventType: string) {
   switch (eventType) {
@@ -143,38 +160,50 @@ export function VersionHistoryPage() {
               {/* Dot */}
               <div className="absolute left-3.5 top-2 h-3 w-3 rounded-full border-2 border-white bg-[var(--color-primary)] shadow-sm" />
 
-              {item.type === 'event' && item.event && (
-                <div className="flex-1 rounded-lg border border-gray-200 bg-white p-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    {getEventIcon(item.event.eventType)}
-                    <span className="font-medium">
-                      {EVENT_TYPE_LABELS[item.event.eventType] ??
-                        item.event.eventType}
-                    </span>
-                    {item.event.eventType === 'status_changed' &&
-                      item.event.eventData && (
+              {item.type === 'event' && item.event && (() => {
+                const parsed = parseEventData(item.event.eventData);
+                const toStatus = parsed?.to as string | undefined;
+                const reason = parsed?.reason as string | undefined;
+                const comment = parsed?.comment as string | undefined;
+                return (
+                  <div className="flex-1 rounded-lg border border-gray-200 bg-white p-4">
+                    <div className="flex items-center gap-2 text-sm">
+                      {getEventIcon(item.event.eventType)}
+                      <span className="font-medium">
+                        {EVENT_TYPE_LABELS[item.event.eventType] ??
+                          item.event.eventType}
+                      </span>
+                      {item.event.eventType === 'status_changed' && toStatus && (
                         <CaseStatusBadge
-                          status={item.event.eventData}
+                          status={toStatus}
                           size="xsmall"
                         />
                       )}
-                  </div>
-                  <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                    <span>{item.event.userName}</span>
-                    <span>&mdash;</span>
-                    <span>{formatDate(item.event.createdAt)}</span>
-                  </div>
-                  {item.event.eventData &&
-                    item.event.eventType === 'returned' && (
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
+                      <span>{item.event.userName}</span>
+                      <span>&mdash;</span>
+                      <span>{formatDate(item.event.createdAt)}</span>
+                    </div>
+                    {reason && (
                       <BodyShort
                         size="small"
                         className="mt-2 rounded bg-red-50 p-2 text-red-700"
                       >
-                        Begrunnelse: {item.event.eventData}
+                        Begrunnelse: {reason}
                       </BodyShort>
                     )}
-                </div>
-              )}
+                    {comment && (
+                      <BodyShort
+                        size="small"
+                        className="mt-2 rounded bg-gray-50 p-2 text-gray-700"
+                      >
+                        Kommentar: {comment}
+                      </BodyShort>
+                    )}
+                  </div>
+                );
+              })()}
 
               {item.type === 'version' && item.version && (
                 <div className="flex-1 rounded-lg border border-blue-200 bg-blue-50 p-4">

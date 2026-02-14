@@ -249,6 +249,12 @@ public static class SeedData
                     FullName = "Admin Bruker", DepartmentId = dept.Id, Role = "administrator",
                     Division = "Budsjettavdelingen", Section = FinSections[2].Section,
                 });
+                userEntities.Add(new User
+                {
+                    Id = G(20, 103), Email = "leder.fin@test.no",
+                    FullName = "Leder Finsen", DepartmentId = dept.Id, Role = "leder_fin",
+                    Division = "Budsjettavdelingen", Section = FinSections[0].Section,
+                });
             }
             else
             {
@@ -278,6 +284,18 @@ public static class SeedData
                     DepartmentId = dept.Id,
                     Role = "budsjettenhet_fag",
                     Division = divisions.Length > 1 ? divisions[1] : divisions[0],
+                });
+                // Leder for each FAG department
+                var fn3 = FagFirstNames[(nameIdx + 10) % FagFirstNames.Length];
+                var ln3 = LastNames[(nameIdx + 10) % LastNames.Length];
+                userEntities.Add(new User
+                {
+                    Id = G(20, nameIdx + 200),
+                    Email = $"leder.{code}@test.no",
+                    FullName = $"{fn3} {ln3}",
+                    DepartmentId = dept.Id,
+                    Role = "leder_fag",
+                    Division = divisions[0],
                 });
             }
         }

@@ -125,6 +125,61 @@ public class CasesController : ControllerBase
         }).ToList());
     }
 
+    [HttpGet("my-cases")]
+    public async Task<ActionResult<List<CaseResponseDto>>> GetMyCases([FromQuery] Guid? budget_round_id)
+    {
+        var userId = MockAuth.GetUserId(User);
+        var userRole = MockAuth.GetUserRole(User);
+
+        var query = _db.Cases
+            .Include(c => c.Department)
+            .Include(c => c.ContentVersions)
+            .Include(c => c.Opinions)
+            .Where(c => c.AssignedTo == userId);
+
+        if (budget_round_id.HasValue)
+            query = query.Where(c => c.BudgetRoundId == budget_round_id.Value);
+
+        var cases = await query.OrderByDescending(c => c.UpdatedAt).ToListAsync();
+
+        var userIds = cases.SelectMany(c => new[] { c.CreatedBy, c.AssignedTo })
+            .Where(id => id.HasValue || id != null)
+            .Select(id => id ?? Guid.Empty)
+            .Concat(cases.Select(c => c.CreatedBy))
+            .Distinct().ToList();
+
+        var users = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return Ok(cases.Select(c =>
+        {
+            var currentContent = c.ContentVersions.MaxBy(cv => cv.Version);
+            return MapToDto(c, currentContent, users, userRole: userRole);
+        }).ToList());
+    }
+
+    [HttpGet("my-tasks")]
+    public async Task<ActionResult<List<CaseOpinionDto>>> GetMyTasks()
+    {
+        var userId = MockAuth.GetUserId(User);
+
+        var pendingOpinions = await _db.CaseOpinions
+            .Include(o => o.Case)
+            .Where(o => o.AssignedTo == userId && o.Status == "pending")
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+
+        var userIds = pendingOpinions.SelectMany(o => new[] { o.RequestedBy, o.AssignedTo }).Distinct().ToList();
+        var users = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return Ok(pendingOpinions.Select(o => new CaseOpinionDto(
+            o.Id, o.CaseId, o.Type, o.RequestedBy,
+            users.GetValueOrDefault(o.RequestedBy, ""),
+            o.AssignedTo, users.GetValueOrDefault(o.AssignedTo, ""),
+            o.Status, o.OpinionText, o.RequestComment, o.ForwardedFromId, o.OriginalOpinionId,
+            o.CreatedAt, o.ResolvedAt
+        )).ToList());
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<CaseResponseDto>> GetById(Guid id)
     {
@@ -239,8 +294,12 @@ public class CasesController : ControllerBase
     {
         var userId = MockAuth.GetUserId(User);
         var userRole = MockAuth.GetUserRole(User);
-        var c = await _db.Cases.FindAsync(id);
+        var c = await _db.Cases.Include(c => c.Opinions).FirstOrDefaultAsync(c => c.Id == id);
         if (c == null) return NotFound();
+
+        // Block status change if there are pending sub-processes
+        if (WorkflowService.IsCaseLockedBySubProcess(c.Opinions))
+            return BadRequest(new { message = "Saken er låst – det finnes ventende uttalelser eller godkjenninger som må behandles først." });
 
         if (!_workflow.CanUserTransition(c.Status, dto.Status, userRole))
             return BadRequest(new { message = $"Ugyldig statusovergang fra '{c.Status}' til '{dto.Status}' for rollen '{userRole}'" });
@@ -258,7 +317,7 @@ public class CasesController : ControllerBase
             CaseId = id,
             EventType = "status_changed",
             UserId = userId,
-            EventData = JsonSerializer.Serialize(new { from = oldStatus, to = dto.Status, reason = dto.Reason }),
+            EventData = JsonSerializer.Serialize(new { from = oldStatus, to = dto.Status, reason = dto.Reason, comment = dto.Comment }),
             CreatedAt = DateTime.UtcNow,
         });
 
@@ -279,6 +338,38 @@ public class CasesController : ControllerBase
         }
 
         return Ok(new { message = $"Status endret til '{dto.Status}'", status = dto.Status });
+    }
+
+    [HttpPatch("{id}/assign")]
+    public async Task<IActionResult> ChangeResponsible(Guid id, [FromBody] ChangeResponsibleDto dto)
+    {
+        var userId = MockAuth.GetUserId(User);
+        var userRole = MockAuth.GetUserRole(User);
+        var c = await _db.Cases.FindAsync(id);
+        if (c == null) return NotFound();
+
+        if (!_workflow.CanChangeResponsible(userRole, userId, c.AssignedTo))
+            return Forbid();
+
+        var newAssignee = await _db.Users.FindAsync(dto.NewAssignedTo);
+        if (newAssignee == null) return BadRequest(new { message = "Bruker ikke funnet" });
+
+        var oldAssignedTo = c.AssignedTo;
+        c.AssignedTo = dto.NewAssignedTo;
+        c.UpdatedAt = DateTime.UtcNow;
+
+        _db.CaseEvents.Add(new CaseEvent
+        {
+            Id = Guid.NewGuid(),
+            CaseId = id,
+            EventType = "responsible_changed",
+            UserId = userId,
+            EventData = JsonSerializer.Serialize(new { from = oldAssignedTo, to = dto.NewAssignedTo, new_name = newAssignee.FullName }),
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Ansvarlig saksbehandler endret", assignedTo = dto.NewAssignedTo, assignedToName = newAssignee.FullName });
     }
 
     [HttpPost("{id}/content")]
@@ -401,6 +492,14 @@ public class CasesController : ControllerBase
         var c = await _db.Cases.FindAsync(id);
         if (c == null) return NotFound();
 
+        // Only the responsible handler can send for opinion/approval
+        if (c.AssignedTo != userId)
+            return BadRequest(new { message = "Bare ansvarlig saksbehandler kan sende til uttalelse/godkjenning." });
+
+        // Validate type
+        if (dto.Type != "uttalelse" && dto.Type != "godkjenning")
+            return BadRequest(new { message = "Ugyldig type. Må være 'uttalelse' eller 'godkjenning'." });
+
         // Resolve assignee: accept GUID or email
         Guid assigneeId;
         if (!Guid.TryParse(dto.AssignedTo, out assigneeId))
@@ -415,20 +514,23 @@ public class CasesController : ControllerBase
         {
             Id = Guid.NewGuid(),
             CaseId = id,
+            Type = dto.Type,
             RequestedBy = userId,
             AssignedTo = assigneeId,
             Status = "pending",
+            RequestComment = dto.Comment,
             CreatedAt = DateTime.UtcNow,
         };
         _db.CaseOpinions.Add(opinion);
 
+        var eventType = dto.Type == "godkjenning" ? "approval_requested" : "opinion_requested";
         _db.CaseEvents.Add(new CaseEvent
         {
             Id = Guid.NewGuid(),
             CaseId = id,
-            EventType = "opinion_requested",
+            EventType = eventType,
             UserId = userId,
-            EventData = JsonSerializer.Serialize(new { assigned_to = assigneeId }),
+            EventData = JsonSerializer.Serialize(new { assigned_to = assigneeId, type = dto.Type }),
             CreatedAt = DateTime.UtcNow,
         });
 
@@ -439,10 +541,11 @@ public class CasesController : ControllerBase
             .ToDictionaryAsync(u => u.Id, u => u.FullName);
 
         return Ok(new CaseOpinionDto(
-            opinion.Id, opinion.CaseId, opinion.RequestedBy,
+            opinion.Id, opinion.CaseId, opinion.Type, opinion.RequestedBy,
             users.GetValueOrDefault(opinion.RequestedBy, ""),
             opinion.AssignedTo, users.GetValueOrDefault(opinion.AssignedTo, ""),
-            opinion.Status, opinion.OpinionText, opinion.CreatedAt, opinion.ResolvedAt
+            opinion.Status, opinion.OpinionText, opinion.RequestComment, opinion.ForwardedFromId, opinion.OriginalOpinionId,
+            opinion.CreatedAt, opinion.ResolvedAt
         ));
     }
 
@@ -455,17 +558,28 @@ public class CasesController : ControllerBase
         if (opinion.AssignedTo != userId)
             return Forbid();
 
-        opinion.Status = dto.Status; // "given" or "declined"
+        // Validate status based on opinion type
+        var validStatuses = opinion.Type == "godkjenning"
+            ? new[] { "approved", "rejected" }
+            : new[] { "given", "declined" };
+        if (!validStatuses.Contains(dto.Status))
+            return BadRequest(new { message = $"Ugyldig status '{dto.Status}' for type '{opinion.Type}'." });
+
+        opinion.Status = dto.Status;
         opinion.OpinionText = dto.OpinionText;
         opinion.ResolvedAt = DateTime.UtcNow;
+
+        var eventType = opinion.Type == "godkjenning"
+            ? (dto.Status == "approved" ? "approval_approved" : "approval_rejected")
+            : (dto.Status == "given" ? "opinion_given" : "opinion_declined");
 
         _db.CaseEvents.Add(new CaseEvent
         {
             Id = Guid.NewGuid(),
             CaseId = opinion.CaseId,
-            EventType = dto.Status == "given" ? "opinion_given" : "opinion_declined",
+            EventType = eventType,
             UserId = userId,
-            EventData = JsonSerializer.Serialize(new { opinion_id = opinionId }),
+            EventData = JsonSerializer.Serialize(new { opinion_id = opinionId, type = opinion.Type }),
             CreatedAt = DateTime.UtcNow,
         });
 
@@ -476,10 +590,72 @@ public class CasesController : ControllerBase
             .ToDictionaryAsync(u => u.Id, u => u.FullName);
 
         return Ok(new CaseOpinionDto(
-            opinion.Id, opinion.CaseId, opinion.RequestedBy,
+            opinion.Id, opinion.CaseId, opinion.Type, opinion.RequestedBy,
             users.GetValueOrDefault(opinion.RequestedBy, ""),
             opinion.AssignedTo, users.GetValueOrDefault(opinion.AssignedTo, ""),
-            opinion.Status, opinion.OpinionText, opinion.CreatedAt, opinion.ResolvedAt
+            opinion.Status, opinion.OpinionText, opinion.RequestComment, opinion.ForwardedFromId, opinion.OriginalOpinionId,
+            opinion.CreatedAt, opinion.ResolvedAt
+        ));
+    }
+
+    [HttpPost("opinions/{opinionId}/forward")]
+    public async Task<ActionResult<CaseOpinionDto>> ForwardApproval(Guid opinionId, [FromBody] ForwardApprovalDto dto)
+    {
+        var userId = MockAuth.GetUserId(User);
+        var opinion = await _db.CaseOpinions.FindAsync(opinionId);
+        if (opinion == null) return NotFound();
+        if (opinion.AssignedTo != userId)
+            return Forbid();
+        if (opinion.Type != "godkjenning")
+            return BadRequest(new { message = "Bare godkjenninger kan videresendes." });
+        if (opinion.Status != "pending")
+            return BadRequest(new { message = "Kan bare videresende ventende godkjenninger." });
+
+        var forwardTo = await _db.Users.FindAsync(dto.ForwardTo);
+        if (forwardTo == null) return BadRequest(new { message = "Bruker ikke funnet." });
+
+        // Mark the current opinion as forwarded
+        opinion.Status = "forwarded";
+        opinion.ResolvedAt = DateTime.UtcNow;
+
+        // Create new forwarded opinion
+        var originalId = opinion.OriginalOpinionId ?? opinion.Id;
+        var forwarded = new CaseOpinion
+        {
+            Id = Guid.NewGuid(),
+            CaseId = opinion.CaseId,
+            Type = "godkjenning",
+            RequestedBy = opinion.RequestedBy,
+            AssignedTo = dto.ForwardTo,
+            Status = "pending",
+            ForwardedFromId = opinion.Id,
+            OriginalOpinionId = originalId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.CaseOpinions.Add(forwarded);
+
+        _db.CaseEvents.Add(new CaseEvent
+        {
+            Id = Guid.NewGuid(),
+            CaseId = opinion.CaseId,
+            EventType = "approval_forwarded",
+            UserId = userId,
+            EventData = JsonSerializer.Serialize(new { from_opinion = opinionId, to_user = dto.ForwardTo, new_opinion = forwarded.Id }),
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await _db.SaveChangesAsync();
+
+        var users = await _db.Users
+            .Where(u => u.Id == forwarded.RequestedBy || u.Id == forwarded.AssignedTo)
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return Ok(new CaseOpinionDto(
+            forwarded.Id, forwarded.CaseId, forwarded.Type, forwarded.RequestedBy,
+            users.GetValueOrDefault(forwarded.RequestedBy, ""),
+            forwarded.AssignedTo, users.GetValueOrDefault(forwarded.AssignedTo, ""),
+            forwarded.Status, forwarded.OpinionText, forwarded.RequestComment, forwarded.ForwardedFromId, forwarded.OriginalOpinionId,
+            forwarded.CreatedAt, forwarded.ResolvedAt
         ));
     }
 
@@ -489,7 +665,7 @@ public class CasesController : ControllerBase
     {
         // Determine if FIN fields should be visible (punkt 3)
         var showFinFields = userRole == "administrator"
-            || userRole == "saksbehandler_fin" || userRole == "underdirektor_fin"
+            || userRole == "saksbehandler_fin" || userRole == "underdirektor_fin" || userRole == "leder_fin"
             || WorkflowService.FinFieldsVisibleToFag.Contains(c.Status);
 
         CaseContentDto? contentDto = null;
@@ -508,10 +684,11 @@ public class CasesController : ControllerBase
         }
 
         var opinions = c.Opinions?.Select(o => new CaseOpinionDto(
-            o.Id, o.CaseId, o.RequestedBy,
+            o.Id, o.CaseId, o.Type, o.RequestedBy,
             users.GetValueOrDefault(o.RequestedBy, ""),
             o.AssignedTo, users.GetValueOrDefault(o.AssignedTo, ""),
-            o.Status, o.OpinionText, o.CreatedAt, o.ResolvedAt
+            o.Status, o.OpinionText, o.RequestComment, o.ForwardedFromId, o.OriginalOpinionId,
+            o.CreatedAt, o.ResolvedAt
         )).ToList();
 
         return new CaseResponseDto(

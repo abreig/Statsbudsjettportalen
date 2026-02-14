@@ -49,8 +49,8 @@ export async function updateCase(id: string, payload: Partial<CaseCreatePayload>
   await apiClient.put(`/cases/${id}`, payload);
 }
 
-export async function changeStatus(id: string, status: string, reason?: string): Promise<void> {
-  await apiClient.patch(`/cases/${id}/status`, { status, reason });
+export async function changeStatus(id: string, status: string, reason?: string, comment?: string): Promise<void> {
+  await apiClient.patch(`/cases/${id}/status`, { status, reason, comment });
 }
 
 export interface ContentUpdatePayload {
@@ -86,14 +86,22 @@ export async function fetchCaseEvents(id: string): Promise<CaseEvent[]> {
   return data;
 }
 
-// ─── Opinions (uttalelser) ───────────────────
+// ─── Responsible handler ─────────────────────
+
+export async function changeResponsible(caseId: string, newAssignedTo: string): Promise<void> {
+  await apiClient.patch(`/cases/${caseId}/assign`, { newAssignedTo });
+}
+
+// ─── Opinions (uttalelser/godkjenninger) ───────────────────
 
 export interface CreateOpinionPayload {
   assignedTo: string;
+  type?: 'uttalelse' | 'godkjenning';
+  comment?: string;
 }
 
 export interface ResolveOpinionPayload {
-  status: 'given' | 'declined';
+  status: 'given' | 'declined' | 'approved' | 'rejected';
   opinionText?: string;
 }
 
@@ -103,6 +111,24 @@ export async function createOpinion(caseId: string, payload: CreateOpinionPayloa
 
 export async function resolveOpinion(opinionId: string, payload: ResolveOpinionPayload): Promise<void> {
   await apiClient.patch(`/cases/opinions/${opinionId}`, payload);
+}
+
+export async function forwardApproval(opinionId: string, forwardTo: string): Promise<void> {
+  await apiClient.post(`/cases/opinions/${opinionId}/forward`, { forwardTo });
+}
+
+// ─── My cases / My tasks ───────────────────
+
+export async function fetchMyCases(budgetRoundId?: string): Promise<BudgetCase[]> {
+  const params = new URLSearchParams();
+  if (budgetRoundId) params.set('budget_round_id', budgetRoundId);
+  const { data } = await apiClient.get<BudgetCase[]>(`/cases/my-cases?${params}`);
+  return data;
+}
+
+export async function fetchMyTasks(): Promise<import('../lib/types').CaseOpinion[]> {
+  const { data } = await apiClient.get<import('../lib/types').CaseOpinion[]>('/cases/my-tasks');
+  return data;
 }
 
 // ─── History (cross-round) ───────────────────

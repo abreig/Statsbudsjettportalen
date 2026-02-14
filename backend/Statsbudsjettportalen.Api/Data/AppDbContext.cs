@@ -100,6 +100,12 @@ public class AppDbContext : DbContext
             .WithMany(c => c.Opinions)
             .HasForeignKey(co => co.CaseId);
 
+        modelBuilder.Entity<CaseOpinion>()
+            .HasIndex(co => co.AssignedTo);
+
+        modelBuilder.Entity<CaseOpinion>()
+            .HasIndex(co => co.Type);
+
         // RoundFieldOverride relationships
         modelBuilder.Entity<RoundFieldOverride>()
             .HasOne(rfo => rfo.BudgetRound)
