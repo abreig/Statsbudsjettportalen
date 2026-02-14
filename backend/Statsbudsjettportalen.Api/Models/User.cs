@@ -24,7 +24,18 @@ public class User
     public string? Division { get; set; } // Avdeling
 
     [MaxLength(100)]
-    public string? Section { get; set; } // Seksjon (kun FIN)
+    public string? Section { get; set; } // Seksjon
+
+    [MaxLength(100)]
+    public string? JobTitle { get; set; } // Stillingstittel fra Entra ID
+
+    [MaxLength(30)]
+    public string? LeaderLevel { get; set; } // underdirektor, avdelingsdirektor, ekspedisjonssjef, departementsraad
+
+    [MaxLength(100)]
+    public string? EntraObjectId { get; set; } // Azure AD object ID, null i POC
 
     public bool IsActive { get; set; } = true;
+
+    public ICollection<UserDepartmentAssignment> DepartmentAssignments { get; set; } = new List<UserDepartmentAssignment>();
 }

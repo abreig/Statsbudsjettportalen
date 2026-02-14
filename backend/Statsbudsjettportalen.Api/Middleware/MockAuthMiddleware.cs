@@ -15,18 +15,21 @@ public static class MockAuth
 
     public static string SecretKey => _configuredSecret ?? DefaultSecretKey;
 
-    public static string GenerateToken(Guid userId, string email, string role, Guid departmentId)
+    public static string GenerateToken(Guid userId, string email, string role, Guid departmentId,
+        string? jobTitle = null, string? leaderLevel = null)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(SecretKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-            new Claim(ClaimTypes.Email, email),
-            new Claim(ClaimTypes.Role, role),
-            new Claim("department_id", departmentId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Email, email),
+            new(ClaimTypes.Role, role),
+            new("department_id", departmentId.ToString()),
         };
+        if (jobTitle != null) claims.Add(new Claim("job_title", jobTitle));
+        if (leaderLevel != null) claims.Add(new Claim("leader_level", leaderLevel));
 
         var token = new JwtSecurityToken(
             issuer: "statsbudsjettportalen-poc",

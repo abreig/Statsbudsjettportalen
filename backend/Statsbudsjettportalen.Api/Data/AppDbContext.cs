@@ -21,6 +21,7 @@ public class AppDbContext : DbContext
     public DbSet<CaseTypeDefinition> CaseTypeDefinitions => Set<CaseTypeDefinition>();
     public DbSet<CaseOpinion> CaseOpinions => Set<CaseOpinion>();
     public DbSet<RoundFieldOverride> RoundFieldOverrides => Set<RoundFieldOverride>();
+    public DbSet<UserDepartmentAssignment> UserDepartmentAssignments => Set<UserDepartmentAssignment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -114,6 +115,21 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<RoundFieldOverride>()
             .HasIndex(rfo => new { rfo.BudgetRoundId, rfo.CaseTypeCode })
+            .IsUnique();
+
+        // UserDepartmentAssignment relationships
+        modelBuilder.Entity<UserDepartmentAssignment>()
+            .HasOne(a => a.User)
+            .WithMany(u => u.DepartmentAssignments)
+            .HasForeignKey(a => a.UserId);
+
+        modelBuilder.Entity<UserDepartmentAssignment>()
+            .HasOne(a => a.Department)
+            .WithMany()
+            .HasForeignKey(a => a.DepartmentId);
+
+        modelBuilder.Entity<UserDepartmentAssignment>()
+            .HasIndex(a => new { a.UserId, a.DepartmentId })
             .IsUnique();
     }
 }

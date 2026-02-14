@@ -28,6 +28,7 @@ interface CaseFilters {
   case_type?: string;
   search?: string;
   division?: string;
+  my_departments?: boolean;
 }
 
 export function useCases(filters: CaseFilters) {

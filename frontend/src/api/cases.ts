@@ -8,12 +8,13 @@ interface CaseFilters {
   case_type?: string;
   search?: string;
   division?: string;
+  my_departments?: boolean;
 }
 
 export async function fetchCases(filters: CaseFilters): Promise<BudgetCase[]> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
-    if (v) params.set(k, v);
+    if (v !== undefined && v !== '' && v !== null) params.set(k, String(v));
   });
   const { data } = await apiClient.get<BudgetCase[]>(`/cases?${params}`);
   return data;

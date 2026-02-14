@@ -17,21 +17,53 @@ public class WorkflowService
         ["sendt_til_regjeringen"] = ["regjeringsbehandlet", "ferdigbehandlet_fin"],
     };
 
-    private static readonly HashSet<string> FagRoles = ["saksbehandler_fag", "budsjettenhet_fag", "leder_fag"];
-    private static readonly HashSet<string> FinRoles = ["saksbehandler_fin", "underdirektor_fin", "leder_fin"];
+    private static readonly HashSet<string> FagRoles =
+    [
+        "saksbehandler_fag", "budsjettenhet_fag",
+        "underdirektor_fag", "avdelingsdirektor_fag",
+        "ekspedisjonssjef_fag", "departementsraad_fag",
+    ];
+
+    private static readonly HashSet<string> FinRoles =
+    [
+        "saksbehandler_fin", "underdirektor_fin",
+        "avdelingsdirektor_fin", "ekspedisjonssjef_fin",
+        "departementsraad_fin",
+    ];
+
+    // Shared FAG leader transitions (same as budsjettenhet_fag)
+    private static readonly HashSet<string> FagLeaderTransitions =
+    [
+        "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
+        "til_avklaring->klarert", "til_avklaring->under_arbeid",
+        "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
+        "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
+        "sendt_til_fin->godkjent_pol",
+    ];
+
+    // Shared FIN leader transitions
+    private static readonly HashSet<string> FinLeaderTransitions =
+    [
+        "sendt_til_fin->under_vurdering_fin",
+        "under_vurdering_fin->ferdigbehandlet_fin",
+        "under_vurdering_fin->returnert_til_fag",
+        "under_vurdering_fin->sendt_til_fin",
+        "ferdigbehandlet_fin->sendt_til_regjeringen",
+        "ferdigbehandlet_fin->under_vurdering_fin",
+        "sendt_til_regjeringen->regjeringsbehandlet",
+        "sendt_til_regjeringen->ferdigbehandlet_fin",
+    ];
 
     private static readonly Dictionary<string, HashSet<string>> RoleTransitions = new()
     {
         ["saksbehandler_fag"] = [
             "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
         ],
-        ["budsjettenhet_fag"] = [
-            "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
-            "til_avklaring->klarert", "til_avklaring->under_arbeid",
-            "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
-            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
-            "sendt_til_fin->godkjent_pol",
-        ],
+        ["budsjettenhet_fag"] = FagLeaderTransitions,
+        ["underdirektor_fag"] = FagLeaderTransitions,
+        ["avdelingsdirektor_fag"] = FagLeaderTransitions,
+        ["ekspedisjonssjef_fag"] = FagLeaderTransitions,
+        ["departementsraad_fag"] = FagLeaderTransitions,
         ["saksbehandler_fin"] = [
             "sendt_til_fin->under_vurdering_fin",
             "under_vurdering_fin->returnert_til_fag",
@@ -47,23 +79,9 @@ public class WorkflowService
             "sendt_til_regjeringen->regjeringsbehandlet",
             "sendt_til_regjeringen->ferdigbehandlet_fin",
         ],
-        ["leder_fag"] = [
-            "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
-            "til_avklaring->klarert", "til_avklaring->under_arbeid",
-            "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
-            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
-            "sendt_til_fin->godkjent_pol",
-        ],
-        ["leder_fin"] = [
-            "sendt_til_fin->under_vurdering_fin",
-            "under_vurdering_fin->ferdigbehandlet_fin",
-            "under_vurdering_fin->returnert_til_fag",
-            "under_vurdering_fin->sendt_til_fin",
-            "ferdigbehandlet_fin->sendt_til_regjeringen",
-            "ferdigbehandlet_fin->under_vurdering_fin",
-            "sendt_til_regjeringen->regjeringsbehandlet",
-            "sendt_til_regjeringen->ferdigbehandlet_fin",
-        ],
+        ["avdelingsdirektor_fin"] = FinLeaderTransitions,
+        ["ekspedisjonssjef_fin"] = FinLeaderTransitions,
+        ["departementsraad_fin"] = FinLeaderTransitions,
         ["administrator"] = [
             "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
             "til_avklaring->klarert", "til_avklaring->under_arbeid",
@@ -124,7 +142,12 @@ public class WorkflowService
     public bool CanChangeResponsible(string userRole, Guid userId, Guid? currentAssignedTo)
     {
         if (currentAssignedTo.HasValue && currentAssignedTo.Value == userId) return true;
-        return userRole is "leder_fag" or "leder_fin" or "budsjettenhet_fag" or "administrator";
+        return userRole is "budsjettenhet_fag"
+            or "underdirektor_fag" or "avdelingsdirektor_fag"
+            or "ekspedisjonssjef_fag" or "departementsraad_fag"
+            or "underdirektor_fin" or "avdelingsdirektor_fin"
+            or "ekspedisjonssjef_fin" or "departementsraad_fin"
+            or "administrator";
     }
 
     /// <summary>Check if case is locked by pending sub-processes (opinions/approvals).</summary>

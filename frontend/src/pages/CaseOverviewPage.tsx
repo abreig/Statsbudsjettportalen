@@ -9,7 +9,7 @@ import {
   Search,
   Select,
   Button,
-  TextField,
+  Switch,
 } from '@navikt/ds-react';
 import { PlusCircle } from 'lucide-react';
 import { useCases } from '../hooks/useCases.ts';
@@ -30,6 +30,7 @@ export function CaseOverviewPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [divisionFilter, setDivisionFilter] = useState('');
+  const [myDepartments, setMyDepartments] = useState(true);
 
   const userIsFag = user ? isFagRole(user.role) : false;
   const userIsFin = user ? isFinRole(user.role) : false;
@@ -41,6 +42,7 @@ export function CaseOverviewPage() {
     case_type: typeFilter || undefined,
     search: searchTerm || undefined,
     division: divisionFilter || undefined,
+    my_departments: userIsFin ? myDepartments : undefined,
   };
 
   const { data: cases, isLoading, error } = useCases(filters);
@@ -137,6 +139,17 @@ export function CaseOverviewPage() {
               </option>
             ))}
           </Select>
+        )}
+        {userIsFin && (
+          <div className="self-end">
+            <Switch
+              size="small"
+              checked={myDepartments}
+              onChange={(e) => setMyDepartments(e.target.checked)}
+            >
+              Mine departementer
+            </Switch>
+          </div>
         )}
       </div>
 

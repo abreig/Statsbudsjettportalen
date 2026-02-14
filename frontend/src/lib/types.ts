@@ -1,3 +1,10 @@
+export interface AssignedDepartment {
+  departmentId: string;
+  departmentCode: string;
+  departmentName: string;
+  isPrimary: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -8,6 +15,9 @@ export interface User {
   role: string;
   division: string | null;
   section: string | null;
+  jobTitle: string | null;
+  leaderLevel: string | null;
+  assignedDepartments: AssignedDepartment[] | null;
 }
 
 export interface BudgetRound {

@@ -31,10 +31,12 @@ public class CasesController : ControllerBase
         [FromQuery] string? status,
         [FromQuery] string? case_type,
         [FromQuery] string? search,
-        [FromQuery] string? division)
+        [FromQuery] string? division,
+        [FromQuery] bool? my_departments)
     {
         var userRole = MockAuth.GetUserRole(User);
         var userDeptId = MockAuth.GetDepartmentId(User);
+        var userId = MockAuth.GetUserId(User);
 
         var query = _db.Cases
             .Include(c => c.Department)
@@ -46,6 +48,17 @@ public class CasesController : ControllerBase
         if (_workflow.IsFagRole(userRole))
         {
             query = query.Where(c => c.DepartmentId == userDeptId);
+        }
+        // FIN: default filter by assigned departments (can be turned off)
+        else if (_workflow.IsFinRole(userRole) && (my_departments ?? true) && !department_id.HasValue)
+        {
+            var assignedDeptIds = await _db.UserDepartmentAssignments
+                .Where(a => a.UserId == userId)
+                .Select(a => a.DepartmentId)
+                .ToListAsync();
+
+            if (assignedDeptIds.Count > 0)
+                query = query.Where(c => assignedDeptIds.Contains(c.DepartmentId));
         }
 
         if (budget_round_id.HasValue)

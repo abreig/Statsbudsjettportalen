@@ -21,18 +21,17 @@ public class AuthController : ControllerBase
     {
         var user = await _db.Users
             .Include(u => u.Department)
+            .Include(u => u.DepartmentAssignments)
+                .ThenInclude(a => a.Department)
             .FirstOrDefaultAsync(u => u.Email == request.Email);
 
         if (user == null)
             return NotFound(new { message = "Bruker ikke funnet" });
 
-        var token = MockAuth.GenerateToken(user.Id, user.Email, user.Role, user.DepartmentId);
+        var token = MockAuth.GenerateToken(user.Id, user.Email, user.Role, user.DepartmentId,
+            user.JobTitle, user.LeaderLevel);
 
-        return Ok(new LoginResponse(token, new UserDto(
-            user.Id, user.Email, user.FullName,
-            user.DepartmentId, user.Department.Code, user.Department.Name,
-            user.Role, user.Division, user.Section
-        )));
+        return Ok(new LoginResponse(token, MapUserDto(user)));
     }
 
     [HttpGet("me")]
@@ -42,15 +41,13 @@ public class AuthController : ControllerBase
         var userId = MockAuth.GetUserId(User);
         var user = await _db.Users
             .Include(u => u.Department)
+            .Include(u => u.DepartmentAssignments)
+                .ThenInclude(a => a.Department)
             .FirstOrDefaultAsync(u => u.Id == userId);
 
         if (user == null) return NotFound();
 
-        return Ok(new UserDto(
-            user.Id, user.Email, user.FullName,
-            user.DepartmentId, user.Department.Code, user.Department.Name,
-            user.Role, user.Division, user.Section
-        ));
+        return Ok(MapUserDto(user));
     }
 
     [HttpGet("users")]
@@ -59,14 +56,27 @@ public class AuthController : ControllerBase
     {
         var users = await _db.Users
             .Include(u => u.Department)
+            .Include(u => u.DepartmentAssignments)
+                .ThenInclude(a => a.Department)
             .Where(u => u.IsActive)
-            .Select(u => new UserDto(
-                u.Id, u.Email, u.FullName,
-                u.DepartmentId, u.Department.Code, u.Department.Name,
-                u.Role, u.Division, u.Section
-            ))
             .ToListAsync();
 
-        return Ok(users);
+        return Ok(users.Select(MapUserDto).ToList());
+    }
+
+    private static UserDto MapUserDto(Models.User u)
+    {
+        var assignments = u.DepartmentAssignments?.Count > 0
+            ? u.DepartmentAssignments.Select(a => new AssignedDepartmentDto(
+                a.DepartmentId, a.Department.Code, a.Department.Name, a.IsPrimary
+            )).ToList()
+            : null;
+
+        return new UserDto(
+            u.Id, u.Email, u.FullName,
+            u.DepartmentId, u.Department.Code, u.Department.Name,
+            u.Role, u.Division, u.Section,
+            u.JobTitle, u.LeaderLevel, assignments
+        );
     }
 }

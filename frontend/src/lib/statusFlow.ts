@@ -65,17 +65,31 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   sendt_til_regjeringen: ['regjeringsbehandlet', 'ferdigbehandlet_fin'],
 };
 
+// Shared transition sets
+const FAG_LEADER_TRANSITIONS = new Set([
+  'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
+  'til_avklaring->klarert', 'til_avklaring->under_arbeid',
+  'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
+  'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
+  'sendt_til_fin->godkjent_pol',
+]);
+
+const FIN_LEADER_TRANSITIONS = new Set([
+  'sendt_til_fin->under_vurdering_fin',
+  'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->sendt_til_fin',
+  'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
+  'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
+]);
+
 const ROLE_TRANSITIONS: Record<string, Set<string>> = {
   saksbehandler_fag: new Set([
     'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
   ]),
-  budsjettenhet_fag: new Set([
-    'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
-    'til_avklaring->klarert', 'til_avklaring->under_arbeid',
-    'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
-    'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
-    'sendt_til_fin->godkjent_pol',
-  ]),
+  budsjettenhet_fag: FAG_LEADER_TRANSITIONS,
+  underdirektor_fag: FAG_LEADER_TRANSITIONS,
+  avdelingsdirektor_fag: FAG_LEADER_TRANSITIONS,
+  ekspedisjonssjef_fag: FAG_LEADER_TRANSITIONS,
+  departementsraad_fag: FAG_LEADER_TRANSITIONS,
   saksbehandler_fin: new Set([
     'sendt_til_fin->under_vurdering_fin',
     'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
@@ -86,19 +100,9 @@ const ROLE_TRANSITIONS: Record<string, Set<string>> = {
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
     'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
   ]),
-  leder_fag: new Set([
-    'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
-    'til_avklaring->klarert', 'til_avklaring->under_arbeid',
-    'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
-    'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
-    'sendt_til_fin->godkjent_pol',
-  ]),
-  leder_fin: new Set([
-    'sendt_til_fin->under_vurdering_fin',
-    'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->sendt_til_fin',
-    'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
-    'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
-  ]),
+  avdelingsdirektor_fin: FIN_LEADER_TRANSITIONS,
+  ekspedisjonssjef_fin: FIN_LEADER_TRANSITIONS,
+  departementsraad_fin: FIN_LEADER_TRANSITIONS,
   administrator: new Set([
     'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
     'til_avklaring->klarert', 'til_avklaring->under_arbeid',
