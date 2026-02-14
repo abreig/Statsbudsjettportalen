@@ -45,19 +45,19 @@ export function QuestionThread({ caseId }: QuestionThreadProps) {
   };
 
   if (isLoading) {
-    return <div className="py-4 text-sm text-gray-500">Laster sporsmal...</div>;
+    return <div className="py-4 text-sm text-gray-500">Laster spørsmål...</div>;
   }
 
   return (
     <div className="space-y-4">
       <Heading size="xsmall" level="3" className="flex items-center gap-2">
         <MessageCircle size={18} />
-        Sporsmal og svar ({questions?.length ?? 0})
+        Spørsmål og svar ({questions?.length ?? 0})
       </Heading>
 
       {questions && questions.length === 0 && (
         <BodyShort size="small" className="text-gray-500">
-          Ingen sporsmal er stilt enna.
+          Ingen spørsmål er stilt ennå.
         </BodyShort>
       )}
 
@@ -127,13 +127,13 @@ export function QuestionThread({ caseId }: QuestionThreadProps) {
       {canAskQuestion(role) && (
         <div className="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-4">
           <Textarea
-            label="Still et sporsmal til fagdepartementet"
+            label="Still et spørsmål til fagdepartementet"
             size="small"
             value={newQuestion}
             onChange={(e) => setNewQuestion(e.target.value)}
             minRows={2}
             resize="vertical"
-            placeholder="Skriv sporsmalet ditt her..."
+            placeholder="Skriv spørsmålet ditt her..."
           />
           <Button
             size="small"
@@ -142,14 +142,14 @@ export function QuestionThread({ caseId }: QuestionThreadProps) {
             loading={createQuestion.isPending}
             icon={<Send size={14} />}
           >
-            Send sporsmal
+            Send spørsmål
           </Button>
         </div>
       )}
 
       {createQuestion.isError && (
         <Alert variant="error" size="small">
-          Kunne ikke sende sporsmal. Provigjen.
+          Kunne ikke sende spørsmål. Prøv igjen.
         </Alert>
       )}
     </div>

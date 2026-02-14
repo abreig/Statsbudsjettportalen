@@ -19,6 +19,8 @@ public class AppDbContext : DbContext
     public DbSet<SubmissionCase> SubmissionCases => Set<SubmissionCase>();
     public DbSet<Attachment> Attachments => Set<Attachment>();
     public DbSet<CaseTypeDefinition> CaseTypeDefinitions => Set<CaseTypeDefinition>();
+    public DbSet<CaseOpinion> CaseOpinions => Set<CaseOpinion>();
+    public DbSet<RoundFieldOverride> RoundFieldOverrides => Set<RoundFieldOverride>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -90,6 +92,22 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<CaseTypeDefinition>()
             .HasIndex(ct => ct.Code)
+            .IsUnique();
+
+        // CaseOpinion relationships
+        modelBuilder.Entity<CaseOpinion>()
+            .HasOne(co => co.Case)
+            .WithMany(c => c.Opinions)
+            .HasForeignKey(co => co.CaseId);
+
+        // RoundFieldOverride relationships
+        modelBuilder.Entity<RoundFieldOverride>()
+            .HasOne(rfo => rfo.BudgetRound)
+            .WithMany(br => br.FieldOverrides)
+            .HasForeignKey(rfo => rfo.BudgetRoundId);
+
+        modelBuilder.Entity<RoundFieldOverride>()
+            .HasIndex(rfo => new { rfo.BudgetRoundId, rfo.CaseTypeCode })
             .IsUnique();
     }
 }

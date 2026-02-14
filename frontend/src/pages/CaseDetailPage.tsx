@@ -9,6 +9,8 @@ import {
   Alert,
   Loader,
   Textarea,
+  TextField,
+  Tag,
 } from '@navikt/ds-react';
 import {
   ArrowLeft,
@@ -17,25 +19,21 @@ import {
   RotateCcw,
   History,
   CheckCircle2,
+  MessageSquarePlus,
+  MessageSquareReply,
+  XCircle,
 } from 'lucide-react';
-import { useCase, useSaveContent, useChangeStatus } from '../hooks/useCases.ts';
+import { useCase, useSaveContent, useChangeStatus, useCreateOpinion, useResolveOpinion } from '../hooks/useCases.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CaseWorkflowBar } from '../components/cases/CaseWorkflowBar.tsx';
 import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
-import { STATUS_LABELS, FAG_STATUS_FLOW, FIN_STATUS_FLOW } from '../lib/statusFlow.ts';
+import { STATUS_LABELS, FAG_STATUS_FLOW, FIN_STATUS_FLOW, POST_FIN_FLOW, FIN_FIELDS_VISIBLE_TO_FAG } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 import { isFagRole, isFinRole, canReturnToFag } from '../lib/roles.ts';
-import type { CaseContent } from '../lib/types.ts';
-
-const FIN_VISIBLE_STATUSES = [
-  'sendt_til_fin',
-  'under_vurdering_fin',
-  'returnert_til_fag',
-  'ferdigbehandlet_fin',
-];
+import type { CaseContent, CaseOpinion } from '../lib/types.ts';
 
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -46,6 +44,8 @@ export function CaseDetailPage() {
   const { data: budgetCase, isLoading, error } = useCase(id);
   const saveContentMut = useSaveContent(id ?? '');
   const changeStatusMut = useChangeStatus(id ?? '');
+  const createOpinionMut = useCreateOpinion(id ?? '');
+  const resolveOpinionMut = useResolveOpinion(id ?? '');
 
   const [editedFields, setEditedFields] = useState<Record<string, string>>({});
   const [showReturnModal, setShowReturnModal] = useState(false);
@@ -54,6 +54,9 @@ export function CaseDetailPage() {
     label: string;
   } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [opinionAssignee, setOpinionAssignee] = useState('');
+  const [showOpinionForm, setShowOpinionForm] = useState(false);
+  const [opinionResponses, setOpinionResponses] = useState<Record<string, string>>({});
 
   const userIsFag = isFagRole(role);
   const userIsFin = isFinRole(role);
@@ -66,7 +69,12 @@ export function CaseDetailPage() {
   // Determine editability
   const fagCanEdit = userIsFag && ['draft', 'under_arbeid', 'returnert_til_fag'].includes(status);
   const finCanEdit = userIsFin && ['sendt_til_fin', 'under_vurdering_fin'].includes(status);
-  const showFinFields = userIsFin || FIN_VISIBLE_STATUSES.includes(status);
+
+  // Punkt 3: FAG cannot see FIN fields between sendt_til_fin and ferdigbehandlet_fin
+  // FAG CAN see FIN fields after sendt_til_regjeringen/regjeringsbehandlet
+  // FIN can always see FIN fields when status >= sendt_til_fin
+  const showFinFields = userIsFin
+    || (userIsFag && FIN_FIELDS_VISIBLE_TO_FAG.includes(status));
 
   const getFieldValue = useCallback(
     (key: string) => {
@@ -84,7 +92,6 @@ export function CaseDetailPage() {
 
   const handleSave = () => {
     if (!id) return;
-    // Collect all fields - both FAG and FIN
     const payload: Record<string, string | null> = {};
     for (const f of fagFields) {
       payload[f.key] = getFieldValue(f.key) || null;
@@ -94,7 +101,6 @@ export function CaseDetailPage() {
         payload[f.key] = getFieldValue(f.key) || null;
       }
     }
-    // Apply edits
     for (const [k, v] of Object.entries(editedFields)) {
       payload[k] = v || null;
     }
@@ -137,6 +143,25 @@ export function CaseDetailPage() {
           label: `Flytt til ${STATUS_LABELS[next]}`,
         });
       }
+
+      // Post-FIN flow: ferdigbehandlet_fin → sendt_til_regjeringen → regjeringsbehandlet
+      const postIdx = POST_FIN_FLOW.indexOf(status);
+      if (postIdx >= 0 && postIdx < POST_FIN_FLOW.length - 1) {
+        const next = POST_FIN_FLOW[postIdx + 1];
+        // Only underdirektor_fin can do sendt_til_regjeringen → regjeringsbehandlet
+        if (next === 'regjeringsbehandlet' && role !== 'underdirektor_fin') {
+          // saksbehandler_fin cannot do this transition
+        } else {
+          // Avoid duplicate if already added from FIN_STATUS_FLOW
+          if (!result.some((r) => r.status === next)) {
+            result.push({
+              status: next,
+              label: `Flytt til ${STATUS_LABELS[next]}`,
+            });
+          }
+        }
+      }
+
       if (canReturnToFag(role) && (status === 'sendt_til_fin' || status === 'under_vurdering_fin')) {
         result.push({
           status: 'returnert_til_fag',
@@ -160,6 +185,29 @@ export function CaseDetailPage() {
     );
   };
 
+  const handleRequestOpinion = () => {
+    if (!opinionAssignee.trim()) return;
+    createOpinionMut.mutate(
+      { assignedTo: opinionAssignee.trim() },
+      {
+        onSuccess: () => {
+          setOpinionAssignee('');
+          setShowOpinionForm(false);
+        },
+      }
+    );
+  };
+
+  const handleResolveOpinion = (opinion: CaseOpinion, resolveStatus: 'given' | 'declined') => {
+    resolveOpinionMut.mutate({
+      opinionId: opinion.id,
+      payload: {
+        status: resolveStatus,
+        opinionText: resolveStatus === 'given' ? opinionResponses[opinion.id] : undefined,
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
@@ -171,13 +219,18 @@ export function CaseDetailPage() {
   if (error || !budgetCase) {
     return (
       <Alert variant="error">
-        Kunne ikke laste saken. Proov igjen senere.
+        Kunne ikke laste saken. Prøv igjen senere.
       </Alert>
     );
   }
 
   const nextStatuses = getNextStatuses();
   const hasEdits = Object.keys(editedFields).length > 0;
+  const opinions = budgetCase.opinions ?? [];
+  const pendingOpinions = opinions.filter((o) => o.status === 'pending');
+  const resolvedOpinions = opinions.filter((o) => o.status !== 'pending');
+  const isReturnedStatus = status === 'returnert_til_fag';
+  const isClosed = status === 'regjeringsbehandlet';
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -220,16 +273,24 @@ export function CaseDetailPage() {
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
           <div>
             <Label size="small" className="text-gray-500">
-              Belop (1 000 kr)
+              Beløp (1 000 kr)
             </Label>
             <BodyShort>{formatAmountNOK(budgetCase.amount)}</BodyShort>
           </div>
           <div>
             <Label size="small" className="text-gray-500">
-              Avdeling
+              Departement
             </Label>
             <BodyShort>{budgetCase.departmentCode}</BodyShort>
           </div>
+          {budgetCase.responsibleDivision && (
+            <div>
+              <Label size="small" className="text-gray-500">
+                Ansvarlig avdeling
+              </Label>
+              <BodyShort>{budgetCase.responsibleDivision}</BodyShort>
+            </div>
+          )}
           <div>
             <Label size="small" className="text-gray-500">
               Opprettet av
@@ -247,11 +308,25 @@ export function CaseDetailPage() {
 
       {/* Workflow bar */}
       <div className="mb-4">
-        <CaseWorkflowBar currentStatus={budgetCase.status} />
+        <CaseWorkflowBar currentStatus={budgetCase.status} opinions={budgetCase.opinions} />
       </div>
 
+      {/* Returned banner */}
+      {isReturnedStatus && (
+        <Alert variant="error" size="small" className="mb-4">
+          Saken er returnert til FAG for revisjon.
+        </Alert>
+      )}
+
+      {/* Closed banner */}
+      {isClosed && (
+        <Alert variant="success" size="small" className="mb-4">
+          Saken er regjeringsbehandlet og lukket.
+        </Alert>
+      )}
+
       {/* Action buttons */}
-      {nextStatuses.length > 0 && (
+      {nextStatuses.length > 0 && !isClosed && (
         <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-white p-4">
           <Label size="small" className="mr-2 self-center text-gray-500">
             Handlinger:
@@ -311,7 +386,7 @@ export function CaseDetailPage() {
         <Alert variant="warning" className="mb-4">
           <div className="flex items-center justify-between">
             <BodyShort>
-              Er du sikker pa at du vil flytte saken til{' '}
+              Er du sikker på at du vil flytte saken til{' '}
               <strong>{STATUS_LABELS[confirmAction.status]}</strong>?
             </BodyShort>
             <div className="flex gap-2">
@@ -420,6 +495,147 @@ export function CaseDetailPage() {
               );
             })}
           </div>
+        </div>
+      )}
+
+      {/* Opinions / Uttalelser (punkt 2) */}
+      {opinions.length > 0 && (
+        <div className="mb-4 rounded-lg border border-amber-200 bg-white p-6">
+          <Heading size="small" level="2" className="mb-4 text-amber-800">
+            Uttalelser
+          </Heading>
+
+          <div className="space-y-3">
+            {pendingOpinions.map((op) => (
+              <div key={op.id} className="rounded border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <BodyShort size="small" className="font-medium">
+                      Forespurt fra: {op.assignedToName}
+                    </BodyShort>
+                    <BodyShort size="small" className="text-gray-500">
+                      Sendt av {op.requestedByName} - {formatDate(op.createdAt)}
+                    </BodyShort>
+                  </div>
+                  <Tag variant="warning" size="xsmall">Ventende</Tag>
+                </div>
+
+                {/* If the current user is the assignee, show response form */}
+                {user && op.assignedTo === user.id && (
+                  <div className="mt-3 space-y-2">
+                    <Textarea
+                      label="Din uttalelse"
+                      value={opinionResponses[op.id] ?? ''}
+                      onChange={(e) =>
+                        setOpinionResponses((prev) => ({
+                          ...prev,
+                          [op.id]: e.target.value,
+                        }))
+                      }
+                      minRows={2}
+                      resize="vertical"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="small"
+                        icon={<MessageSquareReply size={14} />}
+                        onClick={() => handleResolveOpinion(op, 'given')}
+                        loading={resolveOpinionMut.isPending}
+                      >
+                        Gi uttalelse
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="secondary"
+                        icon={<XCircle size={14} />}
+                        onClick={() => handleResolveOpinion(op, 'declined')}
+                        loading={resolveOpinionMut.isPending}
+                      >
+                        Avslå
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {resolvedOpinions.map((op) => (
+              <div key={op.id} className="rounded border border-gray-200 bg-gray-50 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <BodyShort size="small" className="font-medium">
+                      {op.assignedToName}
+                    </BodyShort>
+                    <BodyShort size="small" className="text-gray-500">
+                      {formatDate(op.resolvedAt ?? op.createdAt)}
+                    </BodyShort>
+                  </div>
+                  <Tag
+                    variant={op.status === 'given' ? 'success' : 'neutral'}
+                    size="xsmall"
+                  >
+                    {op.status === 'given' ? 'Avgitt' : 'Avslått'}
+                  </Tag>
+                </div>
+                {op.opinionText && (
+                  <BodyLong className="mt-2 whitespace-pre-wrap text-sm">
+                    {op.opinionText}
+                  </BodyLong>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Request opinion button */}
+      {!isClosed && (
+        <div className="mb-4">
+          {showOpinionForm ? (
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <Heading size="xsmall" level="3" className="mb-3">
+                Be om uttalelse
+              </Heading>
+              <TextField
+                label="Bruker-ID (e-post eller ID)"
+                value={opinionAssignee}
+                onChange={(e) => setOpinionAssignee(e.target.value)}
+                size="small"
+                className="mb-3"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="small"
+                  onClick={handleRequestOpinion}
+                  loading={createOpinionMut.isPending}
+                  icon={<MessageSquarePlus size={14} />}
+                >
+                  Send forespørsel
+                </Button>
+                <Button
+                  size="small"
+                  variant="secondary"
+                  onClick={() => setShowOpinionForm(false)}
+                >
+                  Avbryt
+                </Button>
+              </div>
+              {createOpinionMut.isError && (
+                <Alert variant="error" size="small" className="mt-2">
+                  Kunne ikke sende forespørsel. Sjekk at bruker-ID er gyldig.
+                </Alert>
+              )}
+            </div>
+          ) : (
+            <Button
+              size="small"
+              variant="tertiary"
+              icon={<MessageSquarePlus size={14} />}
+              onClick={() => setShowOpinionForm(true)}
+            >
+              Be om uttalelse
+            </Button>
+          )}
         </div>
       )}
 

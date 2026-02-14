@@ -11,5 +11,7 @@ public record UserDto(
     Guid DepartmentId,
     string DepartmentCode,
     string DepartmentName,
-    string Role
+    string Role,
+    string? Division,
+    string? Section
 );

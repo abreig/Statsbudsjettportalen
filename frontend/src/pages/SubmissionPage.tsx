@@ -39,7 +39,7 @@ export function SubmissionPage() {
   if (!selectedRound) {
     return (
       <Alert variant="warning">
-        Du ma velge en budsjettrunde forst.{' '}
+        Du må velge en budsjettrunde først.{' '}
         <a href="/budget-rounds" className="underline">
           Velg budsjettrunde
         </a>
@@ -144,7 +144,7 @@ export function SubmissionPage() {
                     <Table.HeaderCell>Saksnavn</Table.HeaderCell>
                     <Table.HeaderCell>Type</Table.HeaderCell>
                     <Table.HeaderCell>Kap/post</Table.HeaderCell>
-                    <Table.HeaderCell>Belop (1 000 kr)</Table.HeaderCell>
+                    <Table.HeaderCell>Beløp (1 000 kr)</Table.HeaderCell>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
@@ -200,7 +200,7 @@ export function SubmissionPage() {
 
         {createSubmission.isError && (
           <Alert variant="error" className="mt-4">
-            Kunne ikke sende innspill. Proov igjen.
+            Kunne ikke sende innspill. Prøv igjen.
           </Alert>
         )}
       </div>

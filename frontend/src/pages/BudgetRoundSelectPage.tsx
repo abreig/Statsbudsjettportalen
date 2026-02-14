@@ -11,6 +11,8 @@ const ROUND_TYPE_LABELS: Record<string, string> = {
   rnb: 'Revidert nasjonalbudsjett',
   tilleggsproposisjon: 'Tilleggsproposisjon',
   nysaldert: 'Nysaldert budsjett',
+  august: 'Augustkonferansen',
+  mars: 'Marskonferansen',
 };
 
 export function BudgetRoundSelectPage() {
@@ -34,7 +36,7 @@ export function BudgetRoundSelectPage() {
   if (error) {
     return (
       <Alert variant="error">
-        Kunne ikke laste budsjettrunder. Proov igjen senere.
+        Kunne ikke laste budsjettrunder. Prøv igjen senere.
       </Alert>
     );
   }
@@ -62,10 +64,10 @@ export function BudgetRoundSelectPage() {
             <div className="mb-3 flex items-start justify-between">
               <CalendarDays size={24} className="text-[var(--color-primary)]" />
               <Tag
-                variant={round.status === 'active' ? 'success' : 'neutral'}
+                variant={round.status === 'open' ? 'success' : round.status === 'closed' ? 'neutral' : 'info'}
                 size="xsmall"
               >
-                {round.status === 'active' ? 'Aktiv' : round.status}
+                {round.status === 'open' ? 'Aktiv' : round.status === 'closed' ? 'Lukket' : round.status}
               </Tag>
             </div>
             <Heading size="small" level="2" className="mb-1">

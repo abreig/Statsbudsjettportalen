@@ -7,6 +7,7 @@ interface CaseFilters {
   status?: string;
   case_type?: string;
   search?: string;
+  division?: string;
 }
 
 export async function fetchCases(filters: CaseFilters): Promise<BudgetCase[]> {
@@ -82,5 +83,42 @@ export async function fetchContentVersion(id: string, version: number): Promise<
 
 export async function fetchCaseEvents(id: string): Promise<CaseEvent[]> {
   const { data } = await apiClient.get<CaseEvent[]>(`/cases/${id}/events`);
+  return data;
+}
+
+// ─── Opinions (uttalelser) ───────────────────
+
+export interface CreateOpinionPayload {
+  assignedTo: string;
+}
+
+export interface ResolveOpinionPayload {
+  status: 'given' | 'declined';
+  opinionText?: string;
+}
+
+export async function createOpinion(caseId: string, payload: CreateOpinionPayload): Promise<void> {
+  await apiClient.post(`/cases/${caseId}/opinions`, payload);
+}
+
+export async function resolveOpinion(opinionId: string, payload: ResolveOpinionPayload): Promise<void> {
+  await apiClient.patch(`/cases/opinions/${opinionId}`, payload);
+}
+
+// ─── History (cross-round) ───────────────────
+
+export interface HistoryFilters {
+  chapter?: string;
+  post?: string;
+  department_id?: string;
+  year?: number;
+}
+
+export async function fetchHistory(filters: HistoryFilters): Promise<BudgetCase[]> {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([k, v]) => {
+    if (v !== undefined && v !== '') params.set(k, String(v));
+  });
+  const { data } = await apiClient.get<BudgetCase[]>(`/cases/history?${params}`);
   return data;
 }

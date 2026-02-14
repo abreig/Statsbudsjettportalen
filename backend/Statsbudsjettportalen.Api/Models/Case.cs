@@ -39,6 +39,9 @@ public class Case
     [MaxLength(10)]
     public string Origin { get; set; } = "fag";
 
+    [MaxLength(100)]
+    public string? ResponsibleDivision { get; set; } // Ansvarlig avdeling
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -46,4 +49,5 @@ public class Case
     public ICollection<CaseEvent> Events { get; set; } = new List<CaseEvent>();
     public ICollection<Question> Questions { get; set; } = new List<Question>();
     public ICollection<Clearance> Clearances { get; set; } = new List<Clearance>();
+    public ICollection<CaseOpinion> Opinions { get; set; } = new List<CaseOpinion>();
 }

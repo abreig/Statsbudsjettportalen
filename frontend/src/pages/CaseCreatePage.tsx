@@ -71,7 +71,7 @@ export function CaseCreatePage() {
   if (!selectedRound) {
     return (
       <Alert variant="warning">
-        Du ma velge en budsjettrunde forst.{' '}
+        Du må velge en budsjettrunde først.{' '}
         <a href="/budget-rounds" className="underline">
           Velg budsjettrunde
         </a>
@@ -158,7 +158,7 @@ export function CaseCreatePage() {
             <Controller
               name="caseType"
               control={control}
-              rules={{ required: 'Du ma velge en sakstype' }}
+              rules={{ required: 'Du må velge en sakstype' }}
               render={({ field, fieldState }) => (
                 <RadioGroup
                   legend="Sakstype"
@@ -210,7 +210,7 @@ export function CaseCreatePage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <TextField
                 label="Saksnavn"
-                {...register('caseName', { required: 'Saksnavn er paakrevd' })}
+                {...register('caseName', { required: 'Saksnavn er påkrevd' })}
                 error={errors.caseName?.message}
                 className="sm:col-span-2"
               />
@@ -225,7 +225,7 @@ export function CaseCreatePage() {
                 placeholder="f.eks. 01"
               />
               <TextField
-                label="Belop (1 000 kr)"
+                label="Beløp (1 000 kr)"
                 type="number"
                 {...register('amount')}
                 className="sm:col-span-2"
@@ -242,7 +242,7 @@ export function CaseCreatePage() {
                   label={field.label}
                   {...register(field.key as keyof FormValues, {
                     required: field.required
-                      ? `${field.label} er paakrevd`
+                      ? `${field.label} er påkrevd`
                       : false,
                   })}
                   error={
@@ -258,7 +258,7 @@ export function CaseCreatePage() {
 
             {createCase.isError && (
               <Alert variant="error">
-                Kunne ikke opprette sak. Sjekk at alle paakrevde felt er fylt ut.
+                Kunne ikke opprette sak. Sjekk at alle påkrevde felt er fylt ut.
               </Alert>
             )}
 

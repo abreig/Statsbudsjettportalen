@@ -109,11 +109,10 @@ using (var scope = app.Services.CreateScope())
         {
             await db.Database.MigrateAsync();
         }
-        catch (Npgsql.PostgresException ex) when (ex.SqlState == "42P07")
+        catch (Exception ex) when (app.Environment.IsDevelopment())
         {
-            // Migration mismatch: tables exist but migration history doesn't match.
-            // Drop and recreate (safe for POC/dev — never do this in production).
-            logger.LogWarning("Migration mismatch detected (tables already exist). Dropping and recreating database...");
+            // Migration error in dev: drop and recreate (safe for POC — never in production).
+            logger.LogWarning(ex, "Migration failed in development mode. Dropping and recreating database...");
             await db.Database.EnsureDeletedAsync();
             await db.Database.MigrateAsync();
         }

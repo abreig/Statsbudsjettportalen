@@ -51,7 +51,35 @@ public static class SeedData
     ];
 
     private static readonly string[] CaseTypes = ["satsingsforslag", "budsjettiltak", "teknisk_justering", "andre_saker"];
-    private static readonly string[] Statuses = ["draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol", "sendt_til_fin", "under_vurdering_fin"];
+    private static readonly string[] Statuses = ["draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol", "sendt_til_fin", "under_vurdering_fin", "ferdigbehandlet_fin", "sendt_til_regjeringen", "returnert_til_fag"];
+
+    // Division names per department code
+    private static readonly Dictionary<string, string[]> DeptDivisions = new()
+    {
+        ["AID"] = ["Arbeidspolitisk avdeling", "Inkluderingsavdelingen"],
+        ["BFD"] = ["Barneavdelingen", "Familieavdelingen"],
+        ["DFD"] = ["Digitaliseringsavdelingen", "Forvaltningsavdelingen"],
+        ["ED"]  = ["Energiavdelingen", "Petroleumsavdelingen"],
+        ["FD"]  = ["Forsvarsavdelingen", "Sikkerhetspolitisk avdeling"],
+        ["HOD"] = ["Folkehelseavdelingen", "Spesialisthelsetjenesteavdelingen"],
+        ["JD"]  = ["Politiavdelingen", "Sivilavdelingen"],
+        ["KLD"] = ["Klimaavdelingen", "Naturavdelingen"],
+        ["KDD"] = ["Kommunalavdelingen", "Planavdelingen"],
+        ["KUD"] = ["Kulturavdelingen", "Medieavdelingen"],
+        ["KD"]  = ["Universitets- og høyskoleavdelingen", "Opplæringsavdelingen"],
+        ["LMD"] = ["Matavdelingen", "Landbruksavdelingen"],
+        ["NFD"] = ["Næringsavdelingen", "Havbruksavdelingen"],
+        ["SD"]  = ["Vegavdelingen", "Jernbaneavdelingen"],
+        ["UD"]  = ["FN-avdelingen", "Utviklingsavdelingen"],
+    };
+
+    // FIN sections – each section covers a set of departments
+    private static readonly (string Section, string[] Departments)[] FinSections =
+    [
+        ("Seksjon for arbeid og velferd", new[] { "AID", "BFD", "DFD", "ED", "FD" }),
+        ("Seksjon for helse og justis", new[] { "HOD", "JD", "KLD", "KDD", "KUD" }),
+        ("Seksjon for kunnskap og næring", new[] { "KD", "LMD", "NFD", "SD", "UD" }),
+    ];
 
     private static readonly string[] CaseNameTemplates =
     [
@@ -93,6 +121,8 @@ public static class SeedData
     public static async Task ResetAndReseedAsync(AppDbContext db)
     {
         // Delete in dependency order (children first)
+        db.RoundFieldOverrides.RemoveRange(db.RoundFieldOverrides);
+        db.CaseOpinions.RemoveRange(db.CaseOpinions);
         db.Attachments.RemoveRange(db.Attachments);
         db.CaseEvents.RemoveRange(db.CaseEvents);
         db.CaseContents.RemoveRange(db.CaseContents);
@@ -200,21 +230,24 @@ public static class SeedData
         {
             if (dept.Code == "FIN")
             {
-                // FIN gets saksbehandler_fin, underdirektor_fin, administrator
+                // FIN gets saksbehandler_fin, underdirektor_fin, administrator — with sections
                 userEntities.Add(new User
                 {
                     Id = G(20, 100), Email = "saksbehandler.fin@test.no",
                     FullName = "Eva Johansen", DepartmentId = dept.Id, Role = "saksbehandler_fin",
+                    Division = "Budsjettavdelingen", Section = FinSections[0].Section,
                 });
                 userEntities.Add(new User
                 {
                     Id = G(20, 101), Email = "undirdir.fin@test.no",
                     FullName = "Per Olsen", DepartmentId = dept.Id, Role = "underdirektor_fin",
+                    Division = "Budsjettavdelingen", Section = FinSections[1].Section,
                 });
                 userEntities.Add(new User
                 {
                     Id = G(20, 102), Email = "admin@test.no",
                     FullName = "Admin Bruker", DepartmentId = dept.Id, Role = "administrator",
+                    Division = "Budsjettavdelingen", Section = FinSections[2].Section,
                 });
             }
             else
@@ -227,6 +260,7 @@ public static class SeedData
                 nameIdx++;
 
                 var code = dept.Code.ToLower();
+                var divisions = DeptDivisions.GetValueOrDefault(dept.Code, ["Fagavdelingen", "Administrasjonsavdelingen"]);
                 userEntities.Add(new User
                 {
                     Id = G(20, nameIdx - 1),
@@ -234,6 +268,7 @@ public static class SeedData
                     FullName = $"{fn1} {ln1}",
                     DepartmentId = dept.Id,
                     Role = "saksbehandler_fag",
+                    Division = divisions[0],
                 });
                 userEntities.Add(new User
                 {
@@ -242,6 +277,7 @@ public static class SeedData
                     FullName = $"{fn2} {ln2}",
                     DepartmentId = dept.Id,
                     Role = "budsjettenhet_fag",
+                    Division = divisions.Length > 1 ? divisions[1] : divisions[0],
                 });
             }
         }
@@ -256,7 +292,8 @@ public static class SeedData
         var roundMars = new BudgetRound
         {
             Id = G(30, 2), Name = "MARS2026", Type = "mars", Year = 2026,
-            Status = "open", Deadline = new DateTime(2026, 3, 1, 23, 59, 59, DateTimeKind.Utc),
+            Status = "closed", Deadline = new DateTime(2026, 3, 1, 23, 59, 59, DateTimeKind.Utc),
+            ClosedAt = new DateTime(2026, 3, 15, 12, 0, 0, DateTimeKind.Utc),
         };
         db.BudgetRounds.AddRange(roundAug, roundMars);
 
@@ -270,13 +307,24 @@ public static class SeedData
             var fagUser = userEntities.First(u => u.DepartmentId == dept.Id && u.Role == "saksbehandler_fag");
             var budsjettUser = userEntities.First(u => u.DepartmentId == dept.Id && u.Role == "budsjettenhet_fag");
             var topics = DeptTopics.GetValueOrDefault(dept.Code, ["generelt tiltak", "internt prosjekt", "driftsoptimalisering"]);
+            var divisions = DeptDivisions.GetValueOrDefault(dept.Code, ["Fagavdelingen"]);
 
             for (var i = 0; i < 40; i++)
             {
                 caseCount++;
                 var caseType = CaseTypes[i % CaseTypes.Length];
-                var statusIdx = i % Statuses.Length;
-                var status = Statuses[statusIdx];
+                var isMarsRound = i >= 30;
+                // MARS cases are all "regjeringsbehandlet" (punkt 8)
+                string status;
+                if (isMarsRound)
+                {
+                    status = "regjeringsbehandlet";
+                }
+                else
+                {
+                    var statusIdx = i % Statuses.Length;
+                    status = Statuses[statusIdx];
+                }
                 var topic = topics[i % topics.Length];
                 var template = CaseNameTemplates[i % CaseNameTemplates.Length];
                 var caseName = string.Format(template, topic);
@@ -286,12 +334,12 @@ public static class SeedData
                 var amount = isAndreSaker ? (long?)null : (long)((i + 1) * 10000 * (i % 3 == 0 ? -1 : 1));
 
                 var caseId = G(40, caseCount);
-                var assignedTo = statusIdx >= 3 ? budsjettUser.Id : fagUser.Id; // advanced statuses → budsjettenhet
+                var assignedTo = (i % Statuses.Length) >= 3 ? budsjettUser.Id : fagUser.Id;
 
                 db.Cases.Add(new Case
                 {
                     Id = caseId,
-                    BudgetRoundId = i < 30 ? roundAug.Id : roundMars.Id,
+                    BudgetRoundId = isMarsRound ? roundMars.Id : roundAug.Id,
                     DepartmentId = dept.Id,
                     CaseName = caseName,
                     Chapter = isAndreSaker ? null : chapter,
@@ -301,6 +349,7 @@ public static class SeedData
                     Status = status,
                     AssignedTo = assignedTo,
                     CreatedBy = fagUser.Id,
+                    ResponsibleDivision = divisions[i % divisions.Length],
                     Version = 1,
                     CreatedAt = SeedDate.AddDays(caseCount),
                     UpdatedAt = SeedDate.AddDays(caseCount).AddHours(caseCount % 24),

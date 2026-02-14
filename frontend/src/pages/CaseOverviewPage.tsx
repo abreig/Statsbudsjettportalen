@@ -9,6 +9,7 @@ import {
   Search,
   Select,
   Button,
+  TextField,
 } from '@navikt/ds-react';
 import { PlusCircle } from 'lucide-react';
 import { useCases } from '../hooks/useCases.ts';
@@ -18,7 +19,7 @@ import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CASE_TYPE_LABELS } from '../lib/caseTypes.ts';
 import { ALL_STATUSES, STATUS_LABELS } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDateShort } from '../lib/formatters.ts';
-import { isFagRole, canCreateCase } from '../lib/roles.ts';
+import { isFagRole, isFinRole, canCreateCase } from '../lib/roles.ts';
 
 export function CaseOverviewPage() {
   const user = useAuthStore((s) => s.user);
@@ -28,13 +29,18 @@ export function CaseOverviewPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [divisionFilter, setDivisionFilter] = useState('');
+
+  const userIsFag = user ? isFagRole(user.role) : false;
+  const userIsFin = user ? isFinRole(user.role) : false;
 
   const filters = {
     budget_round_id: selectedRound?.id,
-    department_id: user && isFagRole(user.role) ? user.departmentId : undefined,
+    department_id: userIsFag ? user?.departmentId : undefined,
     status: statusFilter || undefined,
     case_type: typeFilter || undefined,
     search: searchTerm || undefined,
+    division: divisionFilter || undefined,
   };
 
   const { data: cases, isLoading, error } = useCases(filters);
@@ -42,13 +48,23 @@ export function CaseOverviewPage() {
   if (!selectedRound) {
     return (
       <Alert variant="warning">
-        Du ma velge en budsjettrunde forst.{' '}
+        Du må velge en budsjettrunde først.{' '}
         <a href="/budget-rounds" className="underline">
           Velg budsjettrunde
         </a>
       </Alert>
     );
   }
+
+  // Extract unique divisions from cases for filter dropdown
+  const divisions = cases
+    ? [...new Set(cases.map((c) => c.responsibleDivision).filter(Boolean))]
+    : [];
+
+  // Extract unique departments from cases for FIN filter
+  const departments = cases
+    ? [...new Set(cases.map((c) => c.departmentCode).filter(Boolean))]
+    : [];
 
   return (
     <div>
@@ -74,7 +90,7 @@ export function CaseOverviewPage() {
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div className="w-64">
           <Search
-            label="Sok i saker"
+            label="Søk i saker"
             variant="simple"
             value={searchTerm}
             onChange={(val) => setSearchTerm(val)}
@@ -107,6 +123,21 @@ export function CaseOverviewPage() {
             </option>
           ))}
         </Select>
+        {divisions.length > 0 && (
+          <Select
+            label="Avdeling"
+            size="small"
+            value={divisionFilter}
+            onChange={(e) => setDivisionFilter(e.target.value)}
+          >
+            <option value="">Alle avdelinger</option>
+            {divisions.map((d) => (
+              <option key={d!} value={d!}>
+                {d}
+              </option>
+            ))}
+          </Select>
+        )}
       </div>
 
       {isLoading && (
@@ -131,14 +162,20 @@ export function CaseOverviewPage() {
                 <Table.HeaderCell>Saksnavn</Table.HeaderCell>
                 <Table.HeaderCell>Type</Table.HeaderCell>
                 <Table.HeaderCell>Kap/post</Table.HeaderCell>
-                <Table.HeaderCell>Belop (1 000 kr)</Table.HeaderCell>
+                <Table.HeaderCell>Beløp (1 000 kr)</Table.HeaderCell>
                 <Table.HeaderCell>Status</Table.HeaderCell>
-                <Table.HeaderCell>Avdeling</Table.HeaderCell>
+                <Table.HeaderCell>Departement</Table.HeaderCell>
+                {divisions.length > 0 && (
+                  <Table.HeaderCell>Avdeling</Table.HeaderCell>
+                )}
                 <Table.HeaderCell>Oppdatert</Table.HeaderCell>
               </Table.Row>
             </Table.Header>
             <Table.Body>
-              {cases.map((c) => (
+              {(divisionFilter
+                ? cases.filter((c) => c.responsibleDivision === divisionFilter)
+                : cases
+              ).map((c) => (
                 <Table.Row
                   key={c.id}
                   onClick={() => navigate(`/cases/${c.id}`)}
@@ -160,6 +197,9 @@ export function CaseOverviewPage() {
                     <CaseStatusBadge status={c.status} />
                   </Table.DataCell>
                   <Table.DataCell>{c.departmentCode}</Table.DataCell>
+                  {divisions.length > 0 && (
+                    <Table.DataCell>{c.responsibleDivision ?? '-'}</Table.DataCell>
+                  )}
                   <Table.DataCell>{formatDateShort(c.updatedAt)}</Table.DataCell>
                 </Table.Row>
               ))}
