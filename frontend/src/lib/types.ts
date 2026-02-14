@@ -48,12 +48,15 @@ export interface BudgetCase {
 export interface CaseOpinion {
   id: string;
   caseId: string;
+  type: 'uttalelse' | 'godkjenning';
   requestedBy: string;
   requestedByName: string;
   assignedTo: string;
   assignedToName: string;
   status: string;
   opinionText: string | null;
+  forwardedFromId: string | null;
+  originalOpinionId: string | null;
   createdAt: string;
   resolvedAt: string | null;
 }

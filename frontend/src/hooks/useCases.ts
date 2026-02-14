@@ -3,11 +3,15 @@ import {
   fetchCases,
   fetchCase,
   fetchHistory,
+  fetchMyCases,
+  fetchMyTasks,
   createCase,
   saveContent,
   changeStatus,
+  changeResponsible,
   createOpinion,
   resolveOpinion,
+  forwardApproval,
 } from '../api/cases.ts';
 import type {
   CaseCreatePayload,
@@ -72,10 +76,20 @@ export function useSaveContent(caseId: string) {
 export function useChangeStatus(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { status: string; reason?: string }) =>
-      changeStatus(caseId, params.status, params.reason),
+    mutationFn: (params: { status: string; reason?: string; comment?: string }) =>
+      changeStatus(caseId, params.status, params.reason, params.comment),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases'] });
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
+  });
+}
+
+export function useChangeResponsible(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (newAssignedTo: string) => changeResponsible(caseId, newAssignedTo),
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
     },
   });
@@ -99,5 +113,30 @@ export function useResolveOpinion(caseId: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
     },
+  });
+}
+
+export function useForwardApproval(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (params: { opinionId: string; forwardTo: string }) =>
+      forwardApproval(params.opinionId, params.forwardTo),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
+  });
+}
+
+export function useMyCases(budgetRoundId?: string) {
+  return useQuery({
+    queryKey: ['my-cases', budgetRoundId],
+    queryFn: () => fetchMyCases(budgetRoundId),
+  });
+}
+
+export function useMyTasks() {
+  return useQuery({
+    queryKey: ['my-tasks'],
+    queryFn: () => fetchMyTasks(),
   });
 }

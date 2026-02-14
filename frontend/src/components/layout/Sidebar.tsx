@@ -10,6 +10,7 @@ import {
   Settings,
   Building2,
   Archive,
+  UserCircle,
 } from 'lucide-react';
 
 interface NavItem {
@@ -34,6 +35,12 @@ export function Sidebar() {
       to: '/cases',
       label: 'Saksoversikt',
       icon: <LayoutList size={20} />,
+      show: true,
+    },
+    {
+      to: '/my-cases',
+      label: 'Mine saker',
+      icon: <UserCircle size={20} />,
       show: true,
     },
     {

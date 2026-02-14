@@ -22,8 +22,10 @@ import {
   MessageSquarePlus,
   MessageSquareReply,
   XCircle,
+  Forward,
+  ShieldCheck,
 } from 'lucide-react';
-import { useCase, useSaveContent, useChangeStatus, useCreateOpinion, useResolveOpinion } from '../hooks/useCases.ts';
+import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CaseWorkflowBar } from '../components/cases/CaseWorkflowBar.tsx';
@@ -32,8 +34,9 @@ import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
 import { STATUS_LABELS, FAG_STATUS_FLOW, FIN_STATUS_FLOW, POST_FIN_FLOW, FIN_FIELDS_VISIBLE_TO_FAG } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
-import { isFagRole, isFinRole, canReturnToFag } from '../lib/roles.ts';
+import { isFagRole, isFinRole, canReturnToFag, canChangeResponsible } from '../lib/roles.ts';
 import type { CaseContent, CaseOpinion } from '../lib/types.ts';
+import apiClient from '../api/client.ts';
 
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -44,19 +47,26 @@ export function CaseDetailPage() {
   const { data: budgetCase, isLoading, error } = useCase(id);
   const saveContentMut = useSaveContent(id ?? '');
   const changeStatusMut = useChangeStatus(id ?? '');
+  const changeResponsibleMut = useChangeResponsible(id ?? '');
   const createOpinionMut = useCreateOpinion(id ?? '');
   const resolveOpinionMut = useResolveOpinion(id ?? '');
+  const forwardApprovalMut = useForwardApproval(id ?? '');
 
   const [editedFields, setEditedFields] = useState<Record<string, string>>({});
+  const [showChangeResponsible, setShowChangeResponsible] = useState(false);
+  const [deptUsers, setDeptUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     status: string;
     label: string;
   } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [statusComment, setStatusComment] = useState('');
   const [opinionAssignee, setOpinionAssignee] = useState('');
-  const [showOpinionForm, setShowOpinionForm] = useState(false);
+  const [showOpinionForm, setShowOpinionForm] = useState<false | 'uttalelse' | 'godkjenning'>(false);
   const [opinionResponses, setOpinionResponses] = useState<Record<string, string>>({});
+  const [forwardTarget, setForwardTarget] = useState<string | null>(null);
+  const [forwardUsers, setForwardUsers] = useState<Array<{ id: string; fullName: string; email: string }>>([]);
 
   const userIsFag = isFagRole(role);
   const userIsFin = isFinRole(role);
@@ -173,22 +183,23 @@ export function CaseDetailPage() {
     return result;
   };
 
-  const handleStatusChange = (newStatus: string, reason?: string) => {
+  const handleStatusChange = (newStatus: string, reason?: string, comment?: string) => {
     changeStatusMut.mutate(
-      { status: newStatus, reason },
+      { status: newStatus, reason, comment: comment || statusComment || undefined },
       {
         onSuccess: () => {
           setConfirmAction(null);
           setShowReturnModal(false);
+          setStatusComment('');
         },
       }
     );
   };
 
   const handleRequestOpinion = () => {
-    if (!opinionAssignee.trim()) return;
+    if (!opinionAssignee.trim() || !showOpinionForm) return;
     createOpinionMut.mutate(
-      { assignedTo: opinionAssignee.trim() },
+      { assignedTo: opinionAssignee.trim(), type: showOpinionForm },
       {
         onSuccess: () => {
           setOpinionAssignee('');
@@ -198,12 +209,12 @@ export function CaseDetailPage() {
     );
   };
 
-  const handleResolveOpinion = (opinion: CaseOpinion, resolveStatus: 'given' | 'declined') => {
+  const handleResolveOpinion = (opinion: CaseOpinion, resolveStatus: 'given' | 'declined' | 'approved' | 'rejected') => {
     resolveOpinionMut.mutate({
       opinionId: opinion.id,
       payload: {
         status: resolveStatus,
-        opinionText: resolveStatus === 'given' ? opinionResponses[opinion.id] : undefined,
+        opinionText: (resolveStatus === 'given' || resolveStatus === 'approved') ? opinionResponses[opinion.id] : undefined,
       },
     });
   };
@@ -231,6 +242,8 @@ export function CaseDetailPage() {
   const resolvedOpinions = opinions.filter((o) => o.status !== 'pending');
   const isReturnedStatus = status === 'returnert_til_fag';
   const isClosed = status === 'regjeringsbehandlet';
+  const isLocked = pendingOpinions.length > 0;
+  const isResponsible = user?.id === budgetCase.assignedTo;
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -293,9 +306,24 @@ export function CaseDetailPage() {
           )}
           <div>
             <Label size="small" className="text-gray-500">
-              Opprettet av
+              Ansvarlig saksbehandler
             </Label>
-            <BodyShort>{budgetCase.createdByName}</BodyShort>
+            <div className="flex items-center gap-2">
+              <BodyShort>{budgetCase.assignedToName ?? budgetCase.createdByName}</BodyShort>
+              {canChangeResponsible(role, user?.id ?? '', budgetCase.assignedTo) && !isClosed && (
+                <Button
+                  size="xsmall"
+                  variant="tertiary"
+                  onClick={async () => {
+                    const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; role: string; departmentId: string }>>('/auth/users');
+                    setDeptUsers(data.filter((u) => u.departmentId === budgetCase.departmentId));
+                    setShowChangeResponsible(true);
+                  }}
+                >
+                  Endre
+                </Button>
+              )}
+            </div>
           </div>
           <div>
             <Label size="small" className="text-gray-500">
@@ -304,6 +332,34 @@ export function CaseDetailPage() {
             <BodyShort>{formatDate(budgetCase.updatedAt)}</BodyShort>
           </div>
         </div>
+
+        {/* Change responsible handler dialog */}
+        {showChangeResponsible && (
+          <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-3">
+            <Label size="small" className="mb-2">Velg ny ansvarlig saksbehandler</Label>
+            <div className="space-y-1">
+              {deptUsers.filter((u) => u.id !== budgetCase.assignedTo).map((u) => (
+                <Button
+                  key={u.id}
+                  size="xsmall"
+                  variant="tertiary"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    changeResponsibleMut.mutate(u.id, {
+                      onSuccess: () => setShowChangeResponsible(false),
+                    });
+                  }}
+                  loading={changeResponsibleMut.isPending}
+                >
+                  {u.fullName} ({u.email})
+                </Button>
+              ))}
+            </div>
+            <Button size="xsmall" variant="secondary" className="mt-2" onClick={() => setShowChangeResponsible(false)}>
+              Avbryt
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Workflow bar */}
@@ -354,6 +410,7 @@ export function CaseDetailPage() {
                   variant="danger"
                   icon={<RotateCcw size={14} />}
                   onClick={() => setShowReturnModal(true)}
+                  disabled={isLocked}
                 >
                   {action.label}
                 </Button>
@@ -366,11 +423,18 @@ export function CaseDetailPage() {
                 variant="primary"
                 icon={<ArrowRightCircle size={14} />}
                 onClick={() => setConfirmAction(action)}
+                disabled={isLocked}
               >
                 {action.label}
               </Button>
             );
           })}
+
+          {isLocked && (
+            <BodyShort size="small" className="self-center text-amber-700">
+              Saken er låst – ventende uttalelser/godkjenninger
+            </BodyShort>
+          )}
         </div>
       )}
 
@@ -384,30 +448,37 @@ export function CaseDetailPage() {
       {/* Status change confirmation */}
       {confirmAction && (
         <Alert variant="warning" className="mb-4">
-          <div className="flex items-center justify-between">
-            <BodyShort>
-              Er du sikker på at du vil flytte saken til{' '}
-              <strong>{STATUS_LABELS[confirmAction.status]}</strong>?
-            </BodyShort>
-            <div className="flex gap-2">
-              <Button
-                size="small"
-                onClick={() =>
-                  handleStatusChange(confirmAction.status)
-                }
-                loading={changeStatusMut.isPending}
-                icon={<CheckCircle2 size={14} />}
-              >
-                Bekreft
-              </Button>
-              <Button
-                size="small"
-                variant="secondary"
-                onClick={() => setConfirmAction(null)}
-              >
-                Avbryt
-              </Button>
-            </div>
+          <BodyShort className="mb-3">
+            Er du sikker på at du vil flytte saken til{' '}
+            <strong>{STATUS_LABELS[confirmAction.status]}</strong>?
+          </BodyShort>
+          <Textarea
+            label="Kommentar (valgfritt)"
+            value={statusComment}
+            onChange={(e) => setStatusComment(e.target.value)}
+            minRows={2}
+            resize="vertical"
+            size="small"
+            className="mb-3"
+          />
+          <div className="flex gap-2">
+            <Button
+              size="small"
+              onClick={() =>
+                handleStatusChange(confirmAction.status)
+              }
+              loading={changeStatusMut.isPending}
+              icon={<CheckCircle2 size={14} />}
+            >
+              Bekreft
+            </Button>
+            <Button
+              size="small"
+              variant="secondary"
+              onClick={() => { setConfirmAction(null); setStatusComment(''); }}
+            >
+              Avbryt
+            </Button>
           </div>
         </Alert>
       )}
@@ -498,103 +569,194 @@ export function CaseDetailPage() {
         </div>
       )}
 
-      {/* Opinions / Uttalelser (punkt 2) */}
+      {/* Opinions / Uttalelser og Godkjenninger */}
       {opinions.length > 0 && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-white p-6">
           <Heading size="small" level="2" className="mb-4 text-amber-800">
-            Uttalelser
+            Uttalelser og godkjenninger
           </Heading>
 
           <div className="space-y-3">
-            {pendingOpinions.map((op) => (
-              <div key={op.id} className="rounded border border-amber-200 bg-amber-50 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <BodyShort size="small" className="font-medium">
-                      Forespurt fra: {op.assignedToName}
-                    </BodyShort>
-                    <BodyShort size="small" className="text-gray-500">
-                      Sendt av {op.requestedByName} - {formatDate(op.createdAt)}
-                    </BodyShort>
-                  </div>
-                  <Tag variant="warning" size="xsmall">Ventende</Tag>
-                </div>
+            {pendingOpinions.map((op) => {
+              const isUttalelse = op.type === 'uttalelse';
+              const borderColor = isUttalelse ? 'border-amber-200' : 'border-blue-200';
+              const bgColor = isUttalelse ? 'bg-amber-50' : 'bg-blue-50';
 
-                {/* If the current user is the assignee, show response form */}
-                {user && op.assignedTo === user.id && (
-                  <div className="mt-3 space-y-2">
-                    <Textarea
-                      label="Din uttalelse"
-                      value={opinionResponses[op.id] ?? ''}
-                      onChange={(e) =>
-                        setOpinionResponses((prev) => ({
-                          ...prev,
-                          [op.id]: e.target.value,
-                        }))
-                      }
-                      minRows={2}
-                      resize="vertical"
-                    />
-                    <div className="flex gap-2">
-                      <Button
-                        size="small"
-                        icon={<MessageSquareReply size={14} />}
-                        onClick={() => handleResolveOpinion(op, 'given')}
-                        loading={resolveOpinionMut.isPending}
-                      >
-                        Gi uttalelse
-                      </Button>
-                      <Button
-                        size="small"
-                        variant="secondary"
-                        icon={<XCircle size={14} />}
-                        onClick={() => handleResolveOpinion(op, 'declined')}
-                        loading={resolveOpinionMut.isPending}
-                      >
-                        Avslå
-                      </Button>
+              return (
+                <div key={op.id} className={`rounded border ${borderColor} ${bgColor} p-3`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Tag variant={isUttalelse ? 'warning' : 'info'} size="xsmall">
+                          {isUttalelse ? 'Til uttalelse' : op.forwardedFromId ? 'Videresendt for godkjenning' : 'Til godkjenning'}
+                        </Tag>
+                        <BodyShort size="small" className="font-medium">
+                          {op.assignedToName}
+                        </BodyShort>
+                      </div>
+                      <BodyShort size="small" className="mt-1 text-gray-500">
+                        Sendt av {op.requestedByName} - {formatDate(op.createdAt)}
+                      </BodyShort>
                     </div>
+                    <Tag variant="warning" size="xsmall">Ventende</Tag>
                   </div>
-                )}
-              </div>
-            ))}
 
-            {resolvedOpinions.map((op) => (
-              <div key={op.id} className="rounded border border-gray-200 bg-gray-50 p-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <BodyShort size="small" className="font-medium">
-                      {op.assignedToName}
-                    </BodyShort>
-                    <BodyShort size="small" className="text-gray-500">
-                      {formatDate(op.resolvedAt ?? op.createdAt)}
-                    </BodyShort>
-                  </div>
-                  <Tag
-                    variant={op.status === 'given' ? 'success' : 'neutral'}
-                    size="xsmall"
-                  >
-                    {op.status === 'given' ? 'Avgitt' : 'Avslått'}
-                  </Tag>
+                  {/* If the current user is the assignee, show response form */}
+                  {user && op.assignedTo === user.id && (
+                    <div className="mt-3 space-y-2">
+                      <Textarea
+                        label={isUttalelse ? 'Din uttalelse' : 'Kommentar'}
+                        value={opinionResponses[op.id] ?? ''}
+                        onChange={(e) =>
+                          setOpinionResponses((prev) => ({
+                            ...prev,
+                            [op.id]: e.target.value,
+                          }))
+                        }
+                        minRows={2}
+                        resize="vertical"
+                      />
+                      <div className="flex gap-2">
+                        {isUttalelse ? (
+                          <>
+                            <Button
+                              size="small"
+                              icon={<MessageSquareReply size={14} />}
+                              onClick={() => handleResolveOpinion(op, 'given')}
+                              loading={resolveOpinionMut.isPending}
+                            >
+                              Gi uttalelse
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="secondary"
+                              icon={<XCircle size={14} />}
+                              onClick={() => handleResolveOpinion(op, 'declined')}
+                              loading={resolveOpinionMut.isPending}
+                            >
+                              Avslå
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              size="small"
+                              icon={<ShieldCheck size={14} />}
+                              onClick={() => handleResolveOpinion(op, 'approved')}
+                              loading={resolveOpinionMut.isPending}
+                            >
+                              Godkjenn
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="danger"
+                              icon={<XCircle size={14} />}
+                              onClick={() => handleResolveOpinion(op, 'rejected')}
+                              loading={resolveOpinionMut.isPending}
+                            >
+                              Avslå
+                            </Button>
+                            <Button
+                              size="small"
+                              variant="secondary"
+                              icon={<Forward size={14} />}
+                              onClick={async () => {
+                                const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
+                                setForwardUsers(data.filter((u) => u.id !== user.id));
+                                setForwardTarget(op.id);
+                              }}
+                            >
+                              Videresend
+                            </Button>
+                          </>
+                        )}
+                      </div>
+
+                      {/* Forward user picker */}
+                      {forwardTarget === op.id && (
+                        <div className="mt-2 rounded border border-blue-200 bg-blue-50 p-3">
+                          <Label size="small" className="mb-2">Velg mottaker for videresending</Label>
+                          <div className="max-h-40 space-y-1 overflow-y-auto">
+                            {forwardUsers.map((u) => (
+                              <Button
+                                key={u.id}
+                                size="xsmall"
+                                variant="tertiary"
+                                className="w-full justify-start"
+                                onClick={() => {
+                                  forwardApprovalMut.mutate(
+                                    { opinionId: op.id, forwardTo: u.id },
+                                    { onSuccess: () => setForwardTarget(null) }
+                                  );
+                                }}
+                                loading={forwardApprovalMut.isPending}
+                              >
+                                {u.fullName} ({u.email})
+                              </Button>
+                            ))}
+                          </div>
+                          <Button size="xsmall" variant="secondary" className="mt-2" onClick={() => setForwardTarget(null)}>
+                            Avbryt
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {op.opinionText && (
-                  <BodyLong className="mt-2 whitespace-pre-wrap text-sm">
-                    {op.opinionText}
-                  </BodyLong>
-                )}
-              </div>
-            ))}
+              );
+            })}
+
+            {resolvedOpinions.map((op) => {
+              const statusLabel: Record<string, string> = {
+                given: 'Avgitt',
+                declined: 'Avslått',
+                approved: 'Godkjent',
+                rejected: 'Avslått',
+                forwarded: 'Videresendt',
+              };
+              const tagVariant = (op.status === 'given' || op.status === 'approved')
+                ? 'success' as const
+                : op.status === 'forwarded' ? 'info' as const : 'neutral' as const;
+
+              return (
+                <div key={op.id} className="rounded border border-gray-200 bg-gray-50 p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Tag variant={op.type === 'uttalelse' ? 'warning' : 'info'} size="xsmall">
+                          {op.type === 'uttalelse' ? 'Uttalelse' : 'Godkjenning'}
+                        </Tag>
+                        <BodyShort size="small" className="font-medium">
+                          {op.assignedToName}
+                        </BodyShort>
+                      </div>
+                      <BodyShort size="small" className="text-gray-500">
+                        {formatDate(op.resolvedAt ?? op.createdAt)}
+                      </BodyShort>
+                    </div>
+                    <Tag variant={tagVariant} size="xsmall">
+                      {statusLabel[op.status] ?? op.status}
+                    </Tag>
+                  </div>
+                  {op.opinionText && (
+                    <BodyLong className="mt-2 whitespace-pre-wrap text-sm">
+                      {op.opinionText}
+                    </BodyLong>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Request opinion button */}
-      {!isClosed && (
+      {/* Request opinion/approval buttons - only visible for responsible handler */}
+      {!isClosed && isResponsible && (
         <div className="mb-4">
           {showOpinionForm ? (
             <div className="rounded-lg border border-gray-200 bg-white p-4">
               <Heading size="xsmall" level="3" className="mb-3">
-                Be om uttalelse
+                {showOpinionForm === 'uttalelse' ? 'Til uttalelse' : 'Til godkjenning'}
               </Heading>
               <TextField
                 label="Bruker-ID (e-post eller ID)"
@@ -608,7 +770,7 @@ export function CaseDetailPage() {
                   size="small"
                   onClick={handleRequestOpinion}
                   loading={createOpinionMut.isPending}
-                  icon={<MessageSquarePlus size={14} />}
+                  icon={showOpinionForm === 'uttalelse' ? <MessageSquarePlus size={14} /> : <ShieldCheck size={14} />}
                 >
                   Send forespørsel
                 </Button>
@@ -627,14 +789,24 @@ export function CaseDetailPage() {
               )}
             </div>
           ) : (
-            <Button
-              size="small"
-              variant="tertiary"
-              icon={<MessageSquarePlus size={14} />}
-              onClick={() => setShowOpinionForm(true)}
-            >
-              Be om uttalelse
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                size="small"
+                variant="tertiary"
+                icon={<MessageSquarePlus size={14} />}
+                onClick={() => setShowOpinionForm('uttalelse')}
+              >
+                Til uttalelse
+              </Button>
+              <Button
+                size="small"
+                variant="tertiary"
+                icon={<ShieldCheck size={14} />}
+                onClick={() => setShowOpinionForm('godkjenning')}
+              >
+                Til godkjenning
+              </Button>
+            </div>
           )}
         </div>
       )}

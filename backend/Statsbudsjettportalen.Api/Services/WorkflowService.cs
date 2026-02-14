@@ -17,8 +17,8 @@ public class WorkflowService
         ["sendt_til_regjeringen"] = ["regjeringsbehandlet"],
     };
 
-    private static readonly HashSet<string> FagRoles = ["saksbehandler_fag", "budsjettenhet_fag"];
-    private static readonly HashSet<string> FinRoles = ["saksbehandler_fin", "underdirektor_fin"];
+    private static readonly HashSet<string> FagRoles = ["saksbehandler_fag", "budsjettenhet_fag", "leder_fag"];
+    private static readonly HashSet<string> FinRoles = ["saksbehandler_fin", "underdirektor_fin", "leder_fin"];
 
     private static readonly Dictionary<string, HashSet<string>> RoleTransitions = new()
     {
@@ -39,6 +39,19 @@ public class WorkflowService
         ],
         ["underdirektor_fin"] = [
             "under_vurdering_fin->ferdigbehandlet_fin",
+            "ferdigbehandlet_fin->sendt_til_regjeringen",
+            "sendt_til_regjeringen->regjeringsbehandlet",
+        ],
+        ["leder_fag"] = [
+            "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
+            "til_avklaring->klarert", "til_avklaring->under_arbeid",
+            "klarert->godkjent_pol", "klarert->under_arbeid",
+            "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid",
+        ],
+        ["leder_fin"] = [
+            "sendt_til_fin->under_vurdering_fin",
+            "under_vurdering_fin->ferdigbehandlet_fin",
+            "under_vurdering_fin->returnert_til_fag",
             "ferdigbehandlet_fin->sendt_til_regjeringen",
             "sendt_til_regjeringen->regjeringsbehandlet",
         ],
@@ -101,4 +114,18 @@ public class WorkflowService
 
     public bool IsCaseClosedStatus(string status) =>
         status is "regjeringsbehandlet";
+
+    /// <summary>Check if user can change the responsible handler for a case.</summary>
+    public bool CanChangeResponsible(string userRole, Guid userId, Guid? currentAssignedTo)
+    {
+        if (currentAssignedTo.HasValue && currentAssignedTo.Value == userId) return true;
+        return userRole is "leder_fag" or "leder_fin" or "budsjettenhet_fag" or "administrator";
+    }
+
+    /// <summary>Check if case is locked by pending sub-processes (opinions/approvals).</summary>
+    public static bool IsCaseLockedBySubProcess(ICollection<Models.CaseOpinion>? opinions)
+    {
+        if (opinions == null || opinions.Count == 0) return false;
+        return opinions.Any(o => o.Status == "pending");
+    }
 }
