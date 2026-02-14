@@ -67,6 +67,9 @@ export function CaseDetailPage() {
   const [opinionResponses, setOpinionResponses] = useState<Record<string, string>>({});
   const [forwardTarget, setForwardTarget] = useState<string | null>(null);
   const [forwardUsers, setForwardUsers] = useState<Array<{ id: string; fullName: string; email: string }>>([]);
+  const [opinionComment, setOpinionComment] = useState('');
+  const [opinionUserSearch, setOpinionUserSearch] = useState('');
+  const [opinionUsers, setOpinionUsers] = useState<Array<{ id: string; fullName: string; email: string }>>([]);
 
   const userIsFag = isFagRole(role);
   const userIsFin = isFinRole(role);
@@ -199,10 +202,12 @@ export function CaseDetailPage() {
   const handleRequestOpinion = () => {
     if (!opinionAssignee.trim() || !showOpinionForm) return;
     createOpinionMut.mutate(
-      { assignedTo: opinionAssignee.trim(), type: showOpinionForm },
+      { assignedTo: opinionAssignee.trim(), type: showOpinionForm, comment: opinionComment || undefined },
       {
         onSuccess: () => {
           setOpinionAssignee('');
+          setOpinionComment('');
+          setOpinionUserSearch('');
           setShowOpinionForm(false);
         },
       }
@@ -382,58 +387,181 @@ export function CaseDetailPage() {
       )}
 
       {/* Action buttons */}
-      {nextStatuses.length > 0 && !isClosed && (
-        <div className="mb-4 flex flex-wrap gap-2 rounded-lg border border-gray-200 bg-white p-4">
-          <Label size="small" className="mr-2 self-center text-gray-500">
-            Handlinger:
-          </Label>
+      {(nextStatuses.length > 0 || isResponsible) && !isClosed && (
+        <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex flex-wrap gap-2">
+            <Label size="small" className="mr-2 self-center text-gray-500">
+              Handlinger:
+            </Label>
 
-          {(fagCanEdit || finCanEdit) && (
-            <Button
-              size="small"
-              variant="secondary"
-              onClick={handleSave}
-              loading={saveContentMut.isPending}
-              icon={<Save size={14} />}
-              disabled={!hasEdits}
-            >
-              Lagre innhold
-            </Button>
-          )}
+            {(fagCanEdit || finCanEdit) && (
+              <Button
+                size="small"
+                variant="secondary"
+                onClick={handleSave}
+                loading={saveContentMut.isPending}
+                icon={<Save size={14} />}
+                disabled={!hasEdits}
+              >
+                Lagre innhold
+              </Button>
+            )}
 
-          {nextStatuses.map((action) => {
-            if (action.status === 'returnert_til_fag') {
+            {nextStatuses.map((action) => {
+              if (action.status === 'returnert_til_fag') {
+                return (
+                  <Button
+                    key={action.status}
+                    size="small"
+                    variant="danger"
+                    icon={<RotateCcw size={14} />}
+                    onClick={() => setShowReturnModal(true)}
+                    disabled={isLocked}
+                  >
+                    {action.label}
+                  </Button>
+                );
+              }
               return (
                 <Button
                   key={action.status}
                   size="small"
-                  variant="danger"
-                  icon={<RotateCcw size={14} />}
-                  onClick={() => setShowReturnModal(true)}
+                  variant="primary"
+                  icon={<ArrowRightCircle size={14} />}
+                  onClick={() => setConfirmAction(action)}
                   disabled={isLocked}
                 >
                   {action.label}
                 </Button>
               );
-            }
-            return (
-              <Button
-                key={action.status}
-                size="small"
-                variant="primary"
-                icon={<ArrowRightCircle size={14} />}
-                onClick={() => setConfirmAction(action)}
-                disabled={isLocked}
-              >
-                {action.label}
-              </Button>
-            );
-          })}
+            })}
 
-          {isLocked && (
-            <BodyShort size="small" className="self-center text-amber-700">
-              Saken er låst – ventende uttalelser/godkjenninger
-            </BodyShort>
+            {isResponsible && (
+              <>
+                <Button
+                  size="small"
+                  variant="tertiary"
+                  icon={<MessageSquarePlus size={14} />}
+                  onClick={async () => {
+                    const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
+                    setOpinionUsers(data.filter((u) => u.departmentId === budgetCase.departmentId && u.id !== user?.id));
+                    setOpinionUserSearch('');
+                    setOpinionComment('');
+                    setOpinionAssignee('');
+                    setShowOpinionForm('uttalelse');
+                  }}
+                >
+                  Til uttalelse
+                </Button>
+                <Button
+                  size="small"
+                  variant="tertiary"
+                  icon={<ShieldCheck size={14} />}
+                  onClick={async () => {
+                    const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
+                    setOpinionUsers(data.filter((u) => u.departmentId === budgetCase.departmentId && u.id !== user?.id));
+                    setOpinionUserSearch('');
+                    setOpinionComment('');
+                    setOpinionAssignee('');
+                    setShowOpinionForm('godkjenning');
+                  }}
+                >
+                  Til godkjenning
+                </Button>
+              </>
+            )}
+
+            {isLocked && (
+              <BodyShort size="small" className="self-center text-amber-700">
+                Saken er låst – ventende uttalelser/godkjenninger
+              </BodyShort>
+            )}
+          </div>
+
+          {/* Inline opinion form with user picker */}
+          {showOpinionForm && (
+            <div className="mt-3 border-t border-gray-200 pt-3">
+              <Heading size="xsmall" level="3" className="mb-3">
+                {showOpinionForm === 'uttalelse' ? 'Send til uttalelse' : 'Send til godkjenning'}
+              </Heading>
+
+              <Label size="small" className="mb-1">Velg mottaker</Label>
+              <TextField
+                label=""
+                hideLabel
+                placeholder="Søk etter bruker..."
+                value={opinionUserSearch}
+                onChange={(e) => setOpinionUserSearch(e.target.value)}
+                size="small"
+                className="mb-2"
+              />
+
+              {!opinionAssignee && (
+                <div className="mb-3 max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-2">
+                  {opinionUsers
+                    .filter((u) => {
+                      const q = opinionUserSearch.toLowerCase();
+                      return !q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                    })
+                    .map((u) => (
+                      <Button
+                        key={u.id}
+                        size="xsmall"
+                        variant="tertiary"
+                        className="w-full justify-start"
+                        onClick={() => setOpinionAssignee(u.id)}
+                      >
+                        {u.fullName} ({u.email})
+                      </Button>
+                    ))}
+                </div>
+              )}
+
+              {opinionAssignee && (
+                <div className="mb-3 flex items-center gap-2">
+                  <Tag variant="info" size="small">
+                    {opinionUsers.find((u) => u.id === opinionAssignee)?.fullName ?? opinionAssignee}
+                  </Tag>
+                  <Button size="xsmall" variant="tertiary" onClick={() => setOpinionAssignee('')}>
+                    Endre
+                  </Button>
+                </div>
+              )}
+
+              <Textarea
+                label="Kommentar til mottaker (valgfritt)"
+                value={opinionComment}
+                onChange={(e) => setOpinionComment(e.target.value)}
+                minRows={2}
+                resize="vertical"
+                size="small"
+                className="mb-3"
+              />
+
+              <div className="flex gap-2">
+                <Button
+                  size="small"
+                  onClick={handleRequestOpinion}
+                  loading={createOpinionMut.isPending}
+                  icon={showOpinionForm === 'uttalelse' ? <MessageSquarePlus size={14} /> : <ShieldCheck size={14} />}
+                  disabled={!opinionAssignee}
+                >
+                  Send forespørsel
+                </Button>
+                <Button
+                  size="small"
+                  variant="secondary"
+                  onClick={() => { setShowOpinionForm(false); setOpinionAssignee(''); setOpinionComment(''); setOpinionUserSearch(''); }}
+                >
+                  Avbryt
+                </Button>
+              </div>
+              {createOpinionMut.isError && (
+                <Alert variant="error" size="small" className="mt-2">
+                  Kunne ikke sende forespørsel.
+                </Alert>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -597,6 +725,11 @@ export function CaseDetailPage() {
                       <BodyShort size="small" className="mt-1 text-gray-500">
                         Sendt av {op.requestedByName} - {formatDate(op.createdAt)}
                       </BodyShort>
+                      {op.requestComment && (
+                        <BodyShort size="small" className="mt-1 rounded bg-gray-100 p-2 text-gray-700 italic">
+                          «{op.requestComment}»
+                        </BodyShort>
+                      )}
                     </div>
                     <Tag variant="warning" size="xsmall">Ventende</Tag>
                   </div>
@@ -738,6 +871,11 @@ export function CaseDetailPage() {
                       {statusLabel[op.status] ?? op.status}
                     </Tag>
                   </div>
+                  {op.requestComment && (
+                    <BodyShort size="small" className="mt-1 rounded bg-gray-100 p-2 text-gray-700 italic">
+                      «{op.requestComment}»
+                    </BodyShort>
+                  )}
                   {op.opinionText && (
                     <BodyLong className="mt-2 whitespace-pre-wrap text-sm">
                       {op.opinionText}
@@ -747,67 +885,6 @@ export function CaseDetailPage() {
               );
             })}
           </div>
-        </div>
-      )}
-
-      {/* Request opinion/approval buttons - only visible for responsible handler */}
-      {!isClosed && isResponsible && (
-        <div className="mb-4">
-          {showOpinionForm ? (
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <Heading size="xsmall" level="3" className="mb-3">
-                {showOpinionForm === 'uttalelse' ? 'Til uttalelse' : 'Til godkjenning'}
-              </Heading>
-              <TextField
-                label="Bruker-ID (e-post eller ID)"
-                value={opinionAssignee}
-                onChange={(e) => setOpinionAssignee(e.target.value)}
-                size="small"
-                className="mb-3"
-              />
-              <div className="flex gap-2">
-                <Button
-                  size="small"
-                  onClick={handleRequestOpinion}
-                  loading={createOpinionMut.isPending}
-                  icon={showOpinionForm === 'uttalelse' ? <MessageSquarePlus size={14} /> : <ShieldCheck size={14} />}
-                >
-                  Send forespørsel
-                </Button>
-                <Button
-                  size="small"
-                  variant="secondary"
-                  onClick={() => setShowOpinionForm(false)}
-                >
-                  Avbryt
-                </Button>
-              </div>
-              {createOpinionMut.isError && (
-                <Alert variant="error" size="small" className="mt-2">
-                  Kunne ikke sende forespørsel. Sjekk at bruker-ID er gyldig.
-                </Alert>
-              )}
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Button
-                size="small"
-                variant="tertiary"
-                icon={<MessageSquarePlus size={14} />}
-                onClick={() => setShowOpinionForm('uttalelse')}
-              >
-                Til uttalelse
-              </Button>
-              <Button
-                size="small"
-                variant="tertiary"
-                icon={<ShieldCheck size={14} />}
-                onClick={() => setShowOpinionForm('godkjenning')}
-              >
-                Til godkjenning
-              </Button>
-            </div>
-          )}
         </div>
       )}
 

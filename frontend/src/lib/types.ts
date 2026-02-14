@@ -55,6 +55,7 @@ export interface CaseOpinion {
   assignedToName: string;
   status: string;
   opinionText: string | null;
+  requestComment: string | null;
   forwardedFromId: string | null;
   originalOpinionId: string | null;
   createdAt: string;

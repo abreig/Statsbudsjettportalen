@@ -78,6 +78,7 @@ public record CaseOpinionDto(
     string AssignedToName,
     string Status,
     string? OpinionText,
+    string? RequestComment,
     Guid? ForwardedFromId,
     Guid? OriginalOpinionId,
     DateTime CreatedAt,
@@ -86,7 +87,8 @@ public record CaseOpinionDto(
 
 public record CreateOpinionDto(
     string AssignedTo,
-    string Type = "uttalelse"
+    string Type = "uttalelse",
+    string? Comment = null
 );
 
 public record ForwardApprovalDto(

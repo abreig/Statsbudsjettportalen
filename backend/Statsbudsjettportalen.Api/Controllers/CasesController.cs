@@ -175,7 +175,7 @@ public class CasesController : ControllerBase
             o.Id, o.CaseId, o.Type, o.RequestedBy,
             users.GetValueOrDefault(o.RequestedBy, ""),
             o.AssignedTo, users.GetValueOrDefault(o.AssignedTo, ""),
-            o.Status, o.OpinionText, o.ForwardedFromId, o.OriginalOpinionId,
+            o.Status, o.OpinionText, o.RequestComment, o.ForwardedFromId, o.OriginalOpinionId,
             o.CreatedAt, o.ResolvedAt
         )).ToList());
     }
@@ -518,6 +518,7 @@ public class CasesController : ControllerBase
             RequestedBy = userId,
             AssignedTo = assigneeId,
             Status = "pending",
+            RequestComment = dto.Comment,
             CreatedAt = DateTime.UtcNow,
         };
         _db.CaseOpinions.Add(opinion);
@@ -543,7 +544,7 @@ public class CasesController : ControllerBase
             opinion.Id, opinion.CaseId, opinion.Type, opinion.RequestedBy,
             users.GetValueOrDefault(opinion.RequestedBy, ""),
             opinion.AssignedTo, users.GetValueOrDefault(opinion.AssignedTo, ""),
-            opinion.Status, opinion.OpinionText, opinion.ForwardedFromId, opinion.OriginalOpinionId,
+            opinion.Status, opinion.OpinionText, opinion.RequestComment, opinion.ForwardedFromId, opinion.OriginalOpinionId,
             opinion.CreatedAt, opinion.ResolvedAt
         ));
     }
@@ -592,7 +593,7 @@ public class CasesController : ControllerBase
             opinion.Id, opinion.CaseId, opinion.Type, opinion.RequestedBy,
             users.GetValueOrDefault(opinion.RequestedBy, ""),
             opinion.AssignedTo, users.GetValueOrDefault(opinion.AssignedTo, ""),
-            opinion.Status, opinion.OpinionText, opinion.ForwardedFromId, opinion.OriginalOpinionId,
+            opinion.Status, opinion.OpinionText, opinion.RequestComment, opinion.ForwardedFromId, opinion.OriginalOpinionId,
             opinion.CreatedAt, opinion.ResolvedAt
         ));
     }
@@ -653,7 +654,7 @@ public class CasesController : ControllerBase
             forwarded.Id, forwarded.CaseId, forwarded.Type, forwarded.RequestedBy,
             users.GetValueOrDefault(forwarded.RequestedBy, ""),
             forwarded.AssignedTo, users.GetValueOrDefault(forwarded.AssignedTo, ""),
-            forwarded.Status, forwarded.OpinionText, forwarded.ForwardedFromId, forwarded.OriginalOpinionId,
+            forwarded.Status, forwarded.OpinionText, forwarded.RequestComment, forwarded.ForwardedFromId, forwarded.OriginalOpinionId,
             forwarded.CreatedAt, forwarded.ResolvedAt
         ));
     }
@@ -686,7 +687,7 @@ public class CasesController : ControllerBase
             o.Id, o.CaseId, o.Type, o.RequestedBy,
             users.GetValueOrDefault(o.RequestedBy, ""),
             o.AssignedTo, users.GetValueOrDefault(o.AssignedTo, ""),
-            o.Status, o.OpinionText, o.ForwardedFromId, o.OriginalOpinionId,
+            o.Status, o.OpinionText, o.RequestComment, o.ForwardedFromId, o.OriginalOpinionId,
             o.CreatedAt, o.ResolvedAt
         )).ToList();
 

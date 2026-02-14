@@ -28,6 +28,8 @@ public class CaseOpinion
 
     public string? OpinionText { get; set; }
 
+    public string? RequestComment { get; set; } // Sender's comment when requesting opinion/approval
+
     public Guid? ForwardedFromId { get; set; } // Self-reference for delegation chain
     public Guid? OriginalOpinionId { get; set; } // Root of forwarding chain
 

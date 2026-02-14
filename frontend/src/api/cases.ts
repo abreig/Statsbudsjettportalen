@@ -97,6 +97,7 @@ export async function changeResponsible(caseId: string, newAssignedTo: string): 
 export interface CreateOpinionPayload {
   assignedTo: string;
   type?: 'uttalelse' | 'godkjenning';
+  comment?: string;
 }
 
 export interface ResolveOpinionPayload {

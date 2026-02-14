@@ -249,6 +249,9 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<Guid?>("OriginalOpinionId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("RequestComment")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("RequestedBy")
                         .HasColumnType("uuid");
 
