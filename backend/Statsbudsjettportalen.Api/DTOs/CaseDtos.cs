@@ -81,7 +81,7 @@ public record CaseOpinionDto(
 );
 
 public record CreateOpinionDto(
-    Guid AssignedTo
+    string AssignedTo
 );
 
 public record ResolveOpinionDto(

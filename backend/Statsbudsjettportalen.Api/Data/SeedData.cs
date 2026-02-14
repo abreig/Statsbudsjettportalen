@@ -51,7 +51,7 @@ public static class SeedData
     ];
 
     private static readonly string[] CaseTypes = ["satsingsforslag", "budsjettiltak", "teknisk_justering", "andre_saker"];
-    private static readonly string[] Statuses = ["draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol", "sendt_til_fin", "under_vurdering_fin", "ferdigbehandlet_fin", "sendt_til_regjeringen"];
+    private static readonly string[] Statuses = ["draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol", "sendt_til_fin", "under_vurdering_fin", "ferdigbehandlet_fin", "sendt_til_regjeringen", "returnert_til_fag"];
 
     // Division names per department code
     private static readonly Dictionary<string, string[]> DeptDivisions = new()

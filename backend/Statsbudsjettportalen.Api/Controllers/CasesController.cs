@@ -39,6 +39,7 @@ public class CasesController : ControllerBase
         var query = _db.Cases
             .Include(c => c.Department)
             .Include(c => c.ContentVersions)
+            .Include(c => c.Opinions)
             .AsQueryable();
 
         // Role-based filtering: FAG sees only own department
@@ -94,7 +95,8 @@ public class CasesController : ControllerBase
     public async Task<ActionResult<List<CaseResponseDto>>> GetHistory(
         [FromQuery] string? chapter,
         [FromQuery] string? post,
-        [FromQuery] Guid? department_id)
+        [FromQuery] Guid? department_id,
+        [FromQuery] int? year)
     {
         var query = _db.Cases
             .Include(c => c.Department)
@@ -109,6 +111,8 @@ public class CasesController : ControllerBase
             query = query.Where(c => c.Chapter == chapter);
         if (!string.IsNullOrEmpty(post))
             query = query.Where(c => c.Post == post);
+        if (year.HasValue)
+            query = query.Where(c => c.BudgetRound.Year == year.Value);
 
         var cases = await query.OrderByDescending(c => c.UpdatedAt).ToListAsync();
         var userIds = cases.Select(c => c.CreatedBy).Distinct().ToList();
@@ -397,12 +401,22 @@ public class CasesController : ControllerBase
         var c = await _db.Cases.FindAsync(id);
         if (c == null) return NotFound();
 
+        // Resolve assignee: accept GUID or email
+        Guid assigneeId;
+        if (!Guid.TryParse(dto.AssignedTo, out assigneeId))
+        {
+            var targetUser = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.AssignedTo);
+            if (targetUser == null)
+                return BadRequest(new { message = $"Bruker ikke funnet: {dto.AssignedTo}" });
+            assigneeId = targetUser.Id;
+        }
+
         var opinion = new CaseOpinion
         {
             Id = Guid.NewGuid(),
             CaseId = id,
             RequestedBy = userId,
-            AssignedTo = dto.AssignedTo,
+            AssignedTo = assigneeId,
             Status = "pending",
             CreatedAt = DateTime.UtcNow,
         };
@@ -414,14 +428,14 @@ public class CasesController : ControllerBase
             CaseId = id,
             EventType = "opinion_requested",
             UserId = userId,
-            EventData = JsonSerializer.Serialize(new { assigned_to = dto.AssignedTo }),
+            EventData = JsonSerializer.Serialize(new { assigned_to = assigneeId }),
             CreatedAt = DateTime.UtcNow,
         });
 
         await _db.SaveChangesAsync();
 
         var users = await _db.Users
-            .Where(u => u.Id == userId || u.Id == dto.AssignedTo)
+            .Where(u => u.Id == userId || u.Id == assigneeId)
             .ToDictionaryAsync(u => u.Id, u => u.FullName);
 
         return Ok(new CaseOpinionDto(
