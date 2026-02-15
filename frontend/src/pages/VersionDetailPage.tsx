@@ -15,7 +15,7 @@ import { ArrowLeft } from 'lucide-react';
 import { fetchContentVersion, fetchCase } from '../api/cases.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
-import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
+import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS, GOV_CONCLUSION_FIELD } from '../lib/caseTypes.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 
 export function VersionDetailPage() {
@@ -150,7 +150,7 @@ export function VersionDetailPage() {
           </div>
 
           {/* FIN fields */}
-          {(versionData.finAssessment || versionData.finVerbal || versionData.finRConclusion) && (
+          {(versionData.finAssessment || versionData.finVerbal) && (
             <div className="mb-4 rounded-lg border-2 border-[var(--color-fin)]/30 bg-white p-6">
               <Heading size="small" level="2" className="mb-4" style={{ color: 'var(--color-fin)' }}>
                 FINs vurdering
@@ -171,6 +171,18 @@ export function VersionDetailPage() {
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Regjeringens konklusjon */}
+          {versionData.finRConclusion && (
+            <div className="mb-4 rounded-lg border-2 border-emerald-200 bg-white p-6">
+              <Heading size="small" level="2" className="mb-4 text-emerald-800">
+                {GOV_CONCLUSION_FIELD.label}
+              </Heading>
+              <BodyLong className="whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
+                {versionData.finRConclusion}
+              </BodyLong>
             </div>
           )}
         </>

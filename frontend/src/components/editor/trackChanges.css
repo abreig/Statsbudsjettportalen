@@ -62,9 +62,9 @@ span.tracked-format-change {
   border-bottom: none;
 }
 
-/* Review mode: subtle read-only appearance */
+/* Review mode: subtle yellow tint to indicate review */
 .track-mode-review .case-document-editor {
-  background-color: #fafbfc;
+  background-color: #fefce8;
 }
 
 /* ─── Active/selected change highlight ─────────────────── */

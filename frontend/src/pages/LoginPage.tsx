@@ -20,6 +20,7 @@ const FAG_DEPARTMENTS: { code: string; name: string }[] = [
   { code: 'DFD', name: 'Digitaliserings- og forvaltningsdepartementet' },
   { code: 'ED', name: 'Energidepartementet' },
   { code: 'FD', name: 'Forsvarsdepartementet' },
+  { code: 'FIN', name: 'Finansdepartementet' },
   { code: 'HOD', name: 'Helse- og omsorgsdepartementet' },
   { code: 'JD', name: 'Justis- og beredskapsdepartementet' },
   { code: 'KLD', name: 'Klima- og miljødepartementet' },

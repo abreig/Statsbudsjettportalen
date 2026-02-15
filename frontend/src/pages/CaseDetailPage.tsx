@@ -42,7 +42,7 @@ import { SectionNavigation } from '../components/editor/SectionNavigation.tsx';
 import { CommentPanel } from '../components/editor/CommentPanel.tsx';
 import { buildDocumentFromContent, extractFieldsFromDocument } from '../components/editor/documentUtils.ts';
 import type { TrackMode } from '../components/editor/TrackChangesExtension.ts';
-import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
+import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS, GOV_CONCLUSION_FIELD } from '../lib/caseTypes.ts';
 import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, FIN_VISIBLE_STATUSES, getAllowedTransitions } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 import { isFagRole, isFinRole, isFinLeader, canChangeResponsible, canSendOpinion } from '../lib/roles.ts';
@@ -93,6 +93,7 @@ export function CaseDetailPage() {
   const [deptUsers, setDeptUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
   const [finUsers, setFinUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     status: string;
     label: string;
@@ -123,10 +124,12 @@ export function CaseDetailPage() {
   // case status + user role to enforce the collaborative workflow.
   const isAtFin = ['sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin'].includes(status);
   const isReturned = status === 'returnert_til_fag';
+  const isRejected = status === 'avvist_av_fin';
   const isCaseClosed = status === 'regjeringsbehandlet';
 
   const canEdit = (() => {
     if (isCaseClosed) return false;
+    if (isRejected) return false; // Rejected cases are permanently closed
     if (isAtFin && userIsFag) return false; // FAG cannot edit while at FIN
     if (isReturned && userIsFin) return false; // FIN cannot edit returned case
     return true;
@@ -152,13 +155,17 @@ export function CaseDetailPage() {
   const showFinFields = userIsFin
     || (userIsFag && FIN_FIELDS_VISIBLE_TO_FAG.includes(status));
 
+  // "Regjeringens konklusjon" visible when status is sendt_til_regjeringen or later for all users
+  const showGovConclusion = ['sendt_til_regjeringen', 'regjeringsbehandlet'].includes(status);
+
   // Build the document JSON from current content
   const documentContent = buildDocumentFromContent(
     content ?? null,
     fagFields,
     FIN_FIELDS,
     id ?? '',
-    showFinFields
+    showFinFields,
+    showGovConclusion ? GOV_CONCLUSION_FIELD : null
   );
 
   // Handle document changes from the editor (no autosave — manual save only)
@@ -283,7 +290,7 @@ export function CaseDetailPage() {
   const pendingOpinions = opinions.filter((o) => o.status === 'pending');
   const resolvedOpinions = opinions.filter((o) => o.status !== 'pending');
   const isReturnedStatus = status === 'returnert_til_fag';
-  const isClosed = status === 'regjeringsbehandlet';
+  const isClosed = status === 'regjeringsbehandlet' || status === 'avvist_av_fin';
   const isLocked = pendingOpinions.length > 0;
   const isResponsible = user?.id === budgetCase.assignedTo || user?.id === budgetCase.finAssignedTo;
   const canOpinion = canSendOpinion(role, user?.id ?? '', budgetCase.assignedTo, budgetCase.finAssignedTo);
@@ -338,10 +345,15 @@ export function CaseDetailPage() {
         <CaseWorkflowBar currentStatus={budgetCase.status} opinions={budgetCase.opinions} />
       </div>
 
-      {/* Returned / Closed banners */}
+      {/* Returned / Rejected / Closed banners */}
       {isReturnedStatus && (
+        <Alert variant="warning" size="small" className="mb-4">
+          Saken er returnert til FAG for revisjon.
+        </Alert>
+      )}
+      {isRejected && (
         <Alert variant="error" size="small" className="mb-4">
-          Saken er avvist av FIN.
+          Forslaget er avvist av FIN. Saken er permanent lukket.
         </Alert>
       )}
       {isClosed && (
@@ -447,12 +459,26 @@ export function CaseDetailPage() {
                       <Button
                         key={action.status}
                         size="small"
-                        variant="danger"
+                        variant="secondary"
                         icon={<RotateCcw size={14} />}
                         onClick={() => setShowReturnModal(true)}
                         disabled={isLocked}
                       >
-                        Avvis - returner til FAG
+                        {action.label}
+                      </Button>
+                    );
+                  }
+                  if (action.status === 'avvist_av_fin') {
+                    return (
+                      <Button
+                        key={action.status}
+                        size="small"
+                        variant="danger"
+                        icon={<XCircle size={14} />}
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={isLocked}
+                      >
+                        {action.label}
                       </Button>
                     );
                   }
@@ -1001,6 +1027,7 @@ export function CaseDetailPage() {
                 fagFields={fagFields}
                 finFields={FIN_FIELDS}
                 showFinFields={showFinFields}
+                govConclusionField={showGovConclusion ? GOV_CONCLUSION_FIELD : null}
               />
             </div>
 
@@ -1048,6 +1075,17 @@ export function CaseDetailPage() {
           handleStatusChange('returnert_til_fag', reason)
         }
         loading={changeStatusMut.isPending}
+      />
+
+      {/* Reject modal */}
+      <ReturnCaseModal
+        open={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        onConfirm={(reason) =>
+          handleStatusChange('avvist_av_fin', reason)
+        }
+        loading={changeStatusMut.isPending}
+        variant="reject"
       />
     </div>
   );

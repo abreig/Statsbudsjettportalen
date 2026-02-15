@@ -140,7 +140,7 @@ export function EditorToolbar({
             title={trackingEnabled ? 'Slå av spor endringer' : 'Slå på spor endringer'}
             className={
               trackingEnabled
-                ? 'bg-green-100 text-green-700 rounded'
+                ? 'bg-blue-600 text-white rounded'
                 : 'rounded'
             }
           >

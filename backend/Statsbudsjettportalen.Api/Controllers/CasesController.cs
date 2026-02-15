@@ -341,7 +341,10 @@ public class CasesController : ControllerBase
             return BadRequest(new { message = $"Ugyldig statusovergang fra '{c.Status}' til '{dto.Status}' for rollen '{userRole}'" });
 
         if (dto.Status == "returnert_til_fag" && string.IsNullOrEmpty(dto.Reason))
-            return BadRequest(new { message = "Begrunnelse er påkrevd ved avvisning av sak" });
+            return BadRequest(new { message = "Begrunnelse er påkrevd ved retur av sak" });
+
+        if (dto.Status == "avvist_av_fin" && string.IsNullOrEmpty(dto.Reason))
+            return BadRequest(new { message = "Begrunnelse er påkrevd ved avvisning av forslag" });
 
         var oldStatus = c.Status;
         c.Status = dto.Status;

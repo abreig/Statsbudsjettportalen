@@ -48,5 +48,7 @@ export const CASE_TYPE_FIELDS: Record<string, CaseFieldConfig[]> = {
 export const FIN_FIELDS: CaseFieldConfig[] = [
   { key: 'finAssessment', label: 'FINs vurdering' },
   { key: 'finVerbal', label: 'FINs forslag til verbalkonklusjon' },
-  { key: 'finRConclusion', label: 'FINs r-konklusjon' },
 ];
+
+export const GOV_CONCLUSION_FIELD: CaseFieldConfig =
+  { key: 'finRConclusion', label: 'Regjeringens konklusjon' };

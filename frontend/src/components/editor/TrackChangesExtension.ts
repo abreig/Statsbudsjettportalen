@@ -202,7 +202,7 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
 
     return {
       Backspace: ({ editor }) => {
-        if (!ext.storage.enabled || ext.storage.mode !== 'editing') return false;
+        if (!ext.storage.enabled || ext.storage.mode === 'final') return false;
 
         const { state } = editor;
         const { from, to, empty } = state.selection;
@@ -221,7 +221,7 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
       },
 
       Delete: ({ editor }) => {
-        if (!ext.storage.enabled || ext.storage.mode !== 'editing') return false;
+        if (!ext.storage.enabled || ext.storage.mode === 'final') return false;
 
         const { state } = editor;
         const { from, to, empty } = state.selection;
@@ -416,7 +416,7 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
         key: trackChangesPluginKey,
 
         appendTransaction(transactions: readonly Transaction[], oldState: EditorState, newState: EditorState) {
-          if (!extensionStorage.enabled || extensionStorage.mode !== 'editing') return null;
+          if (!extensionStorage.enabled || extensionStorage.mode === 'final') return null;
 
           const hasDocChange = transactions.some((tr) => tr.docChanged);
           const isAcceptReject = transactions.some(
