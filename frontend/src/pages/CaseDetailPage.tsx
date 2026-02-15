@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   PanelRightClose,
   PanelRightOpen,
+  FileDown,
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
 import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
@@ -72,9 +73,9 @@ export function CaseDetailPage() {
   const [documentDirty, setDocumentDirty] = useState(false);
   const latestDocJson = useRef<JSONContent | null>(null);
 
-  // Track changes state
-  const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
-  const [trackMode, setTrackMode] = useState<TrackMode>('editing');
+  // Track changes override state (resolved after auto-values are computed below)
+  const [trackChangesOverride, setTrackChangesOverride] = useState<boolean | null>(null);
+  const [trackModeOverride, setTrackModeOverride] = useState<TrackMode | null>(null);
 
   // Comments state
   const editorRef = useRef<Editor | null>(null);
@@ -98,6 +99,7 @@ export function CaseDetailPage() {
     isBackward?: boolean;
   } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [statusComment, setStatusComment] = useState('');
   const [opinionAssignee, setOpinionAssignee] = useState('');
   const [showOpinionForm, setShowOpinionForm] = useState<false | 'uttalelse' | 'godkjenning'>(false);
@@ -116,7 +118,36 @@ export function CaseDetailPage() {
   const status = budgetCase?.status ?? '';
   const fagFields = CASE_TYPE_FIELDS[caseType] ?? [];
 
-  const canEdit = status !== 'regjeringsbehandlet';
+  // ─── Status-based editor mode logic (Sprint 2.4) ───────────────
+  // Determines editability, track changes, and editor mode based on
+  // case status + user role to enforce the collaborative workflow.
+  const isAtFin = ['sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin'].includes(status);
+  const isReturned = status === 'returnert_til_fag';
+  const isCaseClosed = status === 'regjeringsbehandlet';
+
+  const canEdit = (() => {
+    if (isCaseClosed) return false;
+    if (isAtFin && userIsFag) return false; // FAG cannot edit while at FIN
+    if (isReturned && userIsFin) return false; // FIN cannot edit returned case
+    return true;
+  })();
+
+  // Auto-enable tracking when FIN edits a case, or when FAG reviews returned case
+  const autoTrackingEnabled = (() => {
+    if (userIsFin && isAtFin) return true; // FIN edits always tracked
+    if (userIsFag && isReturned) return true; // FAG reviewing FIN changes
+    return false;
+  })();
+
+  // Auto-set track mode based on status + role
+  const autoTrackMode: TrackMode = (() => {
+    if (userIsFag && isReturned) return 'review'; // FAG reviews FIN's changes
+    return 'editing';
+  })();
+
+  // Resolved track changes state (user override or auto-value)
+  const trackChangesEnabled = trackChangesOverride ?? autoTrackingEnabled;
+  const trackMode = trackModeOverride ?? autoTrackMode;
 
   const showFinFields = userIsFin
     || (userIsFag && FIN_FIELDS_VISIBLE_TO_FAG.includes(status));
@@ -165,11 +196,17 @@ export function CaseDetailPage() {
       ...fields,
     };
 
+    setSaveError(null);
     saveContentMut.mutate(payload as Record<string, string | null>, {
       onSuccess: () => {
         setDocumentDirty(false);
         setEditedMetaFields({});
         setSaveSuccess(true);
+        setSaveError(null);
+      },
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Ukjent feil ved lagring';
+        setSaveError(`Kunne ikke lagre: ${message}. Prøv igjen.`);
       },
     });
   }, [id, budgetCase, editedMetaFields, saveContentMut]);
@@ -270,6 +307,16 @@ export function CaseDetailPage() {
           <Button
             variant="tertiary"
             size="small"
+            icon={<FileDown size={16} />}
+            onClick={() => {
+              window.open(`/api/cases/${id}/export/word`, '_blank');
+            }}
+          >
+            Eksporter Word
+          </Button>
+          <Button
+            variant="tertiary"
+            size="small"
             icon={<History size={16} />}
             onClick={() => navigate(`/cases/${id}/history`)}
           >
@@ -303,10 +350,29 @@ export function CaseDetailPage() {
         </Alert>
       )}
 
+      {/* Status-based read-only indicator */}
+      {isAtFin && userIsFag && (
+        <Alert variant="info" size="small" className="mb-4">
+          Saken er til behandling hos FIN. Dokumentet er skrivebeskyttet.
+        </Alert>
+      )}
+      {isReturned && userIsFag && (
+        <Alert variant="warning" size="small" className="mb-4">
+          Saken er returnert fra FIN med endringer. Gjennomgå og godta/avvis endringene.
+        </Alert>
+      )}
+
       {/* Save success message */}
       {saveSuccess && (
         <Alert variant="success" size="small" className="mb-4">
           Innholdet er lagret (versjon {budgetCase.version}).
+        </Alert>
+      )}
+
+      {/* Save error message */}
+      {saveError && (
+        <Alert variant="error" size="small" className="mb-4">
+          {saveError}
         </Alert>
       )}
 
@@ -552,8 +618,8 @@ export function CaseDetailPage() {
             onUpdate={handleDocumentUpdate}
             trackChangesEnabled={trackChangesEnabled}
             trackMode={trackMode}
-            onToggleTracking={() => setTrackChangesEnabled((prev) => !prev)}
-            onSetTrackMode={setTrackMode}
+            onToggleTracking={() => setTrackChangesOverride((prev) => !(prev ?? autoTrackingEnabled))}
+            onSetTrackMode={(mode) => setTrackModeOverride(mode)}
             currentUser={user ? { id: user.id, name: user.fullName } : undefined}
             onEditorReady={(editor) => { editorRef.current = editor; }}
           />

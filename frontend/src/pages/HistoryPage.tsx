@@ -35,10 +35,6 @@ export function HistoryPage() {
         .sort((a, b) => b - a)
     : [];
 
-  // Extract unique departments
-  const departments = cases
-    ? [...new Set(cases.map((c) => c.departmentCode).filter(Boolean))]
-    : [];
 
   return (
     <div>

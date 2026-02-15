@@ -97,7 +97,7 @@ export function EditorToolbar({
   ] as const;
 
   return (
-    <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 rounded-t-lg sticky top-0 z-10 flex-wrap">
+    <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 rounded-t-lg sticky top-0 z-10 flex-wrap" role="toolbar" aria-label="Formateringsverktøy">
       {toolbarItems.map((item, idx) => {
         if (item === 'separator') {
           return (

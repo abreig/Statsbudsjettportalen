@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -13,6 +14,7 @@ import {
 import { ArrowLeft } from 'lucide-react';
 import { fetchContentVersion, fetchCase } from '../api/cases.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
+import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 
@@ -48,6 +50,16 @@ export function VersionDetailPage() {
 
   const caseType = budgetCase.caseType ?? '';
   const fagFields = CASE_TYPE_FIELDS[caseType] ?? [];
+
+  // Parse contentJson if available — shows document with tracked changes
+  const documentContent = useMemo(() => {
+    if (!versionData.contentJson) return null;
+    try {
+      return JSON.parse(versionData.contentJson);
+    } catch {
+      return null;
+    }
+  }, [versionData.contentJson]);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -105,51 +117,63 @@ export function VersionDetailPage() {
         </div>
       </div>
 
-      {/* FAG content fields */}
-      <div className="mb-4 rounded-lg border border-gray-200 bg-white p-6">
-        <Heading size="small" level="2" className="mb-4">
-          Faginnhold
-        </Heading>
-        <div className="space-y-4">
-          {fagFields.map((field) => {
-            const value = (versionData as Record<string, unknown>)[field.key] as string | null;
-            return (
-              <div key={field.key}>
-                <Label size="small" className="text-gray-600">
-                  {field.label}
-                </Label>
-                <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
-                  {value || '-'}
-                </BodyLong>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* FIN fields */}
-      {(versionData.finAssessment || versionData.finVerbal || versionData.finRConclusion) && (
-        <div className="mb-4 rounded-lg border-2 border-[var(--color-fin)]/30 bg-white p-6">
-          <Heading size="small" level="2" className="mb-4" style={{ color: 'var(--color-fin)' }}>
-            FINs vurdering
-          </Heading>
-          <div className="space-y-4">
-            {FIN_FIELDS.map((field) => {
-              const value = (versionData as Record<string, unknown>)[field.key] as string | null;
-              if (!value) return null;
-              return (
-                <div key={field.key}>
-                  <Label size="small" className="text-gray-600">
-                    {field.label}
-                  </Label>
-                  <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
-                    {value}
-                  </BodyLong>
-                </div>
-              );
-            })}
+      {/* Document with tracked changes (rich view) */}
+      {documentContent ? (
+        <CaseDocumentEditor
+          initialContent={documentContent}
+          editable={false}
+          trackChangesEnabled={true}
+          trackMode="review"
+        />
+      ) : (
+        <>
+          {/* FAG content fields (flat text fallback) */}
+          <div className="mb-4 rounded-lg border border-gray-200 bg-white p-6">
+            <Heading size="small" level="2" className="mb-4">
+              Faginnhold
+            </Heading>
+            <div className="space-y-4">
+              {fagFields.map((field) => {
+                const value = (versionData as unknown as Record<string, unknown>)[field.key] as string | null;
+                return (
+                  <div key={field.key}>
+                    <Label size="small" className="text-gray-600">
+                      {field.label}
+                    </Label>
+                    <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
+                      {value || '-'}
+                    </BodyLong>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
+
+          {/* FIN fields */}
+          {(versionData.finAssessment || versionData.finVerbal || versionData.finRConclusion) && (
+            <div className="mb-4 rounded-lg border-2 border-[var(--color-fin)]/30 bg-white p-6">
+              <Heading size="small" level="2" className="mb-4" style={{ color: 'var(--color-fin)' }}>
+                FINs vurdering
+              </Heading>
+              <div className="space-y-4">
+                {FIN_FIELDS.map((field) => {
+                  const value = (versionData as unknown as Record<string, unknown>)[field.key] as string | null;
+                  if (!value) return null;
+                  return (
+                    <div key={field.key}>
+                      <Label size="small" className="text-gray-600">
+                        {field.label}
+                      </Label>
+                      <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
+                        {value}
+                      </BodyLong>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

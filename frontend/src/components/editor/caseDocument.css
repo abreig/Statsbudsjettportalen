@@ -111,8 +111,9 @@
 /* Print styles */
 @media print {
   .case-document-wrapper {
-    border: none;
-    box-shadow: none;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
   }
 
   .section-title {
@@ -121,5 +122,24 @@
 
   .case-section {
     break-inside: avoid;
+  }
+
+  /* Hide toolbar and non-content elements when printing */
+  .case-document-wrapper > :first-child:not(.px-8) {
+    display: none !important;
+  }
+
+  /* Clean up spacing for print */
+  .case-document-editor {
+    min-height: auto;
+  }
+
+  .section-content {
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .section-title {
+    font-size: 13pt;
   }
 }

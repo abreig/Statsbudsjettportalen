@@ -5,14 +5,13 @@ import {
   Alert,
   Loader,
   Table,
-  Tag,
 } from '@navikt/ds-react';
 import { useCases } from '../hooks/useCases.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { useUiStore } from '../stores/uiStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CASE_TYPE_LABELS } from '../lib/caseTypes.ts';
-import { AT_FIN_STATUSES, STATUS_LABELS } from '../lib/statusFlow.ts';
+import { AT_FIN_STATUSES } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDateShort } from '../lib/formatters.ts';
 
 export function AtFinPage() {
