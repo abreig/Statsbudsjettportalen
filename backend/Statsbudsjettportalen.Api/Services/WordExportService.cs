@@ -24,7 +24,7 @@ public class WordExportService
         using var stream = new MemoryStream();
         using (var doc = WordprocessingDocument.Create(stream, WordprocessingDocumentType.Document))
         {
-            var mainPart = doc.AddMainPart();
+            var mainPart = doc.AddMainDocumentPart();
             mainPart.Document = new Document();
             var body = mainPart.Document.AppendChild(new Body());
 
@@ -189,7 +189,11 @@ public class WordExportService
                     if (matchingComment != null)
                     {
                         // Add comment range start/end markers
-                        var commentIdx = comments.IndexOf(matchingComment);
+                        var commentIdx = 0;
+                        for (int ci = 0; ci < comments.Count; ci++)
+                        {
+                            if (comments[ci] == matchingComment) { commentIdx = ci; break; }
+                        }
                         para.AppendChild(new CommentRangeStart { Id = new StringValue(commentIdx.ToString()) });
                         para.AppendChild(run);
                         para.AppendChild(new CommentRangeEnd { Id = new StringValue(commentIdx.ToString()) });
