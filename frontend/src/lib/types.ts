@@ -44,6 +44,8 @@ export interface BudgetCase {
   status: string;
   assignedTo: string | null;
   assignedToName: string | null;
+  finAssignedTo: string | null;
+  finAssignedToName: string | null;
   createdBy: string;
   createdByName: string;
   origin: string;

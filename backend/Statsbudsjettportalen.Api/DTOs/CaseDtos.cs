@@ -60,6 +60,8 @@ public record CaseResponseDto(
     string Status,
     Guid? AssignedTo,
     string? AssignedToName,
+    Guid? FinAssignedTo,
+    string? FinAssignedToName,
     Guid CreatedBy,
     string CreatedByName,
     string Origin,

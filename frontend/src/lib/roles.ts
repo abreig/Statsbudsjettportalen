@@ -69,3 +69,8 @@ export function canChangeResponsible(role: string, userId: string, assignedTo: s
   if (assignedTo === userId) return true;
   return role === 'budsjettenhet_fag' || isFagLeader(role) || isFinLeader(role) || role === 'administrator';
 }
+
+export function canSendOpinion(role: string, userId: string, assignedTo: string | null, finAssignedTo: string | null): boolean {
+  if (assignedTo === userId || finAssignedTo === userId) return true;
+  return isLeaderRole(role) || role === 'budsjettenhet_fag' || role === 'administrator';
+}

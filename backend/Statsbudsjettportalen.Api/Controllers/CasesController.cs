@@ -49,16 +49,22 @@ public class CasesController : ControllerBase
         {
             query = query.Where(c => c.DepartmentId == userDeptId);
         }
-        // FIN: default filter by assigned departments (can be turned off)
-        else if (_workflow.IsFinRole(userRole) && (my_departments ?? true) && !department_id.HasValue)
+        // FIN: only see cases at sendt_til_fin or later
+        else if (_workflow.IsFinRole(userRole))
         {
-            var assignedDeptIds = await _db.UserDepartmentAssignments
-                .Where(a => a.UserId == userId)
-                .Select(a => a.DepartmentId)
-                .ToListAsync();
+            query = query.Where(c => WorkflowService.FinVisibleStatuses.Contains(c.Status));
 
-            if (assignedDeptIds.Count > 0)
-                query = query.Where(c => assignedDeptIds.Contains(c.DepartmentId));
+            // Default filter by assigned departments (can be turned off)
+            if ((my_departments ?? true) && !department_id.HasValue)
+            {
+                var assignedDeptIds = await _db.UserDepartmentAssignments
+                    .Where(a => a.UserId == userId)
+                    .Select(a => a.DepartmentId)
+                    .ToListAsync();
+
+                if (assignedDeptIds.Count > 0)
+                    query = query.Where(c => assignedDeptIds.Contains(c.DepartmentId));
+            }
         }
 
         if (budget_round_id.HasValue)
@@ -83,7 +89,7 @@ public class CasesController : ControllerBase
             .OrderByDescending(c => c.UpdatedAt)
             .ToListAsync();
 
-        var userIds = cases.SelectMany(c => new[] { c.CreatedBy, c.AssignedTo })
+        var userIds = cases.SelectMany(c => new[] { c.CreatedBy, c.AssignedTo, c.FinAssignedTo })
             .Where(id => id.HasValue || id != null)
             .Select(id => id ?? Guid.Empty)
             .Concat(cases.Select(c => c.CreatedBy))
@@ -148,14 +154,41 @@ public class CasesController : ControllerBase
             .Include(c => c.Department)
             .Include(c => c.ContentVersions)
             .Include(c => c.Opinions)
-            .Where(c => c.AssignedTo == userId);
+            .AsQueryable();
+
+        if (_workflow.IsFinRole(userRole))
+        {
+            // FIN saksbehandler: cases where FinAssignedTo == me
+            // FIN leaders: also cases in my assigned departments with FIN-visible status
+            if (_workflow.IsFinLeader(userRole))
+            {
+                var assignedDeptIds = await _db.UserDepartmentAssignments
+                    .Where(a => a.UserId == userId)
+                    .Select(a => a.DepartmentId)
+                    .ToListAsync();
+
+                query = query.Where(c =>
+                    c.FinAssignedTo == userId
+                    || (assignedDeptIds.Contains(c.DepartmentId)
+                        && WorkflowService.FinVisibleStatuses.Contains(c.Status)));
+            }
+            else
+            {
+                query = query.Where(c => c.FinAssignedTo == userId);
+            }
+        }
+        else
+        {
+            // FAG users: cases assigned to me
+            query = query.Where(c => c.AssignedTo == userId);
+        }
 
         if (budget_round_id.HasValue)
             query = query.Where(c => c.BudgetRoundId == budget_round_id.Value);
 
         var cases = await query.OrderByDescending(c => c.UpdatedAt).ToListAsync();
 
-        var userIds = cases.SelectMany(c => new[] { c.CreatedBy, c.AssignedTo })
+        var userIds = cases.SelectMany(c => new[] { c.CreatedBy, c.AssignedTo, c.FinAssignedTo })
             .Where(id => id.HasValue || id != null)
             .Select(id => id ?? Guid.Empty)
             .Concat(cases.Select(c => c.CreatedBy))
@@ -208,6 +241,7 @@ public class CasesController : ControllerBase
         var currentContent = c.ContentVersions.MaxBy(cv => cv.Version);
         var userIds = new List<Guid> { c.CreatedBy };
         if (c.AssignedTo.HasValue) userIds.Add(c.AssignedTo.Value);
+        if (c.FinAssignedTo.HasValue) userIds.Add(c.FinAssignedTo.Value);
         if (currentContent != null) userIds.Add(currentContent.CreatedBy);
         userIds.AddRange(c.Opinions.Select(o => o.RequestedBy));
         userIds.AddRange(c.Opinions.Select(o => o.AssignedTo));
@@ -307,11 +341,28 @@ public class CasesController : ControllerBase
             return BadRequest(new { message = $"Ugyldig statusovergang fra '{c.Status}' til '{dto.Status}' for rollen '{userRole}'" });
 
         if (dto.Status == "returnert_til_fag" && string.IsNullOrEmpty(dto.Reason))
-            return BadRequest(new { message = "Begrunnelse er påkrevd ved retur til FAG" });
+            return BadRequest(new { message = "Begrunnelse er påkrevd ved avvisning av sak" });
 
         var oldStatus = c.Status;
         c.Status = dto.Status;
         c.UpdatedAt = DateTime.UtcNow;
+
+        // Auto-assign FIN saksbehandler when entering sendt_til_fin
+        if (dto.Status == "sendt_til_fin" && !c.FinAssignedTo.HasValue)
+        {
+            var finHandler = await _db.Users
+                .Where(u => u.Role == "saksbehandler_fin")
+                .Where(u => u.DepartmentAssignments.Any(a => a.DepartmentId == c.DepartmentId))
+                .FirstOrDefaultAsync();
+            if (finHandler != null)
+                c.FinAssignedTo = finHandler.Id;
+        }
+
+        // Clear FinAssignedTo when moving back to pre-FIN status
+        if (WorkflowService.PreFinStatuses.Contains(dto.Status))
+        {
+            c.FinAssignedTo = null;
+        }
 
         _db.CaseEvents.Add(new CaseEvent
         {
@@ -372,6 +423,41 @@ public class CasesController : ControllerBase
 
         await _db.SaveChangesAsync();
         return Ok(new { message = "Ansvarlig saksbehandler endret", assignedTo = dto.NewAssignedTo, assignedToName = newAssignee.FullName });
+    }
+
+    [HttpPatch("{id}/fin-assign")]
+    public async Task<IActionResult> ChangeFinResponsible(Guid id, [FromBody] ChangeResponsibleDto dto)
+    {
+        var userId = MockAuth.GetUserId(User);
+        var userRole = MockAuth.GetUserRole(User);
+        var c = await _db.Cases.FindAsync(id);
+        if (c == null) return NotFound();
+
+        // Only FIN leaders, current FIN handler, or admin can change FIN-saksbehandler
+        var canChange = userRole == "administrator"
+            || _workflow.IsFinLeader(userRole)
+            || (c.FinAssignedTo.HasValue && c.FinAssignedTo.Value == userId);
+        if (!canChange) return Forbid();
+
+        var newAssignee = await _db.Users.FindAsync(dto.NewAssignedTo);
+        if (newAssignee == null) return BadRequest(new { message = "Bruker ikke funnet" });
+
+        var oldFinAssigned = c.FinAssignedTo;
+        c.FinAssignedTo = dto.NewAssignedTo;
+        c.UpdatedAt = DateTime.UtcNow;
+
+        _db.CaseEvents.Add(new CaseEvent
+        {
+            Id = Guid.NewGuid(),
+            CaseId = id,
+            EventType = "fin_responsible_changed",
+            UserId = userId,
+            EventData = JsonSerializer.Serialize(new { from = oldFinAssigned, to = dto.NewAssignedTo, new_name = newAssignee.FullName }),
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "FIN-saksbehandler endret", finAssignedTo = dto.NewAssignedTo, finAssignedToName = newAssignee.FullName });
     }
 
     [HttpPost("{id}/content")]
@@ -506,12 +592,15 @@ public class CasesController : ControllerBase
     public async Task<ActionResult<CaseOpinionDto>> CreateOpinion(Guid id, [FromBody] CreateOpinionDto dto)
     {
         var userId = MockAuth.GetUserId(User);
+        var userRole = MockAuth.GetUserRole(User);
         var c = await _db.Cases.FindAsync(id);
         if (c == null) return NotFound();
 
-        // Only the responsible handler can send for opinion/approval
-        if (c.AssignedTo != userId)
-            return BadRequest(new { message = "Bare ansvarlig saksbehandler kan sende til uttalelse/godkjenning." });
+        // Responsible handler OR leaders can send for opinion/approval
+        var isResponsible = c.AssignedTo == userId || c.FinAssignedTo == userId;
+        var isLeader = _workflow.IsLeader(userRole) || userRole == "administrator";
+        if (!isResponsible && !isLeader)
+            return BadRequest(new { message = "Bare ansvarlig saksbehandler eller ledere kan sende til uttalelse/godkjenning." });
 
         // Validate type
         if (dto.Type != "uttalelse" && dto.Type != "godkjenning")
@@ -682,7 +771,7 @@ public class CasesController : ControllerBase
     {
         // Determine if FIN fields should be visible (punkt 3)
         var showFinFields = userRole == "administrator"
-            || userRole == "saksbehandler_fin" || userRole == "underdirektor_fin" || userRole == "leder_fin"
+            || userRole.Contains("_fin")
             || WorkflowService.FinFieldsVisibleToFag.Contains(c.Status);
 
         CaseContentDto? contentDto = null;
@@ -716,6 +805,8 @@ public class CasesController : ControllerBase
             c.CaseName, c.Chapter, c.Post, c.Amount,
             c.CaseType, c.Status, c.AssignedTo,
             c.AssignedTo.HasValue ? users.GetValueOrDefault(c.AssignedTo.Value, "") : null,
+            c.FinAssignedTo,
+            c.FinAssignedTo.HasValue ? users.GetValueOrDefault(c.FinAssignedTo.Value, "") : null,
             c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""),
             c.Origin, c.ResponsibleDivision, c.Version, c.CreatedAt, c.UpdatedAt,
             contentDto, opinions

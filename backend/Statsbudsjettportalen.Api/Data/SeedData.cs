@@ -31,6 +31,7 @@ public static class SeedData
         ("NFD", "Nærings- og fiskeridepartementet"),
         ("SD",  "Samferdselsdepartementet"),
         ("UD",  "Utenriksdepartementet"),
+        ("FIN-FAG", "Finansdepartementet (fagavdelinger)"),
     ];
 
     private static readonly string[] CaseTypes = ["satsingsforslag", "budsjettiltak", "teknisk_justering", "andre_saker"];
@@ -54,6 +55,7 @@ public static class SeedData
         ["NFD"] = ["Næringsavdelingen", "Havbruksavdelingen"],
         ["SD"]  = ["Vegavdelingen", "Jernbaneavdelingen"],
         ["UD"]  = ["FN-avdelingen", "Utviklingsavdelingen"],
+        ["FIN-FAG"] = ["Skatteøkonomisk avdeling", "Økonomiavdelingen"],
     };
 
     private static readonly string[] CaseNameTemplates =
@@ -87,6 +89,7 @@ public static class SeedData
         ["NFD"] = ["næringsutvikling", "Innovasjon Norge", "sjømatnæringen", "eksportfremme", "havbruk", "mineralnæring", "romvirksomhet", "konkurransepolitikk"],
         ["SD"]  = ["vegutbygging", "jernbane", "luftfart", "sjøtransport", "kollektivtransport", "Nye Veier", "Bane NOR", "trafikksikkerhet"],
         ["UD"]  = ["utviklingshjelp", "humanitær bistand", "FN-bidrag", "EØS-midler", "utenrikstjenesten", "eksportkontroll", "freds- og forsoningsarbeid", "nordområdepolitikk"],
+        ["FIN-FAG"] = ["skatteøkonomi", "makroøkonomisk modellering", "statsregnskapet", "pengepolitikk", "finansmarkedsregulering", "offentlige innkjøp", "økonomiske prognoser", "statsgjeld"],
     };
 
     // ── FIN section structure ───────────────────────────────────
@@ -97,7 +100,7 @@ public static class SeedData
 
     private static readonly FinSectionDef[] FinSectionDefs =
     [
-        new("Næringseksjonen", ["KLD", "ED", "LMD", "NFD", "UD"],
+        new("Næringsseksjonen", ["KLD", "ED", "LMD", "NFD", "UD"],
             ("avddir.naering@fin.test.no", "Morten Vik"),
             [
                 ("unddir.naering1@fin.test.no", "Silje Haugen", ["KLD", "ED", "LMD"]),
@@ -111,15 +114,15 @@ public static class SeedData
                 ("fin.ud@test.no", "Randi Moen", "Rådgiver", ["UD"]),
             ]
         ),
-        new("Statsforvaltningsseksjonen", ["KUD", "FIN", "SD", "DFD", "JD", "FD"],
+        new("Statsforvaltningsseksjonen", ["KUD", "FIN-FAG", "SD", "DFD", "JD", "FD"],
             ("avddir.statsforv@fin.test.no", "Kristin Aas"),
             [
-                ("unddir.statsforv1@fin.test.no", "Hans Dahl", ["KUD", "FIN", "SD", "DFD"]),
+                ("unddir.statsforv1@fin.test.no", "Hans Dahl", ["KUD", "FIN-FAG", "SD", "DFD"]),
                 ("unddir.statsforv2@fin.test.no", "Berit Lund", ["JD", "FD"]),
             ],
             [
                 ("fin.kud@test.no", "Odd Eriksen", "Seniorrådgiver", ["KUD"]),
-                ("fin.fin@test.no", "Turid Nilsen", "Rådgiver", ["FIN"]),
+                ("fin.finfag@test.no", "Turid Nilsen", "Rådgiver", ["FIN-FAG"]),
                 ("fin.sd1@test.no", "Dag Solberg", "Seniorrådgiver", ["SD"]),
                 ("fin.sd2@test.no", "Gro Hagen", "Førstekonsulent", ["SD"]),
                 ("fin.dfd@test.no", "Alf Brekke", "Rådgiver", ["DFD"]),
@@ -167,9 +170,10 @@ public static class SeedData
         [("Liv", "Brekke"), ("Alf", "Fjeld"), ("Astrid", "Mo"), ("Olav", "Foss"), ("Gerd", "Sand"), ("Roar", "Eng")],
         [("Siri", "Vik"), ("Nils", "Rønning"), ("Jorunn", "Bø"), ("Erlend", "Nes"), ("Karin", "Rud"), ("Bjarne", "Li")],
         [("Kristin", "Hauge"), ("Svein", "Bye"), ("Ragnhild", "Ask"), ("Harald", "Hol"), ("Anne", "Furu"), ("Einar", "Eid")],
+        [("Camilla", "Lyng"), ("Thomas", "Rø"), ("Vibeke", "Gran"), ("Steinar", "Mo"), ("Lise", "Skau"), ("Geir", "Dal")],
     ];
 
-    private static readonly string[] FagDeptCodes = ["AID", "BFD", "DFD", "ED", "FD", "HOD", "JD", "KLD", "KDD", "KUD", "KD", "LMD", "NFD", "SD", "UD"];
+    private static readonly string[] FagDeptCodes = ["AID", "BFD", "DFD", "ED", "FD", "HOD", "JD", "KLD", "KDD", "KUD", "KD", "LMD", "NFD", "SD", "UD", "FIN-FAG"];
 
     /// <summary>Drops all data and re-seeds from scratch.</summary>
     public static async Task ResetAndReseedAsync(AppDbContext db)

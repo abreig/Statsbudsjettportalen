@@ -97,6 +97,10 @@ export async function changeResponsible(caseId: string, newAssignedTo: string): 
   await apiClient.patch(`/cases/${caseId}/assign`, { newAssignedTo });
 }
 
+export async function changeFinResponsible(caseId: string, newAssignedTo: string): Promise<void> {
+  await apiClient.patch(`/cases/${caseId}/fin-assign`, { newAssignedTo });
+}
+
 // ─── Opinions (uttalelser/godkjenninger) ───────────────────
 
 export interface CreateOpinionPayload {

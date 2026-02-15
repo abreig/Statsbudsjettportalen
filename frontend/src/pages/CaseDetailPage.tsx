@@ -25,16 +25,16 @@ import {
   Forward,
   ShieldCheck,
 } from 'lucide-react';
-import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
+import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CaseWorkflowBar } from '../components/cases/CaseWorkflowBar.tsx';
 import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
-import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, getAllowedTransitions } from '../lib/statusFlow.ts';
+import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, FIN_VISIBLE_STATUSES, getAllowedTransitions } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
-import { isFagRole, isFinRole, canChangeResponsible } from '../lib/roles.ts';
+import { isFagRole, isFinRole, isFinLeader, canChangeResponsible, canSendOpinion } from '../lib/roles.ts';
 import type { ContentUpdatePayload } from '../api/cases.ts';
 import type { CaseContent, CaseOpinion } from '../lib/types.ts';
 import apiClient from '../api/client.ts';
@@ -49,13 +49,16 @@ export function CaseDetailPage() {
   const saveContentMut = useSaveContent(id ?? '');
   const changeStatusMut = useChangeStatus(id ?? '');
   const changeResponsibleMut = useChangeResponsible(id ?? '');
+  const changeFinResponsibleMut = useChangeFinResponsible(id ?? '');
   const createOpinionMut = useCreateOpinion(id ?? '');
   const resolveOpinionMut = useResolveOpinion(id ?? '');
   const forwardApprovalMut = useForwardApproval(id ?? '');
 
   const [editedFields, setEditedFields] = useState<Record<string, string>>({});
   const [showChangeResponsible, setShowChangeResponsible] = useState(false);
+  const [showChangeFinResponsible, setShowChangeFinResponsible] = useState(false);
   const [deptUsers, setDeptUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
+  const [finUsers, setFinUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     status: string;
@@ -200,7 +203,9 @@ export function CaseDetailPage() {
   const isReturnedStatus = status === 'returnert_til_fag';
   const isClosed = status === 'regjeringsbehandlet';
   const isLocked = pendingOpinions.length > 0;
-  const isResponsible = user?.id === budgetCase.assignedTo;
+  const isResponsible = user?.id === budgetCase.assignedTo || user?.id === budgetCase.finAssignedTo;
+  const canOpinion = canSendOpinion(role, user?.id ?? '', budgetCase.assignedTo, budgetCase.finAssignedTo);
+  const showFinHandler = FIN_VISIBLE_STATUSES.includes(status);
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -309,6 +314,29 @@ export function CaseDetailPage() {
               )}
             </div>
           </div>
+          {showFinHandler && (
+            <div>
+              <Label size="small" className="text-gray-500">
+                FIN-saksbehandler
+              </Label>
+              <div className="flex items-center gap-2">
+                <BodyShort>{budgetCase.finAssignedToName ?? 'Ikke tildelt'}</BodyShort>
+                {(isFinLeader(role) || user?.id === budgetCase.finAssignedTo || role === 'administrator') && !isClosed && (
+                  <Button
+                    size="xsmall"
+                    variant="tertiary"
+                    onClick={async () => {
+                      const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; role: string; departmentId: string }>>('/auth/users');
+                      setFinUsers(data.filter((u) => u.role.includes('_fin') && u.id !== budgetCase.finAssignedTo));
+                      setShowChangeFinResponsible(true);
+                    }}
+                  >
+                    Endre
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
           <div>
             <Label size="small" className="text-gray-500">
               Sist oppdatert
@@ -344,6 +372,34 @@ export function CaseDetailPage() {
             </Button>
           </div>
         )}
+
+        {/* Change FIN-saksbehandler dialog */}
+        {showChangeFinResponsible && (
+          <div className="mt-3 rounded border border-blue-200 bg-blue-50 p-3">
+            <Label size="small" className="mb-2">Velg ny FIN-saksbehandler</Label>
+            <div className="max-h-48 space-y-1 overflow-y-auto">
+              {finUsers.map((u) => (
+                <Button
+                  key={u.id}
+                  size="xsmall"
+                  variant="tertiary"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    changeFinResponsibleMut.mutate(u.id, {
+                      onSuccess: () => setShowChangeFinResponsible(false),
+                    });
+                  }}
+                  loading={changeFinResponsibleMut.isPending}
+                >
+                  {u.fullName} ({u.email})
+                </Button>
+              ))}
+            </div>
+            <Button size="xsmall" variant="secondary" className="mt-2" onClick={() => setShowChangeFinResponsible(false)}>
+              Avbryt
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Workflow bar */}
@@ -354,7 +410,7 @@ export function CaseDetailPage() {
       {/* Returned banner */}
       {isReturnedStatus && (
         <Alert variant="error" size="small" className="mb-4">
-          Saken er returnert til FAG for revisjon.
+          Saken er avvist av FIN.
         </Alert>
       )}
 
@@ -397,7 +453,7 @@ export function CaseDetailPage() {
                     onClick={() => setShowReturnModal(true)}
                     disabled={isLocked}
                   >
-                    {action.label}
+                    Avvis - returner til FAG
                   </Button>
                 );
               }
@@ -415,7 +471,7 @@ export function CaseDetailPage() {
               );
             })}
 
-            {isResponsible && (
+            {canOpinion && (
               <>
                 <Button
                   size="small"
@@ -423,7 +479,7 @@ export function CaseDetailPage() {
                   icon={<MessageSquarePlus size={14} />}
                   onClick={async () => {
                     const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
-                    setOpinionUsers(data.filter((u) => u.departmentId === budgetCase.departmentId && u.id !== user?.id));
+                    setOpinionUsers(data.filter((u) => u.id !== user?.id));
                     setOpinionUserSearch('');
                     setOpinionComment('');
                     setOpinionAssignee('');
@@ -438,7 +494,7 @@ export function CaseDetailPage() {
                   icon={<ShieldCheck size={14} />}
                   onClick={async () => {
                     const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
-                    setOpinionUsers(data.filter((u) => u.departmentId === budgetCase.departmentId && u.id !== user?.id));
+                    setOpinionUsers(data.filter((u) => u.id !== user?.id));
                     setOpinionUserSearch('');
                     setOpinionComment('');
                     setOpinionAssignee('');

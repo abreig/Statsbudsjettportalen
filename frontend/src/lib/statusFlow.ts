@@ -6,7 +6,7 @@ export const STATUS_LABELS: Record<string, string> = {
   godkjent_pol: 'Godkjent av POL',
   sendt_til_fin: 'Sendt til FIN',
   under_vurdering_fin: 'Under vurdering (FIN)',
-  returnert_til_fag: 'Returnert til FAG',
+  returnert_til_fag: 'Avvist av FIN',
   ferdigbehandlet_fin: 'Ferdigbehandlet (FIN)',
   sendt_til_regjeringen: 'Sendt til regjeringen',
   regjeringsbehandlet: 'Regjeringsbehandlet',
@@ -50,6 +50,12 @@ export const AT_FIN_STATUSES = [
   'sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin',
 ];
 
+// Statuses visible to FIN users
+export const FIN_VISIBLE_STATUSES = [
+  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag',
+  'ferdigbehandlet_fin', 'sendt_til_regjeringen', 'regjeringsbehandlet',
+];
+
 // ─── Transition logic (mirrors backend WorkflowService) ────────────
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -58,7 +64,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   til_avklaring: ['klarert', 'under_arbeid'],
   klarert: ['godkjent_pol', 'under_arbeid', 'til_avklaring'],
   godkjent_pol: ['sendt_til_fin', 'under_arbeid', 'til_avklaring', 'klarert'],
-  sendt_til_fin: ['under_vurdering_fin', 'godkjent_pol'],
+  sendt_til_fin: ['under_vurdering_fin', 'godkjent_pol', 'klarert'],
   under_vurdering_fin: ['returnert_til_fag', 'ferdigbehandlet_fin', 'sendt_til_fin'],
   returnert_til_fag: ['under_arbeid'],
   ferdigbehandlet_fin: ['sendt_til_regjeringen', 'under_vurdering_fin'],
@@ -76,6 +82,7 @@ const FAG_LEADER_TRANSITIONS = new Set([
 
 const FIN_LEADER_TRANSITIONS = new Set([
   'sendt_til_fin->under_vurdering_fin',
+  'sendt_til_fin->klarert',
   'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->sendt_til_fin',
   'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
   'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
@@ -92,10 +99,12 @@ const ROLE_TRANSITIONS: Record<string, Set<string>> = {
   departementsraad_fag: FAG_LEADER_TRANSITIONS,
   saksbehandler_fin: new Set([
     'sendt_til_fin->under_vurdering_fin',
+    'sendt_til_fin->klarert',
     'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
   ]),
   underdirektor_fin: new Set([
+    'sendt_til_fin->klarert',
     'under_vurdering_fin->ferdigbehandlet_fin',
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
     'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
@@ -108,7 +117,7 @@ const ROLE_TRANSITIONS: Record<string, Set<string>> = {
     'til_avklaring->klarert', 'til_avklaring->under_arbeid',
     'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
     'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
-    'sendt_til_fin->under_vurdering_fin', 'sendt_til_fin->godkjent_pol',
+    'sendt_til_fin->under_vurdering_fin', 'sendt_til_fin->godkjent_pol', 'sendt_til_fin->klarert',
     'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
     'returnert_til_fag->under_arbeid',
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
@@ -140,14 +149,20 @@ export function getAllowedTransitions(currentStatus: string, userRole: string): 
     .map((s) => {
       const targetIdx = MAIN_FLOW.indexOf(s);
       const isBackward = targetIdx >= 0 && currentIdx >= 0 && targetIdx < currentIdx;
-      return {
-        status: s,
-        label: s === 'returnert_til_fag'
-          ? 'Returner til FAG'
-          : isBackward
-            ? `Flytt tilbake til ${STATUS_LABELS[s]}`
-            : `Flytt til ${STATUS_LABELS[s]}`,
-        isBackward,
-      };
+
+      let label: string;
+      if (s === 'returnert_til_fag') {
+        // "Avvist av FIN" action from under_vurdering_fin
+        label = 'Avvis - returner til FAG';
+      } else if (currentStatus === 'sendt_til_fin' && s === 'klarert') {
+        // New "Returner til FAG" action from sendt_til_fin
+        label = 'Returner til FAG';
+      } else if (isBackward) {
+        label = `Flytt tilbake til ${STATUS_LABELS[s]}`;
+      } else {
+        label = `Flytt til ${STATUS_LABELS[s]}`;
+      }
+
+      return { status: s, label, isBackward };
     });
 }

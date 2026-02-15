@@ -9,6 +9,7 @@ import {
   saveContent,
   changeStatus,
   changeResponsible,
+  changeFinResponsible,
   createOpinion,
   resolveOpinion,
   forwardApproval,
@@ -90,6 +91,16 @@ export function useChangeResponsible(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (newAssignedTo: string) => changeResponsible(caseId, newAssignedTo),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
+  });
+}
+
+export function useChangeFinResponsible(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (newAssignedTo: string) => changeFinResponsible(caseId, newAssignedTo),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
     },

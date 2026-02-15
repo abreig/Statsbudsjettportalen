@@ -10,7 +10,7 @@ public class WorkflowService
         ["til_avklaring"] = ["klarert", "under_arbeid"],
         ["klarert"] = ["godkjent_pol", "under_arbeid", "til_avklaring"],
         ["godkjent_pol"] = ["sendt_til_fin", "under_arbeid", "til_avklaring", "klarert"],
-        ["sendt_til_fin"] = ["under_vurdering_fin", "godkjent_pol"],
+        ["sendt_til_fin"] = ["under_vurdering_fin", "godkjent_pol", "klarert"],
         ["under_vurdering_fin"] = ["returnert_til_fag", "ferdigbehandlet_fin", "sendt_til_fin"],
         ["returnert_til_fag"] = ["under_arbeid"],
         ["ferdigbehandlet_fin"] = ["sendt_til_regjeringen", "under_vurdering_fin"],
@@ -31,6 +31,18 @@ public class WorkflowService
         "departementsraad_fin",
     ];
 
+    private static readonly HashSet<string> FagLeaderRoles =
+    [
+        "budsjettenhet_fag", "underdirektor_fag", "avdelingsdirektor_fag",
+        "ekspedisjonssjef_fag", "departementsraad_fag",
+    ];
+
+    private static readonly HashSet<string> FinLeaderRoles =
+    [
+        "underdirektor_fin", "avdelingsdirektor_fin",
+        "ekspedisjonssjef_fin", "departementsraad_fin",
+    ];
+
     // Shared FAG leader transitions (same as budsjettenhet_fag)
     private static readonly HashSet<string> FagLeaderTransitions =
     [
@@ -45,6 +57,7 @@ public class WorkflowService
     private static readonly HashSet<string> FinLeaderTransitions =
     [
         "sendt_til_fin->under_vurdering_fin",
+        "sendt_til_fin->klarert",
         "under_vurdering_fin->ferdigbehandlet_fin",
         "under_vurdering_fin->returnert_til_fag",
         "under_vurdering_fin->sendt_til_fin",
@@ -66,6 +79,7 @@ public class WorkflowService
         ["departementsraad_fag"] = FagLeaderTransitions,
         ["saksbehandler_fin"] = [
             "sendt_til_fin->under_vurdering_fin",
+            "sendt_til_fin->klarert",
             "under_vurdering_fin->returnert_til_fag",
             "under_vurdering_fin->ferdigbehandlet_fin",
             "under_vurdering_fin->sendt_til_fin",
@@ -73,6 +87,7 @@ public class WorkflowService
             "ferdigbehandlet_fin->under_vurdering_fin",
         ],
         ["underdirektor_fin"] = [
+            "sendt_til_fin->klarert",
             "under_vurdering_fin->ferdigbehandlet_fin",
             "ferdigbehandlet_fin->sendt_til_regjeringen",
             "ferdigbehandlet_fin->under_vurdering_fin",
@@ -87,7 +102,7 @@ public class WorkflowService
             "til_avklaring->klarert", "til_avklaring->under_arbeid",
             "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
             "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
-            "sendt_til_fin->under_vurdering_fin", "sendt_til_fin->godkjent_pol",
+            "sendt_til_fin->under_vurdering_fin", "sendt_til_fin->godkjent_pol", "sendt_til_fin->klarert",
             "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin", "under_vurdering_fin->sendt_til_fin",
             "returnert_til_fag->under_arbeid",
             "ferdigbehandlet_fin->sendt_til_regjeringen", "ferdigbehandlet_fin->under_vurdering_fin",
@@ -103,6 +118,17 @@ public class WorkflowService
     /// <summary>Statuses where FAG can see FIN's completed assessments.</summary>
     public static readonly HashSet<string> FinFieldsVisibleToFag = [
         "sendt_til_regjeringen", "regjeringsbehandlet",
+    ];
+
+    /// <summary>Statuses visible to FIN users (sendt_til_fin and later).</summary>
+    public static readonly HashSet<string> FinVisibleStatuses = [
+        "sendt_til_fin", "under_vurdering_fin", "returnert_til_fag",
+        "ferdigbehandlet_fin", "sendt_til_regjeringen", "regjeringsbehandlet",
+    ];
+
+    /// <summary>Pre-FIN statuses: if case moves here, clear FinAssignedTo.</summary>
+    public static readonly HashSet<string> PreFinStatuses = [
+        "draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol",
     ];
 
     public bool IsValidTransition(string currentStatus, string newStatus)
@@ -126,12 +152,14 @@ public class WorkflowService
 
     public bool IsFagRole(string role) => FagRoles.Contains(role);
     public bool IsFinRole(string role) => FinRoles.Contains(role);
+    public bool IsFagLeader(string role) => FagLeaderRoles.Contains(role);
+    public bool IsFinLeader(string role) => FinLeaderRoles.Contains(role);
+    public bool IsLeader(string role) => IsFagLeader(role) || IsFinLeader(role);
 
     /// <summary>Whether FIN fields should be visible in the response for this role+status combo.</summary>
     public bool ShouldShowFinFields(string role, string status)
     {
         if (IsFinRole(role) || role == "administrator") return true;
-        // FAG can see FIN fields only after "sendt_til_regjeringen"
         return FinFieldsVisibleToFag.Contains(status);
     }
 
