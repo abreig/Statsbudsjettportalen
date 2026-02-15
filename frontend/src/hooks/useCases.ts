@@ -7,6 +7,7 @@ import {
   fetchMyTasks,
   createCase,
   saveContent,
+  saveDocument,
   changeStatus,
   changeResponsible,
   changeFinResponsible,
@@ -17,6 +18,7 @@ import {
 import type {
   CaseCreatePayload,
   ContentUpdatePayload,
+  DocumentSavePayload,
   CreateOpinionPayload,
   ResolveOpinionPayload,
   HistoryFilters,
@@ -69,6 +71,16 @@ export function useSaveContent(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: ContentUpdatePayload) => saveContent(caseId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
+  });
+}
+
+export function useSaveDocument(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: DocumentSavePayload) => saveDocument(caseId, payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
     },

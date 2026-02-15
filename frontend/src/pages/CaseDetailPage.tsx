@@ -30,7 +30,7 @@ import {
   FileDown,
 } from 'lucide-react';
 import type { Editor } from '@tiptap/react';
-import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
+import { useCase, useSaveDocument, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
 import { useComments, useCreateComment, useReplyToComment, useResolveComment, useReopenComment, useDeleteComment } from '../hooks/useComments.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
@@ -40,13 +40,12 @@ import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
 import { SectionNavigation } from '../components/editor/SectionNavigation.tsx';
 import { CommentPanel } from '../components/editor/CommentPanel.tsx';
-import { buildDocumentFromContent, extractFieldsFromDocument } from '../components/editor/documentUtils.ts';
+import { buildDocumentFromContent } from '../components/editor/documentUtils.ts';
 import type { TrackMode } from '../components/editor/TrackChangesExtension.ts';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS, GOV_CONCLUSION_FIELD } from '../lib/caseTypes.ts';
 import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, FIN_VISIBLE_STATUSES, getAllowedTransitions } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 import { isFagRole, isFinRole, isFinLeader, canChangeResponsible, canSendOpinion } from '../lib/roles.ts';
-import type { ContentUpdatePayload } from '../api/cases.ts';
 import type { CaseOpinion } from '../lib/types.ts';
 import apiClient from '../api/client.ts';
 
@@ -57,7 +56,7 @@ export function CaseDetailPage() {
   const role = user?.role ?? '';
 
   const { data: budgetCase, isLoading, error } = useCase(id);
-  const saveContentMut = useSaveContent(id ?? '');
+  const saveDocumentMut = useSaveDocument(id ?? '');
   const changeStatusMut = useChangeStatus(id ?? '');
   const changeResponsibleMut = useChangeResponsible(id ?? '');
   const changeFinResponsibleMut = useChangeFinResponsible(id ?? '');
@@ -190,21 +189,19 @@ export function CaseDetailPage() {
     const docToSave = doc ?? latestDocJson.current;
     if (!id || !budgetCase || !docToSave) return;
 
-    // Extract field values from the document
-    const fields = extractFieldsFromDocument(docToSave);
-
-    const payload: ContentUpdatePayload = {
+    setSaveError(null);
+    saveDocumentMut.mutate({
+      contentJson: JSON.stringify(docToSave),
       caseName: editedMetaFields.caseName ?? budgetCase.caseName ?? null,
       chapter: editedMetaFields.chapter ?? budgetCase.chapter ?? null,
       post: editedMetaFields.post ?? budgetCase.post ?? null,
       amount: editedMetaFields.amount
         ? Number(editedMetaFields.amount)
         : budgetCase.amount ?? null,
-      ...fields,
-    };
-
-    setSaveError(null);
-    saveContentMut.mutate(payload as Record<string, string | null>, {
+      finAmount: budgetCase.finAmount ?? null,
+      govAmount: budgetCase.govAmount ?? null,
+      trackChangesActive: trackChangesEnabled,
+    }, {
       onSuccess: () => {
         setDocumentDirty(false);
         setEditedMetaFields({});
@@ -216,7 +213,7 @@ export function CaseDetailPage() {
         setSaveError(`Kunne ikke lagre: ${message}. Prøv igjen.`);
       },
     });
-  }, [id, budgetCase, editedMetaFields, saveContentMut]);
+  }, [id, budgetCase, editedMetaFields, saveDocumentMut, trackChangesEnabled]);
 
   const handleManualSave = () => {
     triggerSave();
@@ -445,7 +442,7 @@ export function CaseDetailPage() {
                     size="small"
                     variant="secondary"
                     onClick={handleManualSave}
-                    loading={saveContentMut.isPending}
+                    loading={saveDocumentMut.isPending}
                     icon={<Save size={14} />}
                     disabled={!hasEdits}
                   >
@@ -537,12 +534,12 @@ export function CaseDetailPage() {
                   </BodyShort>
                 )}
 
-                {documentDirty && !saveContentMut.isPending && (
+                {documentDirty && !saveDocumentMut.isPending && (
                   <BodyShort size="small" className="self-center text-amber-600">
                     Ulagrede endringer
                   </BodyShort>
                 )}
-                {saveContentMut.isPending && (
+                {saveDocumentMut.isPending && (
                   <BodyShort size="small" className="self-center text-blue-600">
                     Lagrer...
                   </BodyShort>
@@ -1045,16 +1042,6 @@ export function CaseDetailPage() {
               )}
             </div>
 
-            {/* Section navigation */}
-            <div className="rounded-lg border border-gray-200 bg-white p-4">
-              <SectionNavigation
-                fagFields={fagFields}
-                finFields={FIN_FIELDS}
-                showFinFields={showFinFields}
-                govConclusionField={showGovConclusion ? GOV_CONCLUSION_FIELD : null}
-              />
-            </div>
-
             {/* Comments panel */}
             {canEdit && (
               <div className="rounded-lg border border-gray-200 bg-white p-4">
@@ -1086,6 +1073,16 @@ export function CaseDetailPage() {
                 />
               </div>
             )}
+
+            {/* Section navigation */}
+            <div className="rounded-lg border border-gray-200 bg-white p-4">
+              <SectionNavigation
+                fagFields={fagFields}
+                finFields={FIN_FIELDS}
+                showFinFields={showFinFields}
+                govConclusionField={showGovConclusion ? GOV_CONCLUSION_FIELD : null}
+              />
+            </div>
 
           </div>
         )}

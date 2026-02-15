@@ -78,6 +78,22 @@ export async function saveContent(id: string, payload: ContentUpdatePayload): Pr
   return data;
 }
 
+export interface DocumentSavePayload {
+  contentJson: string;
+  caseName?: string | null;
+  chapter?: string | null;
+  post?: string | null;
+  amount?: number | null;
+  finAmount?: number | null;
+  govAmount?: number | null;
+  trackChangesActive?: boolean;
+}
+
+export async function saveDocument(id: string, payload: DocumentSavePayload): Promise<CaseContent> {
+  const { data } = await apiClient.put<CaseContent>(`/cases/${id}/document`, payload);
+  return data;
+}
+
 export async function fetchContentVersions(id: string): Promise<CaseContent[]> {
   const { data } = await apiClient.get<CaseContent[]>(`/cases/${id}/content`);
   return data;

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { Component, type ReactNode } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -18,17 +18,34 @@ import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx'
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS, GOV_CONCLUSION_FIELD } from '../lib/caseTypes.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 
+class EditorErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) return this.fallback;
+    return this.props.children;
+  }
+  private get fallback() {
+    return this.props.fallback;
+  }
+}
+
 export function VersionDetailPage() {
   const { id, version } = useParams<{ id: string; version: string }>();
   const navigate = useNavigate();
 
-  const { data: budgetCase, isLoading: caseLoading } = useQuery({
+  const { data: budgetCase, isLoading: caseLoading, isError: caseError } = useQuery({
     queryKey: ['cases', id],
     queryFn: () => fetchCase(id!),
     enabled: !!id,
   });
 
-  const { data: versionData, isLoading: versionLoading } = useQuery({
+  const { data: versionData, isLoading: versionLoading, isError: versionError } = useQuery({
     queryKey: ['case-version', id, version],
     queryFn: () => fetchContentVersion(id!, Number(version!)),
     enabled: !!id && !!version,
@@ -44,22 +61,103 @@ export function VersionDetailPage() {
     );
   }
 
-  if (!budgetCase || !versionData) {
-    return <Alert variant="error">Kunne ikke laste versjonen.</Alert>;
+  if (caseError || versionError || !budgetCase || !versionData) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <Button
+          variant="tertiary"
+          size="small"
+          icon={<ArrowLeft size={16} />}
+          onClick={() => navigate(`/cases/${id}/history`)}
+          className="mb-4"
+        >
+          Tilbake til historikk
+        </Button>
+        <Alert variant="error">Kunne ikke laste versjonen.</Alert>
+      </div>
+    );
   }
 
   const caseType = budgetCase.caseType ?? '';
   const fagFields = CASE_TYPE_FIELDS[caseType] ?? [];
 
   // Parse contentJson if available — shows document with tracked changes
-  const documentContent = useMemo(() => {
+  const documentContent = (() => {
     if (!versionData.contentJson) return null;
     try {
-      return JSON.parse(versionData.contentJson);
+      const parsed = JSON.parse(versionData.contentJson);
+      // Validate that the content has the expected caseDocument structure
+      if (!parsed || parsed.type !== 'caseDocument' || !Array.isArray(parsed.content)) {
+        return null;
+      }
+      return parsed;
     } catch {
       return null;
     }
-  }, [versionData.contentJson]);
+  })();
+
+  const flatTextFallback = (
+    <>
+      {/* FAG content fields (flat text fallback) */}
+      <div className="mb-4 rounded-lg border border-gray-200 bg-white p-6">
+        <Heading size="small" level="2" className="mb-4">
+          Faginnhold
+        </Heading>
+        <div className="space-y-4">
+          {fagFields.map((field) => {
+            const value = (versionData as unknown as Record<string, unknown>)[field.key] as string | null;
+            return (
+              <div key={field.key}>
+                <Label size="small" className="text-gray-600">
+                  {field.label}
+                </Label>
+                <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
+                  {value || '-'}
+                </BodyLong>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* FIN fields */}
+      {(versionData.finAssessment || versionData.finVerbal) && (
+        <div className="mb-4 rounded-lg border-2 border-[var(--color-fin)]/30 bg-white p-6">
+          <Heading size="small" level="2" className="mb-4" style={{ color: 'var(--color-fin)' }}>
+            FINs vurdering
+          </Heading>
+          <div className="space-y-4">
+            {FIN_FIELDS.map((field) => {
+              const value = (versionData as unknown as Record<string, unknown>)[field.key] as string | null;
+              if (!value) return null;
+              return (
+                <div key={field.key}>
+                  <Label size="small" className="text-gray-600">
+                    {field.label}
+                  </Label>
+                  <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
+                    {value}
+                  </BodyLong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Regjeringens konklusjon */}
+      {versionData.finRConclusion && (
+        <div className="mb-4 rounded-lg border-2 border-emerald-200 bg-white p-6">
+          <Heading size="small" level="2" className="mb-4 text-emerald-800">
+            {GOV_CONCLUSION_FIELD.label}
+          </Heading>
+          <BodyLong className="whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
+            {versionData.finRConclusion}
+          </BodyLong>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -127,73 +225,16 @@ export function VersionDetailPage() {
 
       {/* Document with tracked changes (rich view) */}
       {documentContent ? (
-        <CaseDocumentEditor
-          initialContent={documentContent}
-          editable={false}
-          trackChangesEnabled={true}
-          trackMode="review"
-        />
+        <EditorErrorBoundary fallback={flatTextFallback}>
+          <CaseDocumentEditor
+            initialContent={documentContent}
+            editable={false}
+            trackChangesEnabled={true}
+            trackMode="review"
+          />
+        </EditorErrorBoundary>
       ) : (
-        <>
-          {/* FAG content fields (flat text fallback) */}
-          <div className="mb-4 rounded-lg border border-gray-200 bg-white p-6">
-            <Heading size="small" level="2" className="mb-4">
-              Faginnhold
-            </Heading>
-            <div className="space-y-4">
-              {fagFields.map((field) => {
-                const value = (versionData as unknown as Record<string, unknown>)[field.key] as string | null;
-                return (
-                  <div key={field.key}>
-                    <Label size="small" className="text-gray-600">
-                      {field.label}
-                    </Label>
-                    <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
-                      {value || '-'}
-                    </BodyLong>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* FIN fields */}
-          {(versionData.finAssessment || versionData.finVerbal) && (
-            <div className="mb-4 rounded-lg border-2 border-[var(--color-fin)]/30 bg-white p-6">
-              <Heading size="small" level="2" className="mb-4" style={{ color: 'var(--color-fin)' }}>
-                FINs vurdering
-              </Heading>
-              <div className="space-y-4">
-                {FIN_FIELDS.map((field) => {
-                  const value = (versionData as unknown as Record<string, unknown>)[field.key] as string | null;
-                  if (!value) return null;
-                  return (
-                    <div key={field.key}>
-                      <Label size="small" className="text-gray-600">
-                        {field.label}
-                      </Label>
-                      <BodyLong className="mt-1 whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
-                        {value}
-                      </BodyLong>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Regjeringens konklusjon */}
-          {versionData.finRConclusion && (
-            <div className="mb-4 rounded-lg border-2 border-emerald-200 bg-white p-6">
-              <Heading size="small" level="2" className="mb-4 text-emerald-800">
-                {GOV_CONCLUSION_FIELD.label}
-              </Heading>
-              <BodyLong className="whitespace-pre-wrap rounded bg-gray-50 p-3 text-sm">
-                {versionData.finRConclusion}
-              </BodyLong>
-            </div>
-          )}
-        </>
+        flatTextFallback
       )}
     </div>
   );
