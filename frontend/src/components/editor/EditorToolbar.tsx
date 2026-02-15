@@ -14,7 +14,7 @@ import {
   MessageSquarePlus,
 } from 'lucide-react';
 import type { TrackMode } from './TrackChangesExtension';
-import { getChangeAtCursor, type TrackedChange } from './TrackChangesExtension';
+import { getChangeAtCursor, getChangeIdsInRange, type TrackedChange } from './TrackChangesExtension';
 import { getCommentAtCursor, type CommentInfo } from './CommentsExtension';
 
 interface EditorToolbarProps {
@@ -45,6 +45,12 @@ export function EditorToolbar({
   if (!editor) return null;
 
   const activeChange = trackingEnabled ? getActiveChange(editor) : null;
+  const { from, to } = editor.state.selection;
+  const hasSelection = from !== to;
+  const selectionHasChanges = trackingEnabled && hasSelection
+    ? getChangeIdsInRange(editor.state.doc, from, to).length > 0
+    : false;
+  const showAcceptReject = trackingEnabled && (activeChange || selectionHasChanges);
   const activeComment = getActiveComment(editor);
 
   const toolbarItems = [
@@ -147,8 +153,8 @@ export function EditorToolbar({
             Spor endringer
           </Button>
 
-          {/* Inline accept/reject when cursor is on a tracked change */}
-          {trackingEnabled && activeChange && (
+          {/* Inline accept/reject when cursor is on a tracked change or selection contains changes */}
+          {showAcceptReject && (
             <>
               <div className="mx-1 h-5 w-px bg-gray-300" />
               <Button
@@ -156,20 +162,32 @@ export function EditorToolbar({
                 variant="tertiary"
                 size="xsmall"
                 icon={<Check size={14} />}
-                onClick={() => editor.commands.acceptChange(activeChange.changeId)}
+                onClick={() => {
+                  if (hasSelection) {
+                    editor.commands.acceptChangesInRange();
+                  } else if (activeChange) {
+                    editor.commands.acceptChange(activeChange.changeId);
+                  }
+                }}
                 className="text-green-700 rounded"
               >
-                Godta endring
+                Godta endringer
               </Button>
               <Button
                 type="button"
                 variant="tertiary"
                 size="xsmall"
                 icon={<X size={14} />}
-                onClick={() => editor.commands.rejectChange(activeChange.changeId)}
+                onClick={() => {
+                  if (hasSelection) {
+                    editor.commands.rejectChangesInRange();
+                  } else if (activeChange) {
+                    editor.commands.rejectChange(activeChange.changeId);
+                  }
+                }}
                 className="text-red-700 rounded"
               >
-                Avvis endring
+                Avvis endringer
               </Button>
             </>
           )}

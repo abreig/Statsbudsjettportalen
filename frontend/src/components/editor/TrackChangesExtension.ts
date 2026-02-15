@@ -121,6 +121,35 @@ export function collectTrackedChanges(doc: PMNode): TrackedChange[] {
 }
 
 /**
+ * Collect unique change IDs that overlap a given range.
+ * When from === to (collapsed cursor), finds the change at cursor position.
+ */
+export function getChangeIdsInRange(doc: PMNode, from: number, to: number): string[] {
+  if (from === to) {
+    // Collapsed cursor: find the single change at cursor
+    const change = getChangeAtCursor(doc, from);
+    return change ? [change.changeId] : [];
+  }
+
+  const ids = new Set<string>();
+  doc.nodesBetween(from, to, (node, pos) => {
+    if (!node.isText) return;
+    const nodeEnd = pos + node.nodeSize;
+    // Only include if node overlaps the selection
+    if (nodeEnd <= from || pos >= to) return;
+    for (const mark of node.marks) {
+      if (
+        (mark.type.name === 'insertion' || mark.type.name === 'deletion' || mark.type.name === 'formatChange') &&
+        mark.attrs.changeId
+      ) {
+        ids.add(mark.attrs.changeId as string);
+      }
+    }
+  });
+  return Array.from(ids);
+}
+
+/**
  * Check if a range of text has a specific mark type.
  */
 function rangeHasMark(doc: PMNode, from: number, to: number, markName: string): boolean {
@@ -405,6 +434,31 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
           }
           return true;
         },
+
+      acceptChangesInRange:
+        () =>
+        ({ editor }) => {
+          const { from, to } = editor.state.selection;
+          const changeIds = getChangeIdsInRange(editor.state.doc, from, to);
+          if (changeIds.length === 0) return false;
+          // Accept in reverse document order to preserve positions
+          for (const id of [...changeIds].reverse()) {
+            editor.commands.acceptChange(id);
+          }
+          return true;
+        },
+
+      rejectChangesInRange:
+        () =>
+        ({ editor }) => {
+          const { from, to } = editor.state.selection;
+          const changeIds = getChangeIdsInRange(editor.state.doc, from, to);
+          if (changeIds.length === 0) return false;
+          for (const id of [...changeIds].reverse()) {
+            editor.commands.rejectChange(id);
+          }
+          return true;
+        },
     };
   },
 
@@ -569,6 +623,8 @@ declare module '@tiptap/core' {
       rejectChange: (changeId: string) => ReturnType;
       acceptAllChanges: () => ReturnType;
       rejectAllChanges: () => ReturnType;
+      acceptChangesInRange: () => ReturnType;
+      rejectChangesInRange: () => ReturnType;
     };
   }
 }
