@@ -214,7 +214,8 @@ export function EditorToolbar({
         variant="tertiary"
         size="xsmall"
         icon={<MessageSquarePlus size={16} />}
-        onClick={() => {
+        onMouseDown={(e) => {
+          e.preventDefault();
           const { from, to } = editor.state.selection;
           if (from === to) return;
           window.dispatchEvent(
@@ -228,7 +229,6 @@ export function EditorToolbar({
           );
         }}
         title="Legg til kommentar (Ctrl+Shift+C)"
-        disabled={editor.state.selection.from === editor.state.selection.to}
         className="rounded"
       >
         Kommentar
