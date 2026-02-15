@@ -1,5 +1,5 @@
 import type { Editor } from '@tiptap/react';
-import { Button } from '@navikt/ds-react';
+import { Button, ToggleGroup } from '@navikt/ds-react';
 import {
   Bold,
   Italic,
@@ -8,13 +8,25 @@ import {
   ListOrdered,
   Undo2,
   Redo2,
+  GitCompareArrows,
 } from 'lucide-react';
+import type { TrackMode } from './TrackChangesExtension';
 
 interface EditorToolbarProps {
   editor: Editor | null;
+  trackingEnabled?: boolean;
+  trackMode?: TrackMode;
+  onToggleTracking?: () => void;
+  onSetTrackMode?: (mode: TrackMode) => void;
 }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({
+  editor,
+  trackingEnabled = false,
+  trackMode = 'editing',
+  onToggleTracking,
+  onSetTrackMode,
+}: EditorToolbarProps) {
   if (!editor) return null;
 
   const toolbarItems = [
@@ -95,6 +107,42 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
           />
         );
       })}
+
+      {/* Track Changes section */}
+      {onToggleTracking && (
+        <>
+          <div className="mx-1 h-5 w-px bg-gray-300" />
+
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={<GitCompareArrows size={16} />}
+            onClick={onToggleTracking}
+            title={trackingEnabled ? 'Slå av spor endringer' : 'Slå på spor endringer'}
+            className={
+              trackingEnabled
+                ? 'bg-green-100 text-green-700 rounded'
+                : 'rounded'
+            }
+          >
+            Spor endringer
+          </Button>
+
+          {trackingEnabled && onSetTrackMode && (
+            <ToggleGroup
+              size="small"
+              value={trackMode}
+              onChange={(val) => onSetTrackMode(val as TrackMode)}
+              className="ml-2"
+            >
+              <ToggleGroup.Item value="editing">Redigering</ToggleGroup.Item>
+              <ToggleGroup.Item value="review">Gjennomgang</ToggleGroup.Item>
+              <ToggleGroup.Item value="final">Endelig</ToggleGroup.Item>
+            </ToggleGroup>
+          )}
+        </>
+      )}
     </div>
   );
 }

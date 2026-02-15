@@ -528,7 +528,7 @@ public class CasesController : ControllerBase
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
             content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
             content.CreatedBy, user?.FullName ?? "", content.CreatedAt,
-            content.ContentJson
+            content.ContentJson, content.TrackChangesActive
         ));
     }
 
@@ -601,6 +601,7 @@ public class CasesController : ControllerBase
             Amount = dto.Amount ?? c.Amount,
             Status = c.Status,
             ContentJson = dto.ContentJson,
+            TrackChangesActive = dto.TrackChangesActive,
             ProposalText = proposalText,
             Justification = justification,
             VerbalConclusion = verbalConclusion,
@@ -643,7 +644,7 @@ public class CasesController : ControllerBase
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
             content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
             content.CreatedBy, docUser?.FullName ?? "", content.CreatedAt,
-            content.ContentJson
+            content.ContentJson, content.TrackChangesActive
         ));
     }
 
@@ -664,7 +665,7 @@ public class CasesController : ControllerBase
             c.SocioeconomicAnalysis, c.GoalIndicator, c.BenefitPlan, c.Comment,
             c.FinAssessment, c.FinVerbal, c.FinRConclusion,
             c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""), c.CreatedAt,
-            c.ContentJson
+            c.ContentJson, c.TrackChangesActive
         )).ToList());
     }
 
@@ -683,7 +684,7 @@ public class CasesController : ControllerBase
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan, content.Comment,
             content.FinAssessment, content.FinVerbal, content.FinRConclusion,
             content.CreatedBy, user?.FullName ?? "", content.CreatedAt,
-            content.ContentJson
+            content.ContentJson, content.TrackChangesActive
         ));
     }
 
@@ -912,6 +913,21 @@ public class CasesController : ControllerBase
                 var lineText = new System.Text.StringBuilder();
                 foreach (var inline in inlines.EnumerateArray())
                 {
+                    // Skip text nodes with deletion marks (track changes)
+                    if (inline.TryGetProperty("marks", out var marks))
+                    {
+                        bool hasDeletion = false;
+                        foreach (var mark in marks.EnumerateArray())
+                        {
+                            if (mark.TryGetProperty("type", out var markType) && markType.GetString() == "deletion")
+                            {
+                                hasDeletion = true;
+                                break;
+                            }
+                        }
+                        if (hasDeletion) continue;
+                    }
+
                     if (inline.TryGetProperty("text", out var textProp))
                         lineText.Append(textProp.GetString());
                 }
@@ -946,7 +962,7 @@ public class CasesController : ControllerBase
                 showFinFields ? content.FinRConclusion : null,
                 content.CreatedBy,
                 users.GetValueOrDefault(content.CreatedBy, ""), content.CreatedAt,
-                content.ContentJson
+                content.ContentJson, content.TrackChangesActive
             );
         }
 

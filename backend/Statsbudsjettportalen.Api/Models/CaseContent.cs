@@ -44,6 +44,11 @@ public class CaseContent
     [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
     public string? ContentJson { get; set; }
 
+    /// <summary>
+    /// Whether track changes is currently active for this content version.
+    /// </summary>
+    public bool TrackChangesActive { get; set; }
+
     public Guid CreatedBy { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

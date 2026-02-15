@@ -1,5 +1,11 @@
 export { CaseDocumentEditor } from './CaseDocumentEditor';
 export { EditorToolbar } from './EditorToolbar';
 export { SectionNavigation } from './SectionNavigation';
+export { TrackedChangesPanel } from './TrackedChangesPanel';
 export { CaseDocument, CaseSection, SectionTitle, SectionContent } from './CaseDocumentSchema';
+export { InsertionMark } from './marks/InsertionMark';
+export { DeletionMark } from './marks/DeletionMark';
+export { FormatChangeMark } from './marks/FormatChangeMark';
+export { TrackChangesExtension, collectTrackedChanges } from './TrackChangesExtension';
+export type { TrackMode, TrackedChange } from './TrackChangesExtension';
 export { buildDocumentFromContent, extractFieldsFromDocument } from './documentUtils';

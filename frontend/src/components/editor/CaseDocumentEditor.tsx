@@ -1,24 +1,41 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import type { JSONContent } from '@tiptap/core';
 
 import { CaseDocument, CaseSection, SectionTitle, SectionContent } from './CaseDocumentSchema';
+import { InsertionMark } from './marks/InsertionMark';
+import { DeletionMark } from './marks/DeletionMark';
+import { FormatChangeMark } from './marks/FormatChangeMark';
+import { TrackChangesExtension, type TrackMode } from './TrackChangesExtension';
 import { EditorToolbar } from './EditorToolbar';
 
 import './caseDocument.css';
+import './trackChanges.css';
 
 interface CaseDocumentEditorProps {
   initialContent: JSONContent;
   editable: boolean;
   onUpdate?: (doc: JSONContent) => void;
+  trackChangesEnabled?: boolean;
+  trackMode?: TrackMode;
+  onToggleTracking?: () => void;
+  onSetTrackMode?: (mode: TrackMode) => void;
+  currentUser?: { id: string; name: string };
+  onEditorReady?: (editor: import('@tiptap/react').Editor) => void;
 }
 
 export function CaseDocumentEditor({
   initialContent,
   editable,
   onUpdate,
+  trackChangesEnabled = false,
+  trackMode = 'editing',
+  onToggleTracking,
+  onSetTrackMode,
+  currentUser,
+  onEditorReady,
 }: CaseDocumentEditorProps) {
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
@@ -36,9 +53,13 @@ export function CaseDocumentEditor({
         gapcursor: false,
       }),
       Underline,
+      InsertionMark,
+      DeletionMark,
+      FormatChangeMark,
+      TrackChangesExtension,
     ],
     content: initialContent,
-    editable,
+    editable: editable && trackMode !== 'review',
     onUpdate: ({ editor }) => {
       onUpdateRef.current?.(editor.getJSON());
     },
@@ -63,12 +84,42 @@ export function CaseDocumentEditor({
     },
   });
 
+  // Notify parent about editor instance
+  useEffect(() => {
+    if (editor && onEditorReady) {
+      onEditorReady(editor);
+    }
+  }, [editor, onEditorReady]);
+
+  // Sync tracking enabled state
+  useEffect(() => {
+    if (editor) {
+      editor.commands.setTrackingEnabled(trackChangesEnabled);
+    }
+  }, [editor, trackChangesEnabled]);
+
+  // Sync track mode
+  useEffect(() => {
+    if (editor) {
+      editor.commands.setTrackMode(trackMode);
+      // In review mode, make read-only but still allow accept/reject commands
+      editor.setEditable(editable && trackMode !== 'review');
+    }
+  }, [editor, trackMode, editable]);
+
+  // Sync author info
+  useEffect(() => {
+    if (editor && currentUser) {
+      editor.commands.setTrackAuthor(currentUser.id, currentUser.name);
+    }
+  }, [editor, currentUser?.id, currentUser?.name]);
+
   // Update editable state when prop changes
   useEffect(() => {
     if (editor) {
-      editor.setEditable(editable);
+      editor.setEditable(editable && trackMode !== 'review');
     }
-  }, [editor, editable]);
+  }, [editor, editable, trackMode]);
 
   // Update content when initialContent changes (e.g., after server reload)
   const contentKey = useRef<string>('');
@@ -85,9 +136,20 @@ export function CaseDocumentEditor({
     }
   }, [editor, initialContent]);
 
+  // CSS class for track mode
+  const modeClass = trackChangesEnabled ? `track-mode-${trackMode}` : '';
+
   return (
-    <div className="case-document-wrapper rounded-lg border border-gray-200 bg-white">
-      {editable && <EditorToolbar editor={editor} />}
+    <div className={`case-document-wrapper rounded-lg border border-gray-200 bg-white ${modeClass}`}>
+      {editable && (
+        <EditorToolbar
+          editor={editor}
+          trackingEnabled={trackChangesEnabled}
+          trackMode={trackMode}
+          onToggleTracking={onToggleTracking}
+          onSetTrackMode={onSetTrackMode}
+        />
+      )}
       <div className="px-8 py-6">
         <EditorContent editor={editor} />
       </div>
