@@ -309,6 +309,56 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.ToTable("CaseOpinions");
                 });
 
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseComment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AnchorText")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CommentId")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("CommentText")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ParentCommentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ResolvedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("ParentCommentId");
+
+                    b.ToTable("CaseComments");
+                });
+
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseEvent", b =>
                 {
                     b.Property<Guid>("Id")
@@ -670,6 +720,23 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Navigation("BudgetRound");
 
                     b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseComment", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.Case", "Case")
+                        .WithMany()
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.CaseComment", "ParentComment")
+                        .WithMany("Replies")
+                        .HasForeignKey("ParentCommentId");
+
+                    b.Navigation("Case");
+
+                    b.Navigation("ParentComment");
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseContent", b =>

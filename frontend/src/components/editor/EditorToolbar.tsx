@@ -11,9 +11,11 @@ import {
   GitCompareArrows,
   Check,
   X,
+  MessageSquarePlus,
 } from 'lucide-react';
 import type { TrackMode } from './TrackChangesExtension';
 import { getChangeAtCursor, type TrackedChange } from './TrackChangesExtension';
+import { getCommentAtCursor, type CommentInfo } from './CommentsExtension';
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -28,6 +30,11 @@ function getActiveChange(editor: Editor): TrackedChange | null {
   return getChangeAtCursor(editor.state.doc, from);
 }
 
+function getActiveComment(editor: Editor): CommentInfo | null {
+  const { from } = editor.state.selection;
+  return getCommentAtCursor(editor.state.doc, from);
+}
+
 export function EditorToolbar({
   editor,
   trackingEnabled = false,
@@ -38,6 +45,7 @@ export function EditorToolbar({
   if (!editor) return null;
 
   const activeChange = trackingEnabled ? getActiveChange(editor) : null;
+  const activeComment = getActiveComment(editor);
 
   const toolbarItems = [
     {
@@ -178,6 +186,49 @@ export function EditorToolbar({
               <ToggleGroup.Item value="final">Endelig</ToggleGroup.Item>
             </ToggleGroup>
           )}
+        </>
+      )}
+
+      {/* Comment section */}
+      <div className="mx-1 h-5 w-px bg-gray-300" />
+      <Button
+        type="button"
+        variant="tertiary"
+        size="xsmall"
+        icon={<MessageSquarePlus size={16} />}
+        onClick={() => {
+          const { from, to } = editor.state.selection;
+          if (from === to) return;
+          window.dispatchEvent(
+            new CustomEvent('editor:add-comment', {
+              detail: {
+                from,
+                to,
+                text: editor.state.doc.textBetween(from, to, ' '),
+              },
+            })
+          );
+        }}
+        title="Legg til kommentar (Ctrl+Shift+C)"
+        disabled={editor.state.selection.from === editor.state.selection.to}
+        className="rounded"
+      >
+        Kommentar
+      </Button>
+
+      {/* Active comment indicator */}
+      {activeComment && !activeComment.resolved && (
+        <>
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={<Check size={14} />}
+            onClick={() => editor.commands.resolveCommentMark(activeComment.commentId)}
+            className="text-green-700 rounded"
+          >
+            Løs kommentar
+          </Button>
         </>
       )}
     </div>

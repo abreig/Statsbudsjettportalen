@@ -8,11 +8,14 @@ import { CaseDocument, CaseSection, SectionTitle, SectionContent } from './CaseD
 import { InsertionMark } from './marks/InsertionMark';
 import { DeletionMark } from './marks/DeletionMark';
 import { FormatChangeMark } from './marks/FormatChangeMark';
+import { CommentMark } from './marks/CommentMark';
 import { TrackChangesExtension, type TrackMode } from './TrackChangesExtension';
+import { CommentsExtension } from './CommentsExtension';
 import { EditorToolbar } from './EditorToolbar';
 
 import './caseDocument.css';
 import './trackChanges.css';
+import './comments.css';
 
 interface CaseDocumentEditorProps {
   initialContent: JSONContent;
@@ -56,7 +59,9 @@ export function CaseDocumentEditor({
       InsertionMark,
       DeletionMark,
       FormatChangeMark,
+      CommentMark,
       TrackChangesExtension,
+      CommentsExtension,
     ],
     content: initialContent,
     editable: editable && trackMode !== 'review',

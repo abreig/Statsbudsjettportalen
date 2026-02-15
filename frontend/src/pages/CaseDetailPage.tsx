@@ -28,7 +28,9 @@ import {
   PanelRightClose,
   PanelRightOpen,
 } from 'lucide-react';
+import type { Editor } from '@tiptap/react';
 import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
+import { useComments, useCreateComment, useReplyToComment, useResolveComment, useReopenComment, useDeleteComment } from '../hooks/useComments.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CaseWorkflowBar } from '../components/cases/CaseWorkflowBar.tsx';
@@ -36,6 +38,7 @@ import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
 import { SectionNavigation } from '../components/editor/SectionNavigation.tsx';
+import { CommentPanel } from '../components/editor/CommentPanel.tsx';
 import { buildDocumentFromContent, extractFieldsFromDocument } from '../components/editor/documentUtils.ts';
 import type { TrackMode } from '../components/editor/TrackChangesExtension.ts';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
@@ -72,6 +75,16 @@ export function CaseDetailPage() {
   // Track changes state
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
   const [trackMode, setTrackMode] = useState<TrackMode>('editing');
+
+  // Comments state
+  const editorRef = useRef<Editor | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const { data: comments = [] } = useComments(id);
+  const createCommentMut = useCreateComment(id ?? '');
+  const replyToCommentMut = useReplyToComment(id ?? '');
+  const resolveCommentMut = useResolveComment(id ?? '');
+  const reopenCommentMut = useReopenComment(id ?? '');
+  const deleteCommentMut = useDeleteComment(id ?? '');
 
   // Status/opinion state
   const [showChangeResponsible, setShowChangeResponsible] = useState(false);
@@ -542,6 +555,7 @@ export function CaseDetailPage() {
             onToggleTracking={() => setTrackChangesEnabled((prev) => !prev)}
             onSetTrackMode={setTrackMode}
             currentUser={user ? { id: user.id, name: user.fullName } : undefined}
+            onEditorReady={(editor) => { editorRef.current = editor; }}
           />
 
           {/* ─── Opinions section ─────────────────────────── */}
@@ -923,6 +937,38 @@ export function CaseDetailPage() {
                 showFinFields={showFinFields}
               />
             </div>
+
+            {/* Comments panel */}
+            {canEdit && (
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <CommentPanel
+                  editor={editorRef.current}
+                  caseId={id ?? ''}
+                  comments={comments}
+                  currentUserId={user?.id ?? ''}
+                  activeCommentId={activeCommentId}
+                  onSetActiveComment={setActiveCommentId}
+                  onCreateComment={(commentId, text, anchorText) => {
+                    createCommentMut.mutate({ commentId, commentText: text, anchorText });
+                  }}
+                  onReply={(commentDbId, text) => {
+                    replyToCommentMut.mutate({ commentDbId, payload: { commentText: text } });
+                  }}
+                  onResolve={(comment) => {
+                    resolveCommentMut.mutate(comment.id);
+                    editorRef.current?.commands.resolveCommentMark(comment.commentId);
+                  }}
+                  onReopen={(comment) => {
+                    reopenCommentMut.mutate(comment.id);
+                    editorRef.current?.commands.reopenCommentMark(comment.commentId);
+                  }}
+                  onDelete={(comment) => {
+                    deleteCommentMut.mutate(comment.id);
+                    editorRef.current?.commands.removeCommentMark(comment.commentId);
+                  }}
+                />
+              </div>
+            )}
 
           </div>
         )}
