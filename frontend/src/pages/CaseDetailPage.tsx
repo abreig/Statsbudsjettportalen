@@ -36,13 +36,15 @@ import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
 import { SectionNavigation } from '../components/editor/SectionNavigation.tsx';
+import { TrackedChangesPanel } from '../components/editor/TrackedChangesPanel.tsx';
 import { buildDocumentFromContent, extractFieldsFromDocument } from '../components/editor/documentUtils.ts';
+import type { TrackMode } from '../components/editor/TrackChangesExtension.ts';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
 import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, FIN_VISIBLE_STATUSES, getAllowedTransitions } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 import { isFagRole, isFinRole, isFinLeader, canChangeResponsible, canSendOpinion } from '../lib/roles.ts';
 import type { ContentUpdatePayload } from '../api/cases.ts';
-import type { CaseContent, CaseOpinion } from '../lib/types.ts';
+import type { CaseOpinion } from '../lib/types.ts';
 import apiClient from '../api/client.ts';
 
 export function CaseDetailPage() {
@@ -68,6 +70,13 @@ export function CaseDetailPage() {
   const [documentDirty, setDocumentDirty] = useState(false);
   const latestDocJson = useRef<JSONContent | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track changes state
+  const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
+  const [trackMode, setTrackMode] = useState<TrackMode>('editing');
+
+  // Editor ref for TrackedChangesPanel
+  const editorRef = useRef<import('@tiptap/react').Editor | null>(null);
 
   // Status/opinion state
   const [showChangeResponsible, setShowChangeResponsible] = useState(false);
@@ -543,6 +552,12 @@ export function CaseDetailPage() {
             initialContent={documentContent}
             editable={canEdit}
             onUpdate={handleDocumentUpdate}
+            trackChangesEnabled={trackChangesEnabled}
+            trackMode={trackMode}
+            onToggleTracking={() => setTrackChangesEnabled((prev) => !prev)}
+            onSetTrackMode={setTrackMode}
+            currentUser={user ? { id: user.id, name: user.fullName } : undefined}
+            onEditorReady={(e) => { editorRef.current = e; }}
           />
 
           {/* ─── Opinions section ─────────────────────────── */}
@@ -924,6 +939,13 @@ export function CaseDetailPage() {
                 showFinFields={showFinFields}
               />
             </div>
+
+            {/* Tracked changes panel */}
+            {trackChangesEnabled && (
+              <div className="rounded-lg border border-gray-200 bg-white">
+                <TrackedChangesPanel editor={editorRef.current} />
+              </div>
+            )}
           </div>
         )}
       </div>

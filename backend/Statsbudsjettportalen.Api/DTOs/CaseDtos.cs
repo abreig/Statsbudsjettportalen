@@ -131,7 +131,8 @@ public record CaseContentDto(
     Guid CreatedBy,
     string CreatedByName,
     DateTime CreatedAt,
-    string? ContentJson = null
+    string? ContentJson = null,
+    bool TrackChangesActive = false
 );
 
 /// <summary>
@@ -143,7 +144,8 @@ public record DocumentSaveDto(
     string? CaseName = null,
     string? Chapter = null,
     string? Post = null,
-    long? Amount = null
+    long? Amount = null,
+    bool TrackChangesActive = false
 );
 
 public record CaseEventDto(

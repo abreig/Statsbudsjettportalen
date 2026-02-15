@@ -1,0 +1,90 @@
+/* ─── Track Changes Styles ─────────────────────────────── */
+
+/* Insertion mark: green highlight */
+.tracked-insertion,
+ins.tracked-insertion {
+  background-color: #dcfce7;
+  text-decoration: none;
+  border-bottom: 1px solid #86efac;
+  position: relative;
+}
+
+/* Deletion mark: red strikethrough */
+.tracked-deletion,
+del.tracked-deletion {
+  background-color: #fee2e2;
+  text-decoration: line-through;
+  color: #991b1b;
+  position: relative;
+}
+
+/* Format change mark: purple dotted underline */
+.tracked-format-change,
+span.tracked-format-change {
+  border-bottom: 2px dotted #7c3aed;
+  position: relative;
+}
+
+/* Hover tooltips for tracked changes */
+.tracked-insertion:hover::after,
+.tracked-deletion:hover::after,
+.tracked-format-change:hover::after {
+  content: attr(data-author-name) ' – ' attr(data-timestamp);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #1e293b;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  z-index: 50;
+  pointer-events: none;
+}
+
+/* ─── Mode-specific styles ─────────────────────────────── */
+
+/* Final mode: hide deletions, clean up insertions */
+.track-mode-final .tracked-deletion,
+.track-mode-final del.tracked-deletion {
+  display: none;
+}
+
+.track-mode-final .tracked-insertion,
+.track-mode-final ins.tracked-insertion {
+  background: none;
+  border-bottom: none;
+}
+
+.track-mode-final .tracked-format-change,
+.track-mode-final span.tracked-format-change {
+  border-bottom: none;
+}
+
+/* Review mode: subtle read-only appearance */
+.track-mode-review .case-document-editor {
+  background-color: #fafbfc;
+}
+
+/* ─── Active/selected change highlight ─────────────────── */
+.tracked-insertion.active-change,
+.tracked-deletion.active-change,
+.tracked-format-change.active-change {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* ─── Tracked Changes Panel styles ─────────────────────── */
+.tracked-changes-panel {
+  padding: 0.75rem;
+}
+
+.tracked-change-item {
+  transition: background-color 0.15s ease;
+}
+
+.tracked-change-item:hover {
+  background-color: #f8fafc;
+}

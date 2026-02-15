@@ -30,7 +30,15 @@ function textToParagraphs(text: string | null | undefined): JSONContent[] {
 }
 
 /**
+ * Check if an inline node has a deletion mark (should be excluded from plain text).
+ */
+function hasDeletionMark(inline: JSONContent): boolean {
+  return (inline.marks ?? []).some((m) => m.type === 'deletion');
+}
+
+/**
  * Extract plain text from ProseMirror content nodes.
+ * Skips text nodes with deletion marks so flat fields contain clean text.
  */
 function paragraphsToText(content: JSONContent[] | undefined): string {
   if (!content || content.length === 0) return '';
@@ -39,6 +47,7 @@ function paragraphsToText(content: JSONContent[] | undefined): string {
     .map((node) => {
       if (node.type === 'paragraph') {
         return (node.content || [])
+          .filter((inline) => !hasDeletionMark(inline))
           .map((inline) => inline.text ?? '')
           .join('');
       }
@@ -47,7 +56,9 @@ function paragraphsToText(content: JSONContent[] | undefined): string {
           .map((li) =>
             (li.content || [])
               .map((p) =>
-                (p.content || []).map((inline) => inline.text ?? '').join('')
+                (p.content || [])
+                  .filter((inline) => !hasDeletionMark(inline))
+                  .map((inline) => inline.text ?? '').join('')
               )
               .join('\n')
           )
