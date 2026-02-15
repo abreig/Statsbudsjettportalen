@@ -7,7 +7,9 @@ import {
   Table,
   Tag,
 } from '@navikt/ds-react';
+import { MessageCircle } from 'lucide-react';
 import { useMyCases, useMyTasks } from '../hooks/useCases.ts';
+import { useMyPendingQuestions } from '../hooks/useQuestions.ts';
 import { useUiStore } from '../stores/uiStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CASE_TYPE_LABELS } from '../lib/caseTypes.ts';
@@ -19,6 +21,7 @@ export function MySakerPage() {
 
   const { data: myCases, isLoading: casesLoading } = useMyCases(selectedRound?.id);
   const { data: myTasks, isLoading: tasksLoading } = useMyTasks();
+  const { data: pendingQuestions, isLoading: questionsLoading } = useMyPendingQuestions();
 
   return (
     <div>
@@ -158,6 +161,51 @@ export function MySakerPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* Section 3: Pending questions to answer */}
+      <div className="mt-8">
+        <Heading size="medium" level="2" className="mb-3 flex items-center gap-2">
+          <MessageCircle size={20} />
+          Spørsmål til besvarelse
+        </Heading>
+
+        {questionsLoading && (
+          <div className="flex justify-center py-6">
+            <Loader size="xlarge" title="Laster spørsmål..." />
+          </div>
+        )}
+
+        {pendingQuestions && pendingQuestions.length === 0 && !questionsLoading && (
+          <Alert variant="info">Du har ingen ubesvarte spørsmål.</Alert>
+        )}
+
+        {pendingQuestions && pendingQuestions.length > 0 && (
+          <div className="space-y-2">
+            {pendingQuestions.map((q) => (
+              <div
+                key={q.id}
+                onClick={() => navigate(`/cases/${q.caseId}`)}
+                className="flex cursor-pointer items-center justify-between rounded-lg border border-gray-200 bg-white p-4 transition-colors hover:bg-gray-50"
+              >
+                <div>
+                  <BodyShort size="small" className="font-medium text-[var(--color-primary)]">
+                    {q.caseName}
+                  </BodyShort>
+                  <BodyShort size="small" className="text-gray-600 mt-0.5">
+                    {q.questionText.length > 100 ? q.questionText.slice(0, 100) + '...' : q.questionText}
+                  </BodyShort>
+                  <BodyShort size="small" className="text-gray-400 mt-0.5">
+                    Spurt av {q.askedByName} &mdash; {formatDateShort(q.createdAt)}
+                  </BodyShort>
+                </div>
+                <Tag variant="warning" size="xsmall">
+                  Ubesvart
+                </Tag>
+              </div>
+            ))}
           </div>
         )}
       </div>

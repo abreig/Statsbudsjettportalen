@@ -118,10 +118,21 @@ export interface Question {
   askedByName: string;
   questionText: string;
   answerText: string | null;
+  answerJson: string | null;
   answeredBy: string | null;
   answeredByName: string | null;
   createdAt: string;
   answeredAt: string | null;
+}
+
+export interface QuestionWithCase {
+  id: string;
+  caseId: string;
+  caseName: string;
+  askedBy: string;
+  askedByName: string;
+  questionText: string;
+  createdAt: string;
 }
 
 export interface Submission {
