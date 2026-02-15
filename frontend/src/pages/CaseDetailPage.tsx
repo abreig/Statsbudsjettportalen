@@ -36,7 +36,6 @@ import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
 import { SectionNavigation } from '../components/editor/SectionNavigation.tsx';
-import { TrackedChangesPanel } from '../components/editor/TrackedChangesPanel.tsx';
 import { buildDocumentFromContent, extractFieldsFromDocument } from '../components/editor/documentUtils.ts';
 import type { TrackMode } from '../components/editor/TrackChangesExtension.ts';
 import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
@@ -69,14 +68,10 @@ export function CaseDetailPage() {
   // Document editor state
   const [documentDirty, setDocumentDirty] = useState(false);
   const latestDocJson = useRef<JSONContent | null>(null);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track changes state
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
   const [trackMode, setTrackMode] = useState<TrackMode>('editing');
-
-  // Editor ref for TrackedChangesPanel
-  const editorRef = useRef<import('@tiptap/react').Editor | null>(null);
 
   // Status/opinion state
   const [showChangeResponsible, setShowChangeResponsible] = useState(false);
@@ -122,29 +117,23 @@ export function CaseDetailPage() {
     showFinFields
   );
 
-  // Handle document changes from the editor
+  // Handle document changes from the editor (no autosave — manual save only)
   const handleDocumentUpdate = useCallback((doc: JSONContent) => {
     latestDocJson.current = doc;
     setDocumentDirty(true);
     setSaveSuccess(false);
-
-    // Debounced auto-save: 2 seconds after last change
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-    }
-    autoSaveTimer.current = setTimeout(() => {
-      triggerSave(doc);
-    }, 2000);
   }, []);
 
-  // Cleanup timer on unmount
+  // Warn user about unsaved changes when leaving page
   useEffect(() => {
-    return () => {
-      if (autoSaveTimer.current) {
-        clearTimeout(autoSaveTimer.current);
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (documentDirty) {
+        e.preventDefault();
       }
     };
-  }, []);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [documentDirty]);
 
   const triggerSave = useCallback((doc?: JSONContent) => {
     const docToSave = doc ?? latestDocJson.current;
@@ -173,10 +162,6 @@ export function CaseDetailPage() {
   }, [id, budgetCase, editedMetaFields, saveContentMut]);
 
   const handleManualSave = () => {
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = null;
-    }
     triggerSave();
   };
 
@@ -448,8 +433,8 @@ export function CaseDetailPage() {
                 )}
 
                 {documentDirty && !saveContentMut.isPending && (
-                  <BodyShort size="small" className="self-center text-gray-400 italic">
-                    Ulagrede endringer (autolagring aktiv)
+                  <BodyShort size="small" className="self-center text-amber-600">
+                    Ulagrede endringer
                   </BodyShort>
                 )}
                 {saveContentMut.isPending && (
@@ -557,7 +542,6 @@ export function CaseDetailPage() {
             onToggleTracking={() => setTrackChangesEnabled((prev) => !prev)}
             onSetTrackMode={setTrackMode}
             currentUser={user ? { id: user.id, name: user.fullName } : undefined}
-            onEditorReady={(e) => { editorRef.current = e; }}
           />
 
           {/* ─── Opinions section ─────────────────────────── */}
@@ -940,12 +924,6 @@ export function CaseDetailPage() {
               />
             </div>
 
-            {/* Tracked changes panel */}
-            {trackChangesEnabled && (
-              <div className="rounded-lg border border-gray-200 bg-white">
-                <TrackedChangesPanel editor={editorRef.current} />
-              </div>
-            )}
           </div>
         )}
       </div>

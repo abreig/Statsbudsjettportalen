@@ -6,6 +6,6 @@ export { CaseDocument, CaseSection, SectionTitle, SectionContent } from './CaseD
 export { InsertionMark } from './marks/InsertionMark';
 export { DeletionMark } from './marks/DeletionMark';
 export { FormatChangeMark } from './marks/FormatChangeMark';
-export { TrackChangesExtension, collectTrackedChanges } from './TrackChangesExtension';
+export { TrackChangesExtension, collectTrackedChanges, getChangeAtCursor } from './TrackChangesExtension';
 export type { TrackMode, TrackedChange } from './TrackChangesExtension';
 export { buildDocumentFromContent, extractFieldsFromDocument } from './documentUtils';

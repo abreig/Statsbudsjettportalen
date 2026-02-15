@@ -1,8 +1,8 @@
 import { Extension } from '@tiptap/core';
-import { Plugin, PluginKey, type Transaction } from '@tiptap/pm/state';
+import { Plugin, PluginKey, TextSelection, type Transaction } from '@tiptap/pm/state';
 import type { EditorState } from '@tiptap/pm/state';
 import { ReplaceStep, ReplaceAroundStep, AddMarkStep, RemoveMarkStep } from '@tiptap/pm/transform';
-import type { Mark as PMMark, Node as PMNode } from '@tiptap/pm/model';
+import type { Mark as PMMark, Node as PMNode, ResolvedPos } from '@tiptap/pm/model';
 
 export type TrackMode = 'editing' | 'review' | 'final';
 
@@ -31,7 +31,48 @@ function generateChangeId(): string {
 }
 
 /**
- * Collect all tracked changes from the document for the sidebar panel.
+ * Find the tracked change mark at a given cursor position.
+ * Returns null if cursor is not on a tracked change.
+ */
+export function getChangeAtCursor(doc: PMNode, pos: number): TrackedChange | null {
+  const $pos = doc.resolve(pos);
+  const parent = $pos.parent;
+  if (!parent.isTextblock) return null;
+
+  // Check the text node at cursor position
+  const index = $pos.index();
+  if (index >= parent.childCount) return null;
+
+  const node = parent.child(index);
+  if (!node.isText) return null;
+
+  const markTypes = ['insertion', 'deletion', 'formatChange'] as const;
+  for (const markType of markTypes) {
+    const mark = node.marks.find((m) => m.type.name === markType);
+    if (mark) {
+      // Calculate absolute position of this text node
+      let nodeStart = $pos.start();
+      for (let i = 0; i < index; i++) {
+        nodeStart += parent.child(i).nodeSize;
+      }
+      return {
+        changeId: mark.attrs.changeId ?? '',
+        type: markType,
+        authorId: mark.attrs.authorId ?? '',
+        authorName: mark.attrs.authorName ?? '',
+        timestamp: mark.attrs.timestamp ?? '',
+        from: nodeStart,
+        to: nodeStart + node.nodeSize,
+        text: node.text ?? '',
+      };
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Collect all tracked changes from the document.
  */
 export function collectTrackedChanges(doc: PMNode): TrackedChange[] {
   const changes: TrackedChange[] = [];
@@ -79,6 +120,71 @@ export function collectTrackedChanges(doc: PMNode): TrackedChange[] {
   return Array.from(grouped.values()).sort((a, b) => a.from - b.from);
 }
 
+/**
+ * Check if a range of text has a specific mark type.
+ */
+function rangeHasMark(doc: PMNode, from: number, to: number, markName: string): boolean {
+  let found = false;
+  doc.nodesBetween(from, to, (node) => {
+    if (node.isText && node.marks.some((m) => m.type.name === markName)) {
+      found = true;
+    }
+  });
+  return found;
+}
+
+/**
+ * Get the boundary of the text node before the cursor (for Backspace).
+ */
+function charBefore($pos: ResolvedPos): { from: number; to: number } | null {
+  const { parent, parentOffset } = $pos;
+  if (parentOffset === 0) return null;
+
+  // Walk backwards through text to find character boundary
+  let offset = 0;
+  for (let i = 0; i < parent.childCount; i++) {
+    const child = parent.child(i);
+    const nextOffset = offset + child.nodeSize;
+    if (nextOffset >= parentOffset && child.isText) {
+      const charFrom = $pos.start() + parentOffset - 1;
+      const charTo = $pos.start() + parentOffset;
+      return { from: charFrom, to: charTo };
+    }
+    offset = nextOffset;
+  }
+  return null;
+}
+
+/**
+ * Get the boundary of the text node after the cursor (for Delete).
+ */
+function charAfter($pos: ResolvedPos): { from: number; to: number } | null {
+  const { parent, parentOffset } = $pos;
+  let offset = 0;
+  for (let i = 0; i < parent.childCount; i++) {
+    const child = parent.child(i);
+    const nextOffset = offset + child.nodeSize;
+    if (offset >= parentOffset && child.isText) {
+      const charFrom = $pos.start() + parentOffset;
+      const charTo = $pos.start() + parentOffset + 1;
+      if (charTo <= $pos.start() + parent.content.size) {
+        return { from: charFrom, to: charTo };
+      }
+      return null;
+    }
+    if (nextOffset > parentOffset && child.isText) {
+      const charFrom = $pos.start() + parentOffset;
+      const charTo = $pos.start() + parentOffset + 1;
+      if (charTo <= $pos.start() + parent.content.size) {
+        return { from: charFrom, to: charTo };
+      }
+      return null;
+    }
+    offset = nextOffset;
+  }
+  return null;
+}
+
 export const TrackChangesExtension = Extension.create<Record<string, never>, TrackChangesStorage>({
   name: 'trackChanges',
 
@@ -88,6 +194,48 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
       mode: 'editing' as TrackMode,
       authorId: '',
       authorName: '',
+    };
+  },
+
+  addKeyboardShortcuts() {
+    const ext = this;
+
+    return {
+      Backspace: ({ editor }) => {
+        if (!ext.storage.enabled || ext.storage.mode !== 'editing') return false;
+
+        const { state } = editor;
+        const { from, to, empty } = state.selection;
+
+        if (empty) {
+          // Single character deletion (backspace)
+          const $pos = state.doc.resolve(from);
+          const range = charBefore($pos);
+          if (!range) return false;
+
+          return markRangeAsDeleted(editor, range.from, range.to, ext.storage);
+        } else {
+          // Selection deletion
+          return markRangeAsDeleted(editor, from, to, ext.storage);
+        }
+      },
+
+      Delete: ({ editor }) => {
+        if (!ext.storage.enabled || ext.storage.mode !== 'editing') return false;
+
+        const { state } = editor;
+        const { from, to, empty } = state.selection;
+
+        if (empty) {
+          const $pos = state.doc.resolve(from);
+          const range = charAfter($pos);
+          if (!range) return false;
+
+          return markRangeAsDeleted(editor, range.from, range.to, ext.storage);
+        } else {
+          return markRangeAsDeleted(editor, from, to, ext.storage);
+        }
+      },
     };
   },
 
@@ -127,7 +275,6 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
           const doc = editor.state.doc;
           let found = false;
 
-          // Collect ranges in reverse order to avoid position shifts
           const ranges: { from: number; to: number; type: string; mark: PMMark }[] = [];
 
           doc.descendants((node, pos) => {
@@ -144,20 +291,16 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
 
           if (ranges.length === 0) return false;
 
-          // Process in reverse to maintain positions
           ranges.sort((a, b) => b.from - a.from);
 
           for (const range of ranges) {
             if (range.type === 'insertion') {
-              // Accept insertion: remove the mark, keep the text
               tr.removeMark(range.from, range.to, range.mark);
               found = true;
             } else if (range.type === 'deletion') {
-              // Accept deletion: actually delete the text
               tr.delete(range.from, range.to);
               found = true;
             } else if (range.type === 'formatChange') {
-              // Accept format change: remove the mark, keep new format
               tr.removeMark(range.from, range.to, range.mark);
               found = true;
             }
@@ -202,24 +345,19 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
 
           for (const range of ranges) {
             if (range.type === 'insertion') {
-              // Reject insertion: delete the inserted text
               tr.delete(range.from, range.to);
               found = true;
             } else if (range.type === 'deletion') {
-              // Reject deletion: remove the mark, text reappears
               tr.removeMark(range.from, range.to, range.mark);
               found = true;
             } else if (range.type === 'formatChange') {
-              // Reject format change: restore original format
               tr.removeMark(range.from, range.to, range.mark);
 
-              // Remove current formatting marks and restore originals
               if (range.originalFormat) {
                 try {
                   const original = JSON.parse(range.originalFormat) as string[];
                   const schema = editor.state.schema;
 
-                  // Remove all formatting marks first
                   for (const markName of ['bold', 'italic', 'underline']) {
                     const markType = schema.marks[markName];
                     if (markType) {
@@ -227,7 +365,6 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
                     }
                   }
 
-                  // Re-add original marks
                   for (const markName of original) {
                     const markType = schema.marks[markName];
                     if (markType) {
@@ -253,7 +390,6 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
         () =>
         ({ editor }) => {
           const changes = collectTrackedChanges(editor.state.doc);
-          // Accept in reverse order to maintain positions
           for (const change of [...changes].reverse()) {
             editor.commands.acceptChange(change.changeId);
           }
@@ -280,10 +416,8 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
         key: trackChangesPluginKey,
 
         appendTransaction(transactions: readonly Transaction[], oldState: EditorState, newState: EditorState) {
-          // Skip if tracking is disabled or not in editing mode
           if (!extensionStorage.enabled || extensionStorage.mode !== 'editing') return null;
 
-          // Skip if no document changes or if this is an accept/reject operation
           const hasDocChange = transactions.some((tr) => tr.docChanged);
           const isAcceptReject = transactions.some(
             (tr) => tr.getMeta('trackChangesAccept') || tr.getMeta('trackChangesReject') || tr.getMeta('trackChangesInternal')
@@ -319,7 +453,6 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
                   }
                 });
               } else if (step instanceof AddMarkStep || step instanceof RemoveMarkStep) {
-                // Format change tracking
                 const formatMark = newState.schema.marks.formatChange?.create({
                   changeId,
                   authorId,
@@ -353,6 +486,57 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
     ];
   },
 });
+
+/**
+ * Mark a range of text as deleted. If the text already has an insertion mark,
+ * actually delete it (it was never in the original document).
+ * If it already has a deletion mark, skip past it (move cursor).
+ */
+function markRangeAsDeleted(
+  editor: import('@tiptap/core').Editor,
+  from: number,
+  to: number,
+  storage: TrackChangesStorage
+): boolean {
+  const { state } = editor;
+  const { doc, schema } = state;
+
+  // Check if all text in range already has deletion mark — skip
+  if (rangeHasMark(doc, from, to, 'deletion')) {
+    // Move cursor past the deleted text
+    editor.commands.setTextSelection(from > 0 ? from - 1 : to + 1);
+    return true;
+  }
+
+  // Check if text has insertion mark — actually delete it (undo the insert)
+  if (rangeHasMark(doc, from, to, 'insertion')) {
+    const tr = state.tr;
+    tr.delete(from, to);
+    tr.setMeta('trackChangesInternal', true);
+    editor.view.dispatch(tr);
+    return true;
+  }
+
+  // Normal tracked deletion: mark as deleted instead of removing
+  const deletionMark = schema.marks.deletion?.create({
+    changeId: generateChangeId(),
+    authorId: storage.authorId,
+    authorName: storage.authorName,
+    timestamp: new Date().toISOString(),
+  });
+
+  if (deletionMark) {
+    const tr = state.tr;
+    tr.addMark(from, to, deletionMark);
+    tr.setMeta('trackChangesInternal', true);
+    // Move cursor to indicate deletion happened
+    tr.setSelection(TextSelection.near(tr.doc.resolve(from)));
+    editor.view.dispatch(tr);
+    return true;
+  }
+
+  return false;
+}
 
 /**
  * Get the current formatting marks on a range for tracking original format.

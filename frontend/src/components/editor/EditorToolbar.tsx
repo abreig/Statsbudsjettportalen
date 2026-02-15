@@ -9,8 +9,11 @@ import {
   Undo2,
   Redo2,
   GitCompareArrows,
+  Check,
+  X,
 } from 'lucide-react';
 import type { TrackMode } from './TrackChangesExtension';
+import { getChangeAtCursor, type TrackedChange } from './TrackChangesExtension';
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -18,6 +21,11 @@ interface EditorToolbarProps {
   trackMode?: TrackMode;
   onToggleTracking?: () => void;
   onSetTrackMode?: (mode: TrackMode) => void;
+}
+
+function getActiveChange(editor: Editor): TrackedChange | null {
+  const { from } = editor.state.selection;
+  return getChangeAtCursor(editor.state.doc, from);
 }
 
 export function EditorToolbar({
@@ -28,6 +36,8 @@ export function EditorToolbar({
   onSetTrackMode,
 }: EditorToolbarProps) {
   if (!editor) return null;
+
+  const activeChange = trackingEnabled ? getActiveChange(editor) : null;
 
   const toolbarItems = [
     {
@@ -79,7 +89,7 @@ export function EditorToolbar({
   ] as const;
 
   return (
-    <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 rounded-t-lg sticky top-0 z-10">
+    <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 rounded-t-lg sticky top-0 z-10 flex-wrap">
       {toolbarItems.map((item, idx) => {
         if (item === 'separator') {
           return (
@@ -128,6 +138,33 @@ export function EditorToolbar({
           >
             Spor endringer
           </Button>
+
+          {/* Inline accept/reject when cursor is on a tracked change */}
+          {trackingEnabled && activeChange && (
+            <>
+              <div className="mx-1 h-5 w-px bg-gray-300" />
+              <Button
+                type="button"
+                variant="tertiary"
+                size="xsmall"
+                icon={<Check size={14} />}
+                onClick={() => editor.commands.acceptChange(activeChange.changeId)}
+                className="text-green-700 rounded"
+              >
+                Godta endring
+              </Button>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="xsmall"
+                icon={<X size={14} />}
+                onClick={() => editor.commands.rejectChange(activeChange.changeId)}
+                className="text-red-700 rounded"
+              >
+                Avvis endring
+              </Button>
+            </>
+          )}
 
           {trackingEnabled && onSetTrackMode && (
             <ToggleGroup
