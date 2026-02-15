@@ -97,7 +97,7 @@ export function VersionDetailPage() {
           {versionData.post && ` Post ${versionData.post}`}
         </BodyShort>
 
-        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
+        <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
           <div>
             <Label size="small" className="text-gray-500">Kapittel</Label>
             <BodyShort>{versionData.chapter ?? '-'}</BodyShort>
@@ -107,12 +107,20 @@ export function VersionDetailPage() {
             <BodyShort>{versionData.post ?? '-'}</BodyShort>
           </div>
           <div>
-            <Label size="small" className="text-gray-500">Beløp (1 000 kr)</Label>
+            <Label size="small" className="text-gray-500">Departement</Label>
+            <BodyShort>{budgetCase.departmentCode}</BodyShort>
+          </div>
+          <div>
+            <Label size="small" className="text-gray-500">FAGs forslag (1 000 kr)</Label>
             <BodyShort>{formatAmountNOK(versionData.amount)}</BodyShort>
           </div>
           <div>
-            <Label size="small" className="text-gray-500">Departement</Label>
-            <BodyShort>{budgetCase.departmentCode}</BodyShort>
+            <Label size="small" className="text-gray-500">FINs tilråding (1 000 kr)</Label>
+            <BodyShort>{formatAmountNOK(versionData.finAmount)}</BodyShort>
+          </div>
+          <div>
+            <Label size="small" className="text-gray-500">R-vedtak (1 000 kr)</Label>
+            <BodyShort>{formatAmountNOK(versionData.govAmount)}</BodyShort>
           </div>
         </div>
       </div>

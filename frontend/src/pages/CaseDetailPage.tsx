@@ -888,7 +888,7 @@ export function CaseDetailPage() {
                 </div>
 
                 <div>
-                  <Label size="small" className="text-gray-500">Beløp (1 000 kr)</Label>
+                  <Label size="small" className="text-gray-500">FAGs forslag (1 000 kr)</Label>
                   {canEdit ? (
                     <TextField label="" hideLabel size="small" type="number"
                       value={editedMetaFields.amount ?? String(budgetCase.amount ?? '')}
@@ -896,6 +896,30 @@ export function CaseDetailPage() {
                     />
                   ) : (
                     <BodyShort size="small">{formatAmountNOK(budgetCase.amount)}</BodyShort>
+                  )}
+                </div>
+
+                <div>
+                  <Label size="small" className="text-gray-500">FINs tilråding (1 000 kr)</Label>
+                  {canEdit && userIsFin ? (
+                    <TextField label="" hideLabel size="small" type="number"
+                      value={editedMetaFields.finAmount ?? String(budgetCase.finAmount ?? '')}
+                      onChange={(e) => handleMetaFieldChange('finAmount', e.target.value)}
+                    />
+                  ) : (
+                    <BodyShort size="small">{formatAmountNOK(budgetCase.finAmount)}</BodyShort>
+                  )}
+                </div>
+
+                <div>
+                  <Label size="small" className="text-gray-500">Regjeringens vedtak (1 000 kr)</Label>
+                  {canEdit && userIsFin && ['sendt_til_regjeringen', 'regjeringsbehandlet'].includes(status) ? (
+                    <TextField label="" hideLabel size="small" type="number"
+                      value={editedMetaFields.govAmount ?? String(budgetCase.govAmount ?? '')}
+                      onChange={(e) => handleMetaFieldChange('govAmount', e.target.value)}
+                    />
+                  ) : (
+                    <BodyShort size="small">{formatAmountNOK(budgetCase.govAmount)}</BodyShort>
                   )}
                 </div>
 

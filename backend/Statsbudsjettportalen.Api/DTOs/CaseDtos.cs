@@ -29,6 +29,8 @@ public record CaseContentUpdateDto(
     string? Chapter,
     string? Post,
     long? Amount,
+    long? FinAmount,
+    long? GovAmount,
     string? ProposalText,
     string? Justification,
     string? VerbalConclusion,
@@ -56,6 +58,8 @@ public record CaseResponseDto(
     string? Chapter,
     string? Post,
     long? Amount,
+    long? FinAmount,
+    long? GovAmount,
     string CaseType,
     string Status,
     Guid? AssignedTo,
@@ -117,6 +121,8 @@ public record CaseContentDto(
     string? Chapter,
     string? Post,
     long? Amount,
+    long? FinAmount,
+    long? GovAmount,
     string? Status,
     string? ProposalText,
     string? Justification,
@@ -145,6 +151,8 @@ public record DocumentSaveDto(
     string? Chapter = null,
     string? Post = null,
     long? Amount = null,
+    long? FinAmount = null,
+    long? GovAmount = null,
     bool TrackChangesActive = false
 );
 

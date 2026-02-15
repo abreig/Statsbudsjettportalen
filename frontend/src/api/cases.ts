@@ -59,6 +59,8 @@ export interface ContentUpdatePayload {
   chapter?: string | null;
   post?: string | null;
   amount?: number | null;
+  finAmount?: number | null;
+  govAmount?: number | null;
   proposalText?: string | null;
   justification?: string | null;
   verbalConclusion?: string | null;
