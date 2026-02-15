@@ -92,6 +92,7 @@ export interface CaseContent {
   finAssessment: string | null;
   finVerbal: string | null;
   finRConclusion: string | null;
+  contentJson: string | null;
   createdBy: string;
   createdByName: string;
   createdAt: string;

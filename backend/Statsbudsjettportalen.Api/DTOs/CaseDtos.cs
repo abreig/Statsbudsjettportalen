@@ -130,7 +130,20 @@ public record CaseContentDto(
     string? FinRConclusion,
     Guid CreatedBy,
     string CreatedByName,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? ContentJson = null
+);
+
+/// <summary>
+/// DTO for saving the full ProseMirror document (Fase 2).
+/// The backend splits the document into individual fields for backwards compatibility.
+/// </summary>
+public record DocumentSaveDto(
+    string ContentJson,
+    string? CaseName = null,
+    string? Chapter = null,
+    string? Post = null,
+    long? Amount = null
 );
 
 public record CaseEventDto(

@@ -527,7 +527,123 @@ public class CasesController : ControllerBase
             content.ProposalText, content.Justification, content.VerbalConclusion,
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
             content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
-            content.CreatedBy, user?.FullName ?? "", content.CreatedAt
+            content.CreatedBy, user?.FullName ?? "", content.CreatedAt,
+            content.ContentJson
+        ));
+    }
+
+    /// <summary>
+    /// Save the full ProseMirror document (Fase 2).
+    /// Receives the document JSON, stores it in content_json, and extracts flat fields for backwards compatibility.
+    /// </summary>
+    [HttpPut("{id}/document")]
+    public async Task<ActionResult<CaseContentDto>> SaveDocument(Guid id, [FromBody] DocumentSaveDto dto)
+    {
+        var userId = MockAuth.GetUserId(User);
+        var c = await _db.Cases.FindAsync(id);
+        if (c == null) return NotFound();
+
+        var currentMaxVersion = await _db.CaseContents
+            .Where(cc => cc.CaseId == id)
+            .MaxAsync(cc => (int?)cc.Version) ?? 0;
+
+        var newVersion = currentMaxVersion + 1;
+
+        // Parse the document JSON to extract individual field values for backwards compatibility
+        string? proposalText = null, justification = null, verbalConclusion = null;
+        string? socioeconomicAnalysis = null, goalIndicator = null, benefitPlan = null;
+        string? comment = null, finAssessment = null, finVerbal = null, finRConclusion = null;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(dto.ContentJson);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("content", out var sections))
+            {
+                foreach (var section in sections.EnumerateArray())
+                {
+                    if (!section.TryGetProperty("attrs", out var attrs)) continue;
+                    if (!attrs.TryGetProperty("fieldKey", out var fieldKeyProp)) continue;
+                    var fieldKey = fieldKeyProp.GetString();
+                    if (string.IsNullOrEmpty(fieldKey)) continue;
+
+                    var text = ExtractTextFromSection(section);
+
+                    switch (fieldKey)
+                    {
+                        case "proposalText": proposalText = text; break;
+                        case "justification": justification = text; break;
+                        case "verbalConclusion": verbalConclusion = text; break;
+                        case "socioeconomicAnalysis": socioeconomicAnalysis = text; break;
+                        case "goalIndicator": goalIndicator = text; break;
+                        case "benefitPlan": benefitPlan = text; break;
+                        case "comment": comment = text; break;
+                        case "finAssessment": finAssessment = text; break;
+                        case "finVerbal": finVerbal = text; break;
+                        case "finRConclusion": finRConclusion = text; break;
+                    }
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return BadRequest(new { message = "Ugyldig JSON-dokument" });
+        }
+
+        var content = new CaseContent
+        {
+            Id = Guid.NewGuid(),
+            CaseId = id,
+            Version = newVersion,
+            CaseName = dto.CaseName ?? c.CaseName,
+            Chapter = dto.Chapter ?? c.Chapter,
+            Post = dto.Post ?? c.Post,
+            Amount = dto.Amount ?? c.Amount,
+            Status = c.Status,
+            ContentJson = dto.ContentJson,
+            ProposalText = proposalText,
+            Justification = justification,
+            VerbalConclusion = verbalConclusion,
+            SocioeconomicAnalysis = socioeconomicAnalysis,
+            GoalIndicator = goalIndicator,
+            BenefitPlan = benefitPlan,
+            Comment = comment,
+            FinAssessment = finAssessment,
+            FinVerbal = finVerbal,
+            FinRConclusion = finRConclusion,
+            CreatedBy = userId,
+            CreatedAt = DateTime.UtcNow,
+        };
+        _db.CaseContents.Add(content);
+
+        if (dto.CaseName != null) c.CaseName = dto.CaseName;
+        if (dto.Chapter != null) c.Chapter = dto.Chapter;
+        if (dto.Post != null) c.Post = dto.Post;
+        if (dto.Amount.HasValue) c.Amount = dto.Amount;
+        c.Version = newVersion;
+        c.UpdatedAt = DateTime.UtcNow;
+
+        _db.CaseEvents.Add(new CaseEvent
+        {
+            Id = Guid.NewGuid(),
+            CaseId = id,
+            EventType = "document_saved",
+            UserId = userId,
+            EventData = JsonSerializer.Serialize(new { version = newVersion }),
+            CreatedAt = DateTime.UtcNow,
+        });
+
+        await _db.SaveChangesAsync();
+
+        var docUser = await _db.Users.FindAsync(userId);
+        return Ok(new CaseContentDto(
+            content.Id, content.Version,
+            content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+            content.ProposalText, content.Justification, content.VerbalConclusion,
+            content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
+            content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
+            content.CreatedBy, docUser?.FullName ?? "", content.CreatedAt,
+            content.ContentJson
         ));
     }
 
@@ -547,7 +663,8 @@ public class CasesController : ControllerBase
             c.ProposalText, c.Justification, c.VerbalConclusion,
             c.SocioeconomicAnalysis, c.GoalIndicator, c.BenefitPlan, c.Comment,
             c.FinAssessment, c.FinVerbal, c.FinRConclusion,
-            c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""), c.CreatedAt
+            c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""), c.CreatedAt,
+            c.ContentJson
         )).ToList());
     }
 
@@ -565,7 +682,8 @@ public class CasesController : ControllerBase
             content.ProposalText, content.Justification, content.VerbalConclusion,
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan, content.Comment,
             content.FinAssessment, content.FinVerbal, content.FinRConclusion,
-            content.CreatedBy, user?.FullName ?? "", content.CreatedAt
+            content.CreatedBy, user?.FullName ?? "", content.CreatedAt,
+            content.ContentJson
         ));
     }
 
@@ -767,6 +885,46 @@ public class CasesController : ControllerBase
 
     // ─── Helpers ─────────────────────────────────────
 
+    /// <summary>
+    /// Extracts plain text from a ProseMirror caseSection node by finding
+    /// the sectionContent child and concatenating all paragraph text.
+    /// </summary>
+    private static string? ExtractTextFromSection(JsonElement section)
+    {
+        if (!section.TryGetProperty("content", out var children)) return null;
+
+        foreach (var child in children.EnumerateArray())
+        {
+            if (!child.TryGetProperty("type", out var typeProp)) continue;
+            if (typeProp.GetString() != "sectionContent") continue;
+
+            if (!child.TryGetProperty("content", out var blocks)) return null;
+
+            var lines = new List<string>();
+            foreach (var block in blocks.EnumerateArray())
+            {
+                if (!block.TryGetProperty("content", out var inlines))
+                {
+                    lines.Add(""); // empty paragraph
+                    continue;
+                }
+
+                var lineText = new System.Text.StringBuilder();
+                foreach (var inline in inlines.EnumerateArray())
+                {
+                    if (inline.TryGetProperty("text", out var textProp))
+                        lineText.Append(textProp.GetString());
+                }
+                lines.Add(lineText.ToString());
+            }
+
+            var result = string.Join("\n", lines);
+            return string.IsNullOrWhiteSpace(result) ? null : result;
+        }
+
+        return null;
+    }
+
     private static CaseResponseDto MapToDto(Case c, CaseContent? content, Dictionary<Guid, string> users, string? deptCode = null, string userRole = "administrator")
     {
         // Determine if FIN fields should be visible (punkt 3)
@@ -787,7 +945,8 @@ public class CasesController : ControllerBase
                 showFinFields ? content.FinVerbal : null,
                 showFinFields ? content.FinRConclusion : null,
                 content.CreatedBy,
-                users.GetValueOrDefault(content.CreatedBy, ""), content.CreatedAt
+                users.GetValueOrDefault(content.CreatedBy, ""), content.CreatedAt,
+                content.ContentJson
             );
         }
 
