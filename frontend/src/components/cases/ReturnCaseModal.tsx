@@ -29,12 +29,12 @@ export function ReturnCaseModal({ open, onClose, onConfirm, loading }: ReturnCas
       ref={ref}
       open={open}
       onClose={handleClose}
-      header={{ heading: 'Returner sak til FAG', closeButton: true }}
+      header={{ heading: 'Avvis sak - returner til FAG', closeButton: true }}
     >
       <Modal.Body>
         <Textarea
-          label="Begrunnelse for retur"
-          description="Forklar hvorfor saken returneres til fagdepartementet."
+          label="Begrunnelse for avvisning"
+          description="Forklar hvorfor saken avvises og returneres til fagdepartementet."
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           minRows={3}
@@ -47,7 +47,7 @@ export function ReturnCaseModal({ open, onClose, onConfirm, loading }: ReturnCas
           disabled={!reason.trim() || loading}
           loading={loading}
         >
-          Returner sak
+          Avvis sak
         </Button>
         <Button variant="secondary" onClick={handleClose}>
           Avbryt

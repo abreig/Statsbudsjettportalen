@@ -32,6 +32,9 @@ public class Case
 
     public Guid? AssignedTo { get; set; }
 
+    /// <summary>FIN-saksbehandler assigned when case reaches sendt_til_fin.</summary>
+    public Guid? FinAssignedTo { get; set; }
+
     public Guid CreatedBy { get; set; }
 
     public int Version { get; set; } = 1;

@@ -11,6 +11,7 @@ interface AuthState {
   logout: () => void;
   isFag: () => boolean;
   isFin: () => boolean;
+  getAssignedDepartmentCodes: () => string[];
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -34,6 +35,10 @@ export const useAuthStore = create<AuthState>()(
       isFin: () => {
         const user = get().user;
         return user ? isFinRole(user.role) : false;
+      },
+      getAssignedDepartmentCodes: () => {
+        const user = get().user;
+        return user?.assignedDepartments?.map((d) => d.departmentCode) ?? [];
       },
     }),
     { name: 'auth-storage' }

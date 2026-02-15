@@ -1,0 +1,125 @@
+/* ─── Case Document Editor Styles ─────────────────────── */
+
+.case-document-wrapper {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.case-document-editor {
+  min-height: 400px;
+}
+
+/* Section styling */
+.case-section {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.case-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+/* Section title (non-editable) */
+.section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e3a5f;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e7f1;
+  user-select: none;
+  cursor: default;
+}
+
+.section-title:hover {
+  background-color: transparent;
+}
+
+/* Section content (editable area) */
+.section-content {
+  min-height: 3rem;
+  padding: 0.5rem 0;
+}
+
+.section-content p {
+  margin-bottom: 0.5em;
+  line-height: 1.6;
+}
+
+.section-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Empty paragraph placeholder via CSS */
+.section-content p.is-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* List styles */
+.section-content ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75em;
+}
+
+.section-content ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-bottom: 0.75em;
+}
+
+.section-content li {
+  margin-bottom: 0.25em;
+}
+
+.section-content li p {
+  margin-bottom: 0;
+}
+
+/* Inline formatting */
+.section-content strong {
+  font-weight: 600;
+}
+
+.section-content em {
+  font-style: italic;
+}
+
+.section-content u {
+  text-decoration: underline;
+}
+
+/* Selection highlight */
+.case-document-editor .ProseMirror-selectednode {
+  outline: 2px solid #3b82f6;
+  border-radius: 2px;
+}
+
+/* Focus ring for the editor when active */
+.case-document-wrapper:focus-within {
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+}
+
+/* Print styles */
+@media print {
+  .case-document-wrapper {
+    border: none;
+    box-shadow: none;
+  }
+
+  .section-title {
+    break-after: avoid;
+  }
+
+  .case-section {
+    break-inside: avoid;
+  }
+}

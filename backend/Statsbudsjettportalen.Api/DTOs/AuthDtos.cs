@@ -13,5 +13,15 @@ public record UserDto(
     string DepartmentName,
     string Role,
     string? Division,
-    string? Section
+    string? Section,
+    string? JobTitle,
+    string? LeaderLevel,
+    List<AssignedDepartmentDto>? AssignedDepartments
+);
+
+public record AssignedDepartmentDto(
+    Guid DepartmentId,
+    string DepartmentCode,
+    string DepartmentName,
+    bool IsPrimary
 );

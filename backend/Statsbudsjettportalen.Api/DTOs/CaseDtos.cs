@@ -25,6 +25,10 @@ public record CaseUpdateDto(
 );
 
 public record CaseContentUpdateDto(
+    string? CaseName,
+    string? Chapter,
+    string? Post,
+    long? Amount,
     string? ProposalText,
     string? Justification,
     string? VerbalConclusion,
@@ -56,6 +60,8 @@ public record CaseResponseDto(
     string Status,
     Guid? AssignedTo,
     string? AssignedToName,
+    Guid? FinAssignedTo,
+    string? FinAssignedToName,
     Guid CreatedBy,
     string CreatedByName,
     string Origin,
@@ -107,6 +113,11 @@ public record ResolveOpinionDto(
 public record CaseContentDto(
     Guid Id,
     int Version,
+    string? CaseName,
+    string? Chapter,
+    string? Post,
+    long? Amount,
+    string? Status,
     string? ProposalText,
     string? Justification,
     string? VerbalConclusion,
@@ -119,7 +130,20 @@ public record CaseContentDto(
     string? FinRConclusion,
     Guid CreatedBy,
     string CreatedByName,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? ContentJson = null
+);
+
+/// <summary>
+/// DTO for saving the full ProseMirror document (Fase 2).
+/// The backend splits the document into individual fields for backwards compatibility.
+/// </summary>
+public record DocumentSaveDto(
+    string ContentJson,
+    string? CaseName = null,
+    string? Chapter = null,
+    string? Post = null,
+    long? Amount = null
 );
 
 public record CaseEventDto(

@@ -206,7 +206,10 @@ export function VersionHistoryPage() {
               })()}
 
               {item.type === 'version' && item.version && (
-                <div className="flex-1 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <div
+                  className="flex-1 cursor-pointer rounded-lg border border-blue-200 bg-blue-50 p-4 transition-shadow hover:shadow-md"
+                  onClick={() => navigate(`/cases/${id}/history/${item.version!.version}`)}
+                >
                   <div className="flex items-center gap-2 text-sm">
                     <FileText size={16} className="text-blue-600" />
                     <span className="font-medium text-blue-800">
@@ -215,6 +218,9 @@ export function VersionHistoryPage() {
                     <Tag variant="info" size="xsmall">
                       v{item.version.version}
                     </Tag>
+                    {item.version.status && (
+                      <CaseStatusBadge status={item.version.status} size="xsmall" />
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-gray-500">
                     {item.version.createdByName} &mdash;{' '}
@@ -235,6 +241,9 @@ export function VersionHistoryPage() {
                         {item.version.finAssessment.length > 120 ? '...' : ''}
                       </div>
                     )}
+                  </div>
+                  <div className="mt-2 text-xs font-medium text-blue-600">
+                    Klikk for å se fullstendig versjon &rarr;
                   </div>
                 </div>
               )}

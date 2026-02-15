@@ -8,12 +8,13 @@ interface CaseFilters {
   case_type?: string;
   search?: string;
   division?: string;
+  my_departments?: boolean;
 }
 
 export async function fetchCases(filters: CaseFilters): Promise<BudgetCase[]> {
   const params = new URLSearchParams();
   Object.entries(filters).forEach(([k, v]) => {
-    if (v) params.set(k, v);
+    if (v !== undefined && v !== '' && v !== null) params.set(k, String(v));
   });
   const { data } = await apiClient.get<BudgetCase[]>(`/cases?${params}`);
   return data;
@@ -54,6 +55,10 @@ export async function changeStatus(id: string, status: string, reason?: string, 
 }
 
 export interface ContentUpdatePayload {
+  caseName?: string | null;
+  chapter?: string | null;
+  post?: string | null;
+  amount?: number | null;
   proposalText?: string | null;
   justification?: string | null;
   verbalConclusion?: string | null;
@@ -90,6 +95,10 @@ export async function fetchCaseEvents(id: string): Promise<CaseEvent[]> {
 
 export async function changeResponsible(caseId: string, newAssignedTo: string): Promise<void> {
   await apiClient.patch(`/cases/${caseId}/assign`, { newAssignedTo });
+}
+
+export async function changeFinResponsible(caseId: string, newAssignedTo: string): Promise<void> {
+  await apiClient.patch(`/cases/${caseId}/fin-assign`, { newAssignedTo });
 }
 
 // ─── Opinions (uttalelser/godkjenninger) ───────────────────

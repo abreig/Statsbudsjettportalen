@@ -1,3 +1,10 @@
+export interface AssignedDepartment {
+  departmentId: string;
+  departmentCode: string;
+  departmentName: string;
+  isPrimary: boolean;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -8,6 +15,9 @@ export interface User {
   role: string;
   division: string | null;
   section: string | null;
+  jobTitle: string | null;
+  leaderLevel: string | null;
+  assignedDepartments: AssignedDepartment[] | null;
 }
 
 export interface BudgetRound {
@@ -34,6 +44,8 @@ export interface BudgetCase {
   status: string;
   assignedTo: string | null;
   assignedToName: string | null;
+  finAssignedTo: string | null;
+  finAssignedToName: string | null;
   createdBy: string;
   createdByName: string;
   origin: string;
@@ -65,6 +77,11 @@ export interface CaseOpinion {
 export interface CaseContent {
   id: string;
   version: number;
+  caseName: string | null;
+  chapter: string | null;
+  post: string | null;
+  amount: number | null;
+  status: string | null;
   proposalText: string | null;
   justification: string | null;
   verbalConclusion: string | null;
@@ -75,6 +92,7 @@ export interface CaseContent {
   finAssessment: string | null;
   finVerbal: string | null;
   finRConclusion: string | null;
+  contentJson: string | null;
   createdBy: string;
   createdByName: string;
   createdAt: string;
