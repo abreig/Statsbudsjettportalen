@@ -134,8 +134,14 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<Guid>("DepartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<long?>("FinAmount")
+                        .HasColumnType("bigint");
+
                     b.Property<Guid?>("FinAssignedTo")
                         .HasColumnType("uuid");
+
+                    b.Property<long?>("GovAmount")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Origin")
                         .IsRequired()
@@ -202,6 +208,12 @@ namespace Statsbudsjettportalen.Api.Migrations
 
                     b.Property<string>("ContentJson")
                         .HasColumnType("jsonb");
+
+                    b.Property<long?>("FinAmount")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("GovAmount")
+                        .HasColumnType("bigint");
 
                     b.Property<bool>("TrackChangesActive")
                         .HasColumnType("boolean");
@@ -503,6 +515,9 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<string>("AnswerJson")
+                        .HasColumnType("jsonb");
 
                     b.Property<string>("AnswerText")
                         .HasColumnType("text");
