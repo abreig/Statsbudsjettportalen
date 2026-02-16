@@ -5,6 +5,7 @@ interface SectionNavigationProps {
   fagFields: CaseFieldConfig[];
   finFields: CaseFieldConfig[];
   showFinFields: boolean;
+  govConclusionField?: CaseFieldConfig | null;
   activeSection?: string;
 }
 
@@ -12,6 +13,7 @@ export function SectionNavigation({
   fagFields,
   finFields,
   showFinFields,
+  govConclusionField,
   activeSection,
 }: SectionNavigationProps) {
   const scrollToSection = (fieldKey: string) => {
@@ -70,6 +72,27 @@ export function SectionNavigation({
                 <BodyShort size="small">{field.label}</BodyShort>
               </button>
             ))}
+          </>
+        )}
+
+        {govConclusionField && (
+          <>
+            <div className="my-2 border-t border-gray-200 pt-2">
+              <Label size="small" className="text-xs text-gray-400 uppercase tracking-wider">
+                Regjering
+              </Label>
+            </div>
+            <button
+              type="button"
+              onClick={() => scrollToSection(govConclusionField.key)}
+              className={`block w-full text-left px-2 py-1.5 rounded text-sm transition-colors ${
+                activeSection === govConclusionField.key
+                  ? 'bg-blue-50 text-blue-700 font-medium'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <BodyShort size="small">{govConclusionField.label}</BodyShort>
+            </button>
           </>
         )}
       </nav>

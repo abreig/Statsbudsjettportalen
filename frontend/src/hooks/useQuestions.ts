@@ -3,6 +3,7 @@ import {
   fetchQuestions,
   createQuestion,
   answerQuestion,
+  fetchMyPendingQuestions,
 } from '../api/questions.ts';
 
 export function useQuestions(caseId: string | undefined) {
@@ -26,10 +27,17 @@ export function useCreateQuestion(caseId: string) {
 export function useAnswerQuestion(caseId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (params: { questionId: string; answerText: string }) =>
-      answerQuestion(params.questionId, params.answerText),
+    mutationFn: (params: { questionId: string; answerText: string; answerJson?: string | null }) =>
+      answerQuestion(params.questionId, params.answerText, params.answerJson),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['questions', caseId] });
     },
+  });
+}
+
+export function useMyPendingQuestions() {
+  return useQuery({
+    queryKey: ['questions', 'my-pending'],
+    queryFn: fetchMyPendingQuestions,
   });
 }

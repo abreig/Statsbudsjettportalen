@@ -27,8 +27,11 @@ import {
   ShieldCheck,
   PanelRightClose,
   PanelRightOpen,
+  FileDown,
 } from 'lucide-react';
-import { useCase, useSaveContent, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
+import type { Editor } from '@tiptap/react';
+import { useCase, useSaveDocument, useChangeStatus, useChangeResponsible, useChangeFinResponsible, useCreateOpinion, useResolveOpinion, useForwardApproval } from '../hooks/useCases.ts';
+import { useComments, useCreateComment, useReplyToComment, useResolveComment, useReopenComment, useDeleteComment } from '../hooks/useComments.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CaseWorkflowBar } from '../components/cases/CaseWorkflowBar.tsx';
@@ -36,14 +39,13 @@ import { ReturnCaseModal } from '../components/cases/ReturnCaseModal.tsx';
 import { QuestionThread } from '../components/questions/QuestionThread.tsx';
 import { CaseDocumentEditor } from '../components/editor/CaseDocumentEditor.tsx';
 import { SectionNavigation } from '../components/editor/SectionNavigation.tsx';
-import { TrackedChangesPanel } from '../components/editor/TrackedChangesPanel.tsx';
-import { buildDocumentFromContent, extractFieldsFromDocument } from '../components/editor/documentUtils.ts';
+import { CommentPanel } from '../components/editor/CommentPanel.tsx';
+import { buildDocumentFromContent } from '../components/editor/documentUtils.ts';
 import type { TrackMode } from '../components/editor/TrackChangesExtension.ts';
-import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS } from '../lib/caseTypes.ts';
+import { CASE_TYPE_LABELS, CASE_TYPE_FIELDS, FIN_FIELDS, GOV_CONCLUSION_FIELD } from '../lib/caseTypes.ts';
 import { STATUS_LABELS, FIN_FIELDS_VISIBLE_TO_FAG, FIN_VISIBLE_STATUSES, getAllowedTransitions } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 import { isFagRole, isFinRole, isFinLeader, canChangeResponsible, canSendOpinion } from '../lib/roles.ts';
-import type { ContentUpdatePayload } from '../api/cases.ts';
 import type { CaseOpinion } from '../lib/types.ts';
 import apiClient from '../api/client.ts';
 
@@ -54,7 +56,7 @@ export function CaseDetailPage() {
   const role = user?.role ?? '';
 
   const { data: budgetCase, isLoading, error } = useCase(id);
-  const saveContentMut = useSaveContent(id ?? '');
+  const saveDocumentMut = useSaveDocument(id ?? '');
   const changeStatusMut = useChangeStatus(id ?? '');
   const changeResponsibleMut = useChangeResponsible(id ?? '');
   const changeFinResponsibleMut = useChangeFinResponsible(id ?? '');
@@ -69,14 +71,20 @@ export function CaseDetailPage() {
   // Document editor state
   const [documentDirty, setDocumentDirty] = useState(false);
   const latestDocJson = useRef<JSONContent | null>(null);
-  const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Track changes state
-  const [trackChangesEnabled, setTrackChangesEnabled] = useState(false);
-  const [trackMode, setTrackMode] = useState<TrackMode>('editing');
+  // Track changes override state (resolved after auto-values are computed below)
+  const [trackChangesOverride, setTrackChangesOverride] = useState<boolean | null>(null);
+  const [trackModeOverride, setTrackModeOverride] = useState<TrackMode | null>(null);
 
-  // Editor ref for TrackedChangesPanel
-  const editorRef = useRef<import('@tiptap/react').Editor | null>(null);
+  // Comments state
+  const editorRef = useRef<Editor | null>(null);
+  const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const { data: comments = [] } = useComments(id);
+  const createCommentMut = useCreateComment(id ?? '');
+  const replyToCommentMut = useReplyToComment(id ?? '');
+  const resolveCommentMut = useResolveComment(id ?? '');
+  const reopenCommentMut = useReopenComment(id ?? '');
+  const deleteCommentMut = useDeleteComment(id ?? '');
 
   // Status/opinion state
   const [showChangeResponsible, setShowChangeResponsible] = useState(false);
@@ -84,12 +92,14 @@ export function CaseDetailPage() {
   const [deptUsers, setDeptUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
   const [finUsers, setFinUsers] = useState<Array<{ id: string; fullName: string; email: string; role: string }>>([]);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     status: string;
     label: string;
     isBackward?: boolean;
   } | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [statusComment, setStatusComment] = useState('');
   const [opinionAssignee, setOpinionAssignee] = useState('');
   const [showOpinionForm, setShowOpinionForm] = useState<false | 'uttalelse' | 'godkjenning'>(false);
@@ -108,10 +118,44 @@ export function CaseDetailPage() {
   const status = budgetCase?.status ?? '';
   const fagFields = CASE_TYPE_FIELDS[caseType] ?? [];
 
-  const canEdit = status !== 'regjeringsbehandlet';
+  // ─── Status-based editor mode logic (Sprint 2.4) ───────────────
+  // Determines editability, track changes, and editor mode based on
+  // case status + user role to enforce the collaborative workflow.
+  const isAtFin = ['sendt_til_fin', 'under_vurdering_fin', 'ferdigbehandlet_fin'].includes(status);
+  const isReturned = status === 'returnert_til_fag';
+  const isRejected = status === 'avvist_av_fin';
+  const isCaseClosed = status === 'regjeringsbehandlet';
+
+  const canEdit = (() => {
+    if (isCaseClosed) return false;
+    if (isRejected) return false; // Rejected cases are permanently closed
+    if (isAtFin && userIsFag) return false; // FAG cannot edit while at FIN
+    if (isReturned && userIsFin) return false; // FIN cannot edit returned case
+    return true;
+  })();
+
+  // Auto-enable tracking when FIN edits a case, or when FAG reviews returned case
+  const autoTrackingEnabled = (() => {
+    if (userIsFin && isAtFin) return true; // FIN edits always tracked
+    if (userIsFag && isReturned) return true; // FAG reviewing FIN changes
+    return false;
+  })();
+
+  // Auto-set track mode based on status + role
+  const autoTrackMode: TrackMode = (() => {
+    if (userIsFag && isReturned) return 'review'; // FAG reviews FIN's changes
+    return 'editing';
+  })();
+
+  // Resolved track changes state (user override or auto-value)
+  const trackChangesEnabled = trackChangesOverride ?? autoTrackingEnabled;
+  const trackMode = trackModeOverride ?? autoTrackMode;
 
   const showFinFields = userIsFin
     || (userIsFag && FIN_FIELDS_VISIBLE_TO_FAG.includes(status));
+
+  // "Regjeringens konklusjon" visible when status is sendt_til_regjeringen or later for all users
+  const showGovConclusion = ['sendt_til_regjeringen', 'regjeringsbehandlet'].includes(status);
 
   // Build the document JSON from current content
   const documentContent = buildDocumentFromContent(
@@ -119,64 +163,59 @@ export function CaseDetailPage() {
     fagFields,
     FIN_FIELDS,
     id ?? '',
-    showFinFields
+    showFinFields,
+    showGovConclusion ? GOV_CONCLUSION_FIELD : null
   );
 
-  // Handle document changes from the editor
+  // Handle document changes from the editor (no autosave — manual save only)
   const handleDocumentUpdate = useCallback((doc: JSONContent) => {
     latestDocJson.current = doc;
     setDocumentDirty(true);
     setSaveSuccess(false);
-
-    // Debounced auto-save: 2 seconds after last change
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-    }
-    autoSaveTimer.current = setTimeout(() => {
-      triggerSave(doc);
-    }, 2000);
   }, []);
 
-  // Cleanup timer on unmount
+  // Warn user about unsaved changes when leaving page
   useEffect(() => {
-    return () => {
-      if (autoSaveTimer.current) {
-        clearTimeout(autoSaveTimer.current);
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (documentDirty) {
+        e.preventDefault();
       }
     };
-  }, []);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [documentDirty]);
 
   const triggerSave = useCallback((doc?: JSONContent) => {
     const docToSave = doc ?? latestDocJson.current;
     if (!id || !budgetCase || !docToSave) return;
 
-    // Extract field values from the document
-    const fields = extractFieldsFromDocument(docToSave);
-
-    const payload: ContentUpdatePayload = {
+    setSaveError(null);
+    saveDocumentMut.mutate({
+      contentJson: JSON.stringify(docToSave),
       caseName: editedMetaFields.caseName ?? budgetCase.caseName ?? null,
       chapter: editedMetaFields.chapter ?? budgetCase.chapter ?? null,
       post: editedMetaFields.post ?? budgetCase.post ?? null,
       amount: editedMetaFields.amount
         ? Number(editedMetaFields.amount)
         : budgetCase.amount ?? null,
-      ...fields,
-    };
-
-    saveContentMut.mutate(payload as Record<string, string | null>, {
+      finAmount: budgetCase.finAmount ?? null,
+      govAmount: budgetCase.govAmount ?? null,
+      trackChangesActive: trackChangesEnabled,
+    }, {
       onSuccess: () => {
         setDocumentDirty(false);
         setEditedMetaFields({});
         setSaveSuccess(true);
+        setSaveError(null);
+      },
+      onError: (err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Ukjent feil ved lagring';
+        setSaveError(`Kunne ikke lagre: ${message}. Prøv igjen.`);
       },
     });
-  }, [id, budgetCase, editedMetaFields, saveContentMut]);
+  }, [id, budgetCase, editedMetaFields, saveDocumentMut, trackChangesEnabled]);
 
   const handleManualSave = () => {
-    if (autoSaveTimer.current) {
-      clearTimeout(autoSaveTimer.current);
-      autoSaveTimer.current = null;
-    }
     triggerSave();
   };
 
@@ -248,7 +287,7 @@ export function CaseDetailPage() {
   const pendingOpinions = opinions.filter((o) => o.status === 'pending');
   const resolvedOpinions = opinions.filter((o) => o.status !== 'pending');
   const isReturnedStatus = status === 'returnert_til_fag';
-  const isClosed = status === 'regjeringsbehandlet';
+  const isClosed = status === 'regjeringsbehandlet' || status === 'avvist_av_fin';
   const isLocked = pendingOpinions.length > 0;
   const isResponsible = user?.id === budgetCase.assignedTo || user?.id === budgetCase.finAssignedTo;
   const canOpinion = canSendOpinion(role, user?.id ?? '', budgetCase.assignedTo, budgetCase.finAssignedTo);
@@ -269,6 +308,16 @@ export function CaseDetailPage() {
           </Button>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="tertiary"
+            size="small"
+            icon={<FileDown size={16} />}
+            onClick={() => {
+              window.open(`/api/cases/${id}/export/word`, '_blank');
+            }}
+          >
+            Eksporter Word
+          </Button>
           <Button
             variant="tertiary"
             size="small"
@@ -293,10 +342,15 @@ export function CaseDetailPage() {
         <CaseWorkflowBar currentStatus={budgetCase.status} opinions={budgetCase.opinions} />
       </div>
 
-      {/* Returned / Closed banners */}
+      {/* Returned / Rejected / Closed banners */}
       {isReturnedStatus && (
+        <Alert variant="warning" size="small" className="mb-4">
+          Saken er returnert til FAG for revisjon.
+        </Alert>
+      )}
+      {isRejected && (
         <Alert variant="error" size="small" className="mb-4">
-          Saken er avvist av FIN.
+          Forslaget er avvist av FIN. Saken er permanent lukket.
         </Alert>
       )}
       {isClosed && (
@@ -305,10 +359,29 @@ export function CaseDetailPage() {
         </Alert>
       )}
 
+      {/* Status-based read-only indicator */}
+      {isAtFin && userIsFag && (
+        <Alert variant="info" size="small" className="mb-4">
+          Saken er til behandling hos FIN. Dokumentet er skrivebeskyttet.
+        </Alert>
+      )}
+      {isReturned && userIsFag && (
+        <Alert variant="warning" size="small" className="mb-4">
+          Saken er returnert fra FIN med endringer. Gjennomgå og godta/avvis endringene.
+        </Alert>
+      )}
+
       {/* Save success message */}
       {saveSuccess && (
         <Alert variant="success" size="small" className="mb-4">
           Innholdet er lagret (versjon {budgetCase.version}).
+        </Alert>
+      )}
+
+      {/* Save error message */}
+      {saveError && (
+        <Alert variant="error" size="small" className="mb-4">
+          {saveError}
         </Alert>
       )}
 
@@ -369,7 +442,7 @@ export function CaseDetailPage() {
                     size="small"
                     variant="secondary"
                     onClick={handleManualSave}
-                    loading={saveContentMut.isPending}
+                    loading={saveDocumentMut.isPending}
                     icon={<Save size={14} />}
                     disabled={!hasEdits}
                   >
@@ -383,12 +456,26 @@ export function CaseDetailPage() {
                       <Button
                         key={action.status}
                         size="small"
-                        variant="danger"
+                        variant="secondary"
                         icon={<RotateCcw size={14} />}
                         onClick={() => setShowReturnModal(true)}
                         disabled={isLocked}
                       >
-                        Avvis - returner til FAG
+                        {action.label}
+                      </Button>
+                    );
+                  }
+                  if (action.status === 'avvist_av_fin') {
+                    return (
+                      <Button
+                        key={action.status}
+                        size="small"
+                        variant="danger"
+                        icon={<XCircle size={14} />}
+                        onClick={() => setShowRejectModal(true)}
+                        disabled={isLocked}
+                      >
+                        {action.label}
                       </Button>
                     );
                   }
@@ -447,12 +534,12 @@ export function CaseDetailPage() {
                   </BodyShort>
                 )}
 
-                {documentDirty && !saveContentMut.isPending && (
-                  <BodyShort size="small" className="self-center text-gray-400 italic">
-                    Ulagrede endringer (autolagring aktiv)
+                {documentDirty && !saveDocumentMut.isPending && (
+                  <BodyShort size="small" className="self-center text-amber-600">
+                    Ulagrede endringer
                   </BodyShort>
                 )}
-                {saveContentMut.isPending && (
+                {saveDocumentMut.isPending && (
                   <BodyShort size="small" className="self-center text-blue-600">
                     Lagrer...
                   </BodyShort>
@@ -554,10 +641,10 @@ export function CaseDetailPage() {
             onUpdate={handleDocumentUpdate}
             trackChangesEnabled={trackChangesEnabled}
             trackMode={trackMode}
-            onToggleTracking={() => setTrackChangesEnabled((prev) => !prev)}
-            onSetTrackMode={setTrackMode}
+            onToggleTracking={() => setTrackChangesOverride((prev) => !(prev ?? autoTrackingEnabled))}
+            onSetTrackMode={(mode) => setTrackModeOverride(mode)}
             currentUser={user ? { id: user.id, name: user.fullName } : undefined}
-            onEditorReady={(e) => { editorRef.current = e; }}
+            onEditorReady={(editor) => { editorRef.current = editor; }}
           />
 
           {/* ─── Opinions section ─────────────────────────── */}
@@ -798,7 +885,7 @@ export function CaseDetailPage() {
                 </div>
 
                 <div>
-                  <Label size="small" className="text-gray-500">Beløp (1 000 kr)</Label>
+                  <Label size="small" className="text-gray-500">FAGs forslag (1 000 kr)</Label>
                   {canEdit ? (
                     <TextField label="" hideLabel size="small" type="number"
                       value={editedMetaFields.amount ?? String(budgetCase.amount ?? '')}
@@ -806,6 +893,30 @@ export function CaseDetailPage() {
                     />
                   ) : (
                     <BodyShort size="small">{formatAmountNOK(budgetCase.amount)}</BodyShort>
+                  )}
+                </div>
+
+                <div>
+                  <Label size="small" className="text-gray-500">FINs tilråding (1 000 kr)</Label>
+                  {canEdit && userIsFin ? (
+                    <TextField label="" hideLabel size="small" type="number"
+                      value={editedMetaFields.finAmount ?? String(budgetCase.finAmount ?? '')}
+                      onChange={(e) => handleMetaFieldChange('finAmount', e.target.value)}
+                    />
+                  ) : (
+                    <BodyShort size="small">{formatAmountNOK(budgetCase.finAmount)}</BodyShort>
+                  )}
+                </div>
+
+                <div>
+                  <Label size="small" className="text-gray-500">Regjeringens vedtak (1 000 kr)</Label>
+                  {canEdit && userIsFin && ['sendt_til_regjeringen', 'regjeringsbehandlet'].includes(status) ? (
+                    <TextField label="" hideLabel size="small" type="number"
+                      value={editedMetaFields.govAmount ?? String(budgetCase.govAmount ?? '')}
+                      onChange={(e) => handleMetaFieldChange('govAmount', e.target.value)}
+                    />
+                  ) : (
+                    <BodyShort size="small">{formatAmountNOK(budgetCase.govAmount)}</BodyShort>
                   )}
                 </div>
 
@@ -931,21 +1042,48 @@ export function CaseDetailPage() {
               )}
             </div>
 
+            {/* Comments panel */}
+            {canEdit && (
+              <div className="rounded-lg border border-gray-200 bg-white p-4">
+                <CommentPanel
+                  editor={editorRef.current}
+                  caseId={id ?? ''}
+                  comments={comments}
+                  currentUserId={user?.id ?? ''}
+                  activeCommentId={activeCommentId}
+                  onSetActiveComment={setActiveCommentId}
+                  onCreateComment={(commentId, text, anchorText) => {
+                    createCommentMut.mutate({ commentId, commentText: text, anchorText });
+                  }}
+                  onReply={(commentDbId, text) => {
+                    replyToCommentMut.mutate({ commentDbId, payload: { commentText: text } });
+                  }}
+                  onResolve={(comment) => {
+                    resolveCommentMut.mutate(comment.id);
+                    editorRef.current?.commands.resolveCommentMark(comment.commentId);
+                  }}
+                  onReopen={(comment) => {
+                    reopenCommentMut.mutate(comment.id);
+                    editorRef.current?.commands.reopenCommentMark(comment.commentId);
+                  }}
+                  onDelete={(comment) => {
+                    deleteCommentMut.mutate(comment.id);
+                    editorRef.current?.commands.removeCommentMark(comment.commentId);
+                  }}
+                />
+              </div>
+            )}
+
             {/* Section navigation */}
             <div className="rounded-lg border border-gray-200 bg-white p-4">
               <SectionNavigation
                 fagFields={fagFields}
                 finFields={FIN_FIELDS}
                 showFinFields={showFinFields}
+                govConclusionField={showGovConclusion ? GOV_CONCLUSION_FIELD : null}
               />
             </div>
 
-            {/* Tracked changes panel */}
-            {trackChangesEnabled && (
-              <div className="rounded-lg border border-gray-200 bg-white">
-                <TrackedChangesPanel editor={editorRef.current} />
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -958,6 +1096,17 @@ export function CaseDetailPage() {
           handleStatusChange('returnert_til_fag', reason)
         }
         loading={changeStatusMut.isPending}
+      />
+
+      {/* Reject modal */}
+      <ReturnCaseModal
+        open={showRejectModal}
+        onClose={() => setShowRejectModal(false)}
+        onConfirm={(reason) =>
+          handleStatusChange('avvist_av_fin', reason)
+        }
+        loading={changeStatusMut.isPending}
+        variant="reject"
       />
     </div>
   );

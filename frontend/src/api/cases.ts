@@ -59,6 +59,8 @@ export interface ContentUpdatePayload {
   chapter?: string | null;
   post?: string | null;
   amount?: number | null;
+  finAmount?: number | null;
+  govAmount?: number | null;
   proposalText?: string | null;
   justification?: string | null;
   verbalConclusion?: string | null;
@@ -73,6 +75,22 @@ export interface ContentUpdatePayload {
 
 export async function saveContent(id: string, payload: ContentUpdatePayload): Promise<CaseContent> {
   const { data } = await apiClient.post<CaseContent>(`/cases/${id}/content`, payload);
+  return data;
+}
+
+export interface DocumentSavePayload {
+  contentJson: string;
+  caseName?: string | null;
+  chapter?: string | null;
+  post?: string | null;
+  amount?: number | null;
+  finAmount?: number | null;
+  govAmount?: number | null;
+  trackChangesActive?: boolean;
+}
+
+export async function saveDocument(id: string, payload: DocumentSavePayload): Promise<CaseContent> {
+  const { data } = await apiClient.put<CaseContent>(`/cases/${id}/document`, payload);
   return data;
 }
 

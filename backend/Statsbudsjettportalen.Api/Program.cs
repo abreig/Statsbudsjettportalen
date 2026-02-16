@@ -16,6 +16,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 // Services
 builder.Services.AddSingleton<WorkflowService>();
+builder.Services.AddSingleton<WordExportService>();
 
 // JWT secret from config (falls back to default for local dev)
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? MockAuth.DefaultSecretKey;

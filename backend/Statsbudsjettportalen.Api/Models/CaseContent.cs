@@ -20,6 +20,8 @@ public class CaseContent
     [MaxLength(10)]
     public string? Post { get; set; }
     public long? Amount { get; set; }
+    public long? FinAmount { get; set; }
+    public long? GovAmount { get; set; }
     [MaxLength(30)]
     public string? Status { get; set; }
 

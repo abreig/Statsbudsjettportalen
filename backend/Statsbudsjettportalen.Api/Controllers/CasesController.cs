@@ -341,7 +341,10 @@ public class CasesController : ControllerBase
             return BadRequest(new { message = $"Ugyldig statusovergang fra '{c.Status}' til '{dto.Status}' for rollen '{userRole}'" });
 
         if (dto.Status == "returnert_til_fag" && string.IsNullOrEmpty(dto.Reason))
-            return BadRequest(new { message = "Begrunnelse er påkrevd ved avvisning av sak" });
+            return BadRequest(new { message = "Begrunnelse er påkrevd ved retur av sak" });
+
+        if (dto.Status == "avvist_av_fin" && string.IsNullOrEmpty(dto.Reason))
+            return BadRequest(new { message = "Begrunnelse er påkrevd ved avvisning av forslag" });
 
         var oldStatus = c.Status;
         c.Status = dto.Status;
@@ -483,6 +486,8 @@ public class CasesController : ControllerBase
             Chapter = dto.Chapter ?? c.Chapter,
             Post = dto.Post ?? c.Post,
             Amount = dto.Amount ?? c.Amount,
+            FinAmount = dto.FinAmount ?? c.FinAmount,
+            GovAmount = dto.GovAmount ?? c.GovAmount,
             Status = c.Status,
             // Content fields
             ProposalText = dto.ProposalText,
@@ -505,6 +510,8 @@ public class CasesController : ControllerBase
         if (dto.Chapter != null) c.Chapter = dto.Chapter;
         if (dto.Post != null) c.Post = dto.Post;
         if (dto.Amount.HasValue) c.Amount = dto.Amount;
+        if (dto.FinAmount.HasValue) c.FinAmount = dto.FinAmount;
+        if (dto.GovAmount.HasValue) c.GovAmount = dto.GovAmount;
         c.Version = newVersion;
         c.UpdatedAt = DateTime.UtcNow;
 
@@ -523,7 +530,8 @@ public class CasesController : ControllerBase
         var user = await _db.Users.FindAsync(userId);
         return Ok(new CaseContentDto(
             content.Id, content.Version,
-            content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+            content.CaseName, content.Chapter, content.Post, content.Amount, content.FinAmount, content.GovAmount,
+            content.Status,
             content.ProposalText, content.Justification, content.VerbalConclusion,
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
             content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
@@ -599,6 +607,8 @@ public class CasesController : ControllerBase
             Chapter = dto.Chapter ?? c.Chapter,
             Post = dto.Post ?? c.Post,
             Amount = dto.Amount ?? c.Amount,
+            FinAmount = dto.FinAmount ?? c.FinAmount,
+            GovAmount = dto.GovAmount ?? c.GovAmount,
             Status = c.Status,
             ContentJson = dto.ContentJson,
             TrackChangesActive = dto.TrackChangesActive,
@@ -621,6 +631,8 @@ public class CasesController : ControllerBase
         if (dto.Chapter != null) c.Chapter = dto.Chapter;
         if (dto.Post != null) c.Post = dto.Post;
         if (dto.Amount.HasValue) c.Amount = dto.Amount;
+        if (dto.FinAmount.HasValue) c.FinAmount = dto.FinAmount;
+        if (dto.GovAmount.HasValue) c.GovAmount = dto.GovAmount;
         c.Version = newVersion;
         c.UpdatedAt = DateTime.UtcNow;
 
@@ -639,7 +651,8 @@ public class CasesController : ControllerBase
         var docUser = await _db.Users.FindAsync(userId);
         return Ok(new CaseContentDto(
             content.Id, content.Version,
-            content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+            content.CaseName, content.Chapter, content.Post, content.Amount, content.FinAmount, content.GovAmount,
+            content.Status,
             content.ProposalText, content.Justification, content.VerbalConclusion,
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan,
             content.Comment, content.FinAssessment, content.FinVerbal, content.FinRConclusion,
@@ -660,7 +673,8 @@ public class CasesController : ControllerBase
         var users = await _db.Users.Where(u => userIds.Contains(u.Id)).ToDictionaryAsync(u => u.Id, u => u.FullName);
 
         return Ok(contents.Select(c => new CaseContentDto(
-            c.Id, c.Version, c.CaseName, c.Chapter, c.Post, c.Amount, c.Status,
+            c.Id, c.Version, c.CaseName, c.Chapter, c.Post, c.Amount, c.FinAmount, c.GovAmount,
+            c.Status,
             c.ProposalText, c.Justification, c.VerbalConclusion,
             c.SocioeconomicAnalysis, c.GoalIndicator, c.BenefitPlan, c.Comment,
             c.FinAssessment, c.FinVerbal, c.FinRConclusion,
@@ -679,7 +693,8 @@ public class CasesController : ControllerBase
 
         var user = await _db.Users.FindAsync(content.CreatedBy);
         return Ok(new CaseContentDto(
-            content.Id, content.Version, content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+            content.Id, content.Version, content.CaseName, content.Chapter, content.Post, content.Amount, content.FinAmount, content.GovAmount,
+            content.Status,
             content.ProposalText, content.Justification, content.VerbalConclusion,
             content.SocioeconomicAnalysis, content.GoalIndicator, content.BenefitPlan, content.Comment,
             content.FinAssessment, content.FinVerbal, content.FinRConclusion,
@@ -953,7 +968,8 @@ public class CasesController : ControllerBase
         {
             contentDto = new CaseContentDto(
                 content.Id, content.Version,
-                content.CaseName, content.Chapter, content.Post, content.Amount, content.Status,
+                content.CaseName, content.Chapter, content.Post, content.Amount, content.FinAmount, content.GovAmount,
+                content.Status,
                 content.ProposalText, content.Justification,
                 content.VerbalConclusion, content.SocioeconomicAnalysis, content.GoalIndicator,
                 content.BenefitPlan, content.Comment,
@@ -977,7 +993,7 @@ public class CasesController : ControllerBase
         return new CaseResponseDto(
             c.Id, c.BudgetRoundId, c.DepartmentId,
             deptCode ?? c.Department?.Code ?? "",
-            c.CaseName, c.Chapter, c.Post, c.Amount,
+            c.CaseName, c.Chapter, c.Post, c.Amount, c.FinAmount, c.GovAmount,
             c.CaseType, c.Status, c.AssignedTo,
             c.AssignedTo.HasValue ? users.GetValueOrDefault(c.AssignedTo.Value, "") : null,
             c.FinAssignedTo,

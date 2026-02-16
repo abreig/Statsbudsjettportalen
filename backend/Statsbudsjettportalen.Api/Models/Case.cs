@@ -24,6 +24,9 @@ public class Case
 
     public long? Amount { get; set; }
 
+    public long? FinAmount { get; set; }    // FINs tilrading
+    public long? GovAmount { get; set; }    // Regjeringens vedtak (partielt)
+
     [Required, MaxLength(30)]
     public string CaseType { get; set; } = string.Empty;
 

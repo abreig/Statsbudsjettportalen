@@ -30,6 +30,7 @@ const FAG_DEPARTMENTS: { code: string; name: string }[] = [
   { code: 'NFD', name: 'Nærings- og fiskeridepartementet' },
   { code: 'SD', name: 'Samferdselsdepartementet' },
   { code: 'UD', name: 'Utenriksdepartementet' },
+  { code: 'FIN-FAG', name: 'Finansdepartementet (fagavdelinger)' },
 ];
 
 // FIN users organized by hierarchy
@@ -63,7 +64,7 @@ const FIN_SECTIONS: FinSection[] = [
   },
   {
     name: 'Statsforvaltningsseksjonen',
-    depts: 'KUD, FIN, SD, DFD, JD, FD',
+    depts: 'KUD, FIN-FAG, SD, DFD, JD, FD',
     avdDir: { email: 'avddir.statsforv@fin.test.no', name: 'Kristin Aas', role: 'avdelingsdirektor_fin', jobTitle: 'Avdelingsdirektør', departmentCode: 'FIN', departmentName: 'Finansdepartementet', section: 'Statsforvaltningsseksjonen' },
     undDirs: [
       { email: 'unddir.statsforv1@fin.test.no', name: 'Hans Dahl', role: 'underdirektor_fin', jobTitle: 'Underdirektør', departmentCode: 'FIN', departmentName: 'Finansdepartementet', section: 'Statsforvaltningsseksjonen' },
@@ -103,6 +104,7 @@ const FAG_USER_NAMES: [string, string, string, string, string, string][] = [
   ['Liv Brekke', 'Alf Fjeld', 'Astrid Mo', 'Olav Foss', 'Gerd Sand', 'Roar Eng'],
   ['Siri Vik', 'Nils Rønning', 'Jorunn Bø', 'Erlend Nes', 'Karin Rud', 'Bjarne Li'],
   ['Kristin Hauge', 'Svein Bye', 'Ragnhild Ask', 'Harald Hol', 'Anne Furu', 'Einar Eid'],
+  ['Camilla Lyng', 'Thomas Rø', 'Vibeke Gran', 'Steinar Mo', 'Lise Skau', 'Geir Dal'],
 ];
 
 function getFagUsers(deptIndex: number): TestUser[] {

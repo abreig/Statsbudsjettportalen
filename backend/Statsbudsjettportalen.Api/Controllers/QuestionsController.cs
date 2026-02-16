@@ -38,7 +38,7 @@ public class QuestionsController : ControllerBase
         return Ok(questions.Select(q => new QuestionDto(
             q.Id, q.CaseId, q.AskedBy,
             users.GetValueOrDefault(q.AskedBy, ""),
-            q.QuestionText, q.AnswerText,
+            q.QuestionText, q.AnswerText, q.AnswerJson,
             q.AnsweredBy,
             q.AnsweredBy.HasValue ? users.GetValueOrDefault(q.AnsweredBy.Value, "") : null,
             q.CreatedAt, q.AnsweredAt
@@ -75,7 +75,7 @@ public class QuestionsController : ControllerBase
         var user = await _db.Users.FindAsync(userId);
         return CreatedAtAction(nameof(GetQuestions), new { caseId },
             new QuestionDto(question.Id, caseId, userId, user?.FullName ?? "",
-                question.QuestionText, null, null, null, question.CreatedAt, null));
+                question.QuestionText, null, null, null, null, question.CreatedAt, null));
     }
 
     [HttpPatch("api/questions/{id}/answer")]
@@ -86,6 +86,7 @@ public class QuestionsController : ControllerBase
         if (question == null) return NotFound();
 
         question.AnswerText = dto.AnswerText;
+        question.AnswerJson = dto.AnswerJson;
         question.AnsweredBy = userId;
         question.AnsweredAt = DateTime.UtcNow;
 
@@ -107,9 +108,34 @@ public class QuestionsController : ControllerBase
         return Ok(new QuestionDto(
             question.Id, question.CaseId, question.AskedBy,
             users.GetValueOrDefault(question.AskedBy, ""),
-            question.QuestionText, question.AnswerText,
+            question.QuestionText, question.AnswerText, question.AnswerJson,
             question.AnsweredBy, users.GetValueOrDefault(userId, ""),
             question.CreatedAt, question.AnsweredAt
         ));
+    }
+
+    [HttpGet("api/questions/my-pending")]
+    public async Task<ActionResult<List<QuestionWithCaseDto>>> GetMyPendingQuestions()
+    {
+        var userId = MockAuth.GetUserId(User);
+
+        // Find unanswered questions on cases where the current user is AssignedTo or FinAssignedTo
+        var questions = await _db.Questions
+            .Include(q => q.Case)
+            .Where(q => q.AnswerText == null
+                && (q.Case.AssignedTo == userId || q.Case.FinAssignedTo == userId))
+            .OrderByDescending(q => q.CreatedAt)
+            .ToListAsync();
+
+        var askerIds = questions.Select(q => q.AskedBy).Distinct().ToList();
+        var users = await _db.Users
+            .Where(u => askerIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        return Ok(questions.Select(q => new QuestionWithCaseDto(
+            q.Id, q.CaseId, q.Case.CaseName,
+            q.AskedBy, users.GetValueOrDefault(q.AskedBy, ""),
+            q.QuestionText, q.CreatedAt
+        )).ToList());
     }
 }

@@ -1,0 +1,97 @@
+/* ── Comment mark highlighting ───────────────────────── */
+
+.comment-mark {
+  background-color: #fef3c7; /* amber-100 */
+  border-bottom: 2px solid #f59e0b; /* amber-500 */
+  cursor: pointer;
+  position: relative;
+}
+
+.comment-mark:hover {
+  background-color: #fde68a; /* amber-200 */
+}
+
+.comment-mark.comment-resolved {
+  background-color: transparent;
+  border-bottom: 1px dashed #d1d5db; /* gray-300 */
+}
+
+.comment-mark.comment-resolved:hover {
+  background-color: #f3f4f6; /* gray-100 */
+}
+
+/* Active comment highlight */
+.comment-mark.comment-active {
+  background-color: #fde68a; /* amber-200 */
+  outline: 2px solid #f59e0b;
+  outline-offset: 1px;
+}
+
+/* Comment mark hover tooltip */
+.comment-mark::after {
+  content: attr(data-author-name);
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: #1e293b;
+  color: white;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 50;
+}
+
+.comment-mark:hover::after {
+  opacity: 1;
+}
+
+/* ── Comment panel styles ───────────────────────────── */
+
+.comment-panel {
+  max-height: calc(100vh - 300px);
+  overflow-y: auto;
+}
+
+.comment-thread {
+  border-left: 3px solid #f59e0b;
+  transition: border-color 0.2s;
+}
+
+.comment-thread:hover {
+  border-left-color: #d97706;
+}
+
+.comment-thread.comment-thread-resolved {
+  border-left-color: #d1d5db;
+  opacity: 0.7;
+}
+
+.comment-thread.comment-thread-resolved:hover {
+  opacity: 1;
+}
+
+.comment-thread.comment-thread-active {
+  border-left-color: #f59e0b;
+  background-color: #fffbeb;
+}
+
+.comment-reply {
+  border-left: 2px solid #e5e7eb;
+  margin-left: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+/* Print styles */
+@media print {
+  .comment-mark {
+    background-color: transparent !important;
+    border-bottom: none !important;
+  }
+  .comment-panel {
+    display: none !important;
+  }
+}

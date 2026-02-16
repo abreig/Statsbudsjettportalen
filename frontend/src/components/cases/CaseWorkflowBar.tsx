@@ -16,6 +16,7 @@ export function CaseWorkflowBar({ currentStatus, opinions }: CaseWorkflowBarProp
   const allSteps = [...FAG_STEPS, ...FIN_STEPS, ...POST_STEPS];
   const currentIndex = allSteps.indexOf(currentStatus);
   const isReturned = currentStatus === 'returnert_til_fag';
+  const isRejected = currentStatus === 'avvist_av_fin';
   const pendingOpinions = opinions?.filter(o => o.status === 'pending') ?? [];
   const hasPending = pendingOpinions.length > 0;
 
@@ -117,8 +118,13 @@ export function CaseWorkflowBar({ currentStatus, opinions }: CaseWorkflowBarProp
       )}
 
       {isReturned && (
+        <div className="mt-2 rounded bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700">
+          Saken er returnert til FAG for revisjon
+        </div>
+      )}
+      {isRejected && (
         <div className="mt-2 rounded bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700">
-          Saken er avvist av FIN
+          Forslaget er avvist av FIN
         </div>
       )}
     </div>

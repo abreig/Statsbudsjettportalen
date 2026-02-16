@@ -239,12 +239,11 @@ export function CaseOverviewPage() {
                 <Table.HeaderCell>Type</Table.HeaderCell>
                 <Table.HeaderCell>Kapittel</Table.HeaderCell>
                 <Table.HeaderCell>Post</Table.HeaderCell>
-                <Table.HeaderCell>Beløp (1 000 kr)</Table.HeaderCell>
+                <Table.HeaderCell>FAGs forslag</Table.HeaderCell>
+                <Table.HeaderCell>FINs tilråding</Table.HeaderCell>
+                <Table.HeaderCell>R-vedtak</Table.HeaderCell>
                 <Table.HeaderCell>Status</Table.HeaderCell>
                 <Table.HeaderCell>Departement</Table.HeaderCell>
-                {divisions.length > 0 && (
-                  <Table.HeaderCell>Avdeling</Table.HeaderCell>
-                )}
                 <Table.HeaderCell>Oppdatert</Table.HeaderCell>
               </Table.Row>
             </Table.Header>
@@ -266,13 +265,16 @@ export function CaseOverviewPage() {
                   <Table.DataCell className="text-right">
                     {formatAmountNOK(c.amount)}
                   </Table.DataCell>
+                  <Table.DataCell className="text-right">
+                    {formatAmountNOK(c.finAmount)}
+                  </Table.DataCell>
+                  <Table.DataCell className="text-right">
+                    {formatAmountNOK(c.govAmount)}
+                  </Table.DataCell>
                   <Table.DataCell>
                     <CaseStatusBadge status={c.status} />
                   </Table.DataCell>
                   <Table.DataCell>{c.departmentCode}</Table.DataCell>
-                  {divisions.length > 0 && (
-                    <Table.DataCell>{c.responsibleDivision ?? '-'}</Table.DataCell>
-                  )}
                   <Table.DataCell>{formatDateShort(c.updatedAt)}</Table.DataCell>
                 </Table.Row>
               ))}

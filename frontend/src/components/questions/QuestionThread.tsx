@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Button, Textarea, Alert, BodyShort, Detail, Heading } from '@navikt/ds-react';
 import { MessageCircle, Send } from 'lucide-react';
 import { useQuestions, useCreateQuestion, useAnswerQuestion } from '../../hooks/useQuestions.ts';
 import { useAuthStore } from '../../stores/authStore.ts';
 import { canAskQuestion, canAnswerQuestion } from '../../lib/roles.ts';
 import { formatDate } from '../../lib/formatters.ts';
+import { AnswerEditor } from './AnswerEditor.tsx';
 
 interface QuestionThreadProps {
   caseId: string;
@@ -18,7 +19,7 @@ export function QuestionThread({ caseId }: QuestionThreadProps) {
   const answerQuestion = useAnswerQuestion(caseId);
 
   const [newQuestion, setNewQuestion] = useState('');
-  const [answerTexts, setAnswerTexts] = useState<Record<string, string>>({});
+  const answerDataRef = useRef<Record<string, { json: string; text: string }>>({});
 
   const handleAskQuestion = () => {
     if (!newQuestion.trim()) return;
@@ -28,17 +29,14 @@ export function QuestionThread({ caseId }: QuestionThreadProps) {
   };
 
   const handleAnswer = (questionId: string) => {
-    const text = answerTexts[questionId]?.trim();
+    const data = answerDataRef.current[questionId];
+    const text = data?.text?.trim();
     if (!text) return;
     answerQuestion.mutate(
-      { questionId, answerText: text },
+      { questionId, answerText: text, answerJson: data?.json ?? null },
       {
         onSuccess: () => {
-          setAnswerTexts((prev) => {
-            const next = { ...prev };
-            delete next[questionId];
-            return next;
-          });
+          delete answerDataRef.current[questionId];
         },
       }
     );
@@ -91,28 +89,25 @@ export function QuestionThread({ caseId }: QuestionThreadProps) {
                 <Detail className="mb-1">
                   Svar fra {q.answeredByName} &mdash; {q.answeredAt ? formatDate(q.answeredAt) : ''}
                 </Detail>
-                <BodyShort size="small">{q.answerText}</BodyShort>
+                {q.answerJson ? (
+                  <AnswerEditor initialContent={q.answerJson} editable={false} />
+                ) : (
+                  <BodyShort size="small">{q.answerText}</BodyShort>
+                )}
               </div>
             )}
 
             {!q.answerText && canAnswerQuestion(role) && (
               <div className="ml-4 mt-2 space-y-2">
-                <Textarea
-                  label="Ditt svar"
-                  size="small"
-                  hideLabel
-                  value={answerTexts[q.id] ?? ''}
-                  onChange={(e) =>
-                    setAnswerTexts((prev) => ({ ...prev, [q.id]: e.target.value }))
-                  }
-                  minRows={2}
-                  resize="vertical"
-                  placeholder="Skriv svar her..."
+                <AnswerEditor
+                  editable
+                  onUpdate={(json, text) => {
+                    answerDataRef.current[q.id] = { json, text };
+                  }}
                 />
                 <Button
                   size="small"
                   onClick={() => handleAnswer(q.id)}
-                  disabled={!answerTexts[q.id]?.trim()}
                   loading={answerQuestion.isPending}
                   icon={<Send size={14} />}
                 >

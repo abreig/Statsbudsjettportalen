@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { Question } from '../lib/types';
+import type { Question, QuestionWithCase } from '../lib/types';
 
 export async function fetchQuestions(caseId: string): Promise<Question[]> {
   const { data } = await apiClient.get<Question[]>(`/cases/${caseId}/questions`);
@@ -11,7 +11,19 @@ export async function createQuestion(caseId: string, questionText: string): Prom
   return data;
 }
 
-export async function answerQuestion(questionId: string, answerText: string): Promise<Question> {
-  const { data } = await apiClient.patch<Question>(`/questions/${questionId}/answer`, { answerText });
+export async function answerQuestion(
+  questionId: string,
+  answerText: string,
+  answerJson?: string | null
+): Promise<Question> {
+  const { data } = await apiClient.patch<Question>(`/questions/${questionId}/answer`, {
+    answerText,
+    answerJson,
+  });
+  return data;
+}
+
+export async function fetchMyPendingQuestions(): Promise<QuestionWithCase[]> {
+  const { data } = await apiClient.get<QuestionWithCase[]>('/questions/my-pending');
   return data;
 }

@@ -22,6 +22,7 @@ public class AppDbContext : DbContext
     public DbSet<CaseOpinion> CaseOpinions => Set<CaseOpinion>();
     public DbSet<RoundFieldOverride> RoundFieldOverrides => Set<RoundFieldOverride>();
     public DbSet<UserDepartmentAssignment> UserDepartmentAssignments => Set<UserDepartmentAssignment>();
+    public DbSet<CaseComment> CaseComments => Set<CaseComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -131,5 +132,22 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<UserDepartmentAssignment>()
             .HasIndex(a => new { a.UserId, a.DepartmentId })
             .IsUnique();
+
+        // CaseComment relationships
+        modelBuilder.Entity<CaseComment>()
+            .HasOne(cc => cc.Case)
+            .WithMany()
+            .HasForeignKey(cc => cc.CaseId);
+
+        modelBuilder.Entity<CaseComment>()
+            .HasOne(cc => cc.ParentComment)
+            .WithMany(cc => cc.Replies)
+            .HasForeignKey(cc => cc.ParentCommentId);
+
+        modelBuilder.Entity<CaseComment>()
+            .HasIndex(cc => cc.CaseId);
+
+        modelBuilder.Entity<CaseComment>()
+            .HasIndex(cc => cc.ParentCommentId);
     }
 }

@@ -11,8 +11,9 @@ public class WorkflowService
         ["klarert"] = ["godkjent_pol", "under_arbeid", "til_avklaring"],
         ["godkjent_pol"] = ["sendt_til_fin", "under_arbeid", "til_avklaring", "klarert"],
         ["sendt_til_fin"] = ["under_vurdering_fin", "godkjent_pol", "klarert"],
-        ["under_vurdering_fin"] = ["returnert_til_fag", "ferdigbehandlet_fin", "sendt_til_fin"],
+        ["under_vurdering_fin"] = ["returnert_til_fag", "avvist_av_fin", "ferdigbehandlet_fin", "sendt_til_fin"],
         ["returnert_til_fag"] = ["under_arbeid"],
+        ["avvist_av_fin"] = [],
         ["ferdigbehandlet_fin"] = ["sendt_til_regjeringen", "under_vurdering_fin"],
         ["sendt_til_regjeringen"] = ["regjeringsbehandlet", "ferdigbehandlet_fin"],
     };
@@ -60,6 +61,7 @@ public class WorkflowService
         "sendt_til_fin->klarert",
         "under_vurdering_fin->ferdigbehandlet_fin",
         "under_vurdering_fin->returnert_til_fag",
+        "under_vurdering_fin->avvist_av_fin",
         "under_vurdering_fin->sendt_til_fin",
         "ferdigbehandlet_fin->sendt_til_regjeringen",
         "ferdigbehandlet_fin->under_vurdering_fin",
@@ -81,6 +83,7 @@ public class WorkflowService
             "sendt_til_fin->under_vurdering_fin",
             "sendt_til_fin->klarert",
             "under_vurdering_fin->returnert_til_fag",
+            "under_vurdering_fin->avvist_av_fin",
             "under_vurdering_fin->ferdigbehandlet_fin",
             "under_vurdering_fin->sendt_til_fin",
             "ferdigbehandlet_fin->sendt_til_regjeringen",
@@ -103,7 +106,7 @@ public class WorkflowService
             "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
             "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
             "sendt_til_fin->under_vurdering_fin", "sendt_til_fin->godkjent_pol", "sendt_til_fin->klarert",
-            "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->ferdigbehandlet_fin", "under_vurdering_fin->sendt_til_fin",
+            "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->avvist_av_fin", "under_vurdering_fin->ferdigbehandlet_fin", "under_vurdering_fin->sendt_til_fin",
             "returnert_til_fag->under_arbeid",
             "ferdigbehandlet_fin->sendt_til_regjeringen", "ferdigbehandlet_fin->under_vurdering_fin",
             "sendt_til_regjeringen->regjeringsbehandlet", "sendt_til_regjeringen->ferdigbehandlet_fin",
@@ -112,7 +115,7 @@ public class WorkflowService
 
     /// <summary>Statuses where FIN fields should be hidden from FAG users.</summary>
     public static readonly HashSet<string> FinFieldsHiddenFromFag = [
-        "sendt_til_fin", "under_vurdering_fin", "returnert_til_fag", "ferdigbehandlet_fin",
+        "sendt_til_fin", "under_vurdering_fin", "returnert_til_fag", "avvist_av_fin", "ferdigbehandlet_fin",
     ];
 
     /// <summary>Statuses where FAG can see FIN's completed assessments.</summary>
@@ -122,7 +125,7 @@ public class WorkflowService
 
     /// <summary>Statuses visible to FIN users (sendt_til_fin and later).</summary>
     public static readonly HashSet<string> FinVisibleStatuses = [
-        "sendt_til_fin", "under_vurdering_fin", "returnert_til_fag",
+        "sendt_til_fin", "under_vurdering_fin", "returnert_til_fag", "avvist_av_fin",
         "ferdigbehandlet_fin", "sendt_til_regjeringen", "regjeringsbehandlet",
     ];
 
@@ -164,7 +167,7 @@ public class WorkflowService
     }
 
     public bool IsCaseClosedStatus(string status) =>
-        status is "regjeringsbehandlet";
+        status is "regjeringsbehandlet" or "avvist_av_fin";
 
     /// <summary>Check if user can change the responsible handler for a case.</summary>
     public bool CanChangeResponsible(string userRole, Guid userId, Guid? currentAssignedTo)

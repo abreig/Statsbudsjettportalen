@@ -40,6 +40,8 @@ export interface BudgetCase {
   chapter: string | null;
   post: string | null;
   amount: number | null;
+  finAmount: number | null;
+  govAmount: number | null;
   caseType: string;
   status: string;
   assignedTo: string | null;
@@ -81,6 +83,8 @@ export interface CaseContent {
   chapter: string | null;
   post: string | null;
   amount: number | null;
+  finAmount: number | null;
+  govAmount: number | null;
   status: string | null;
   proposalText: string | null;
   justification: string | null;
@@ -114,10 +118,21 @@ export interface Question {
   askedByName: string;
   questionText: string;
   answerText: string | null;
+  answerJson: string | null;
   answeredBy: string | null;
   answeredByName: string | null;
   createdAt: string;
   answeredAt: string | null;
+}
+
+export interface QuestionWithCase {
+  id: string;
+  caseId: string;
+  caseName: string;
+  askedBy: string;
+  askedByName: string;
+  questionText: string;
+  createdAt: string;
 }
 
 export interface Submission {

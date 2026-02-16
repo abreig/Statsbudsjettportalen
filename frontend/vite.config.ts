@@ -8,7 +8,7 @@ export default defineConfig({
     host: true, // Bind 0.0.0.0 – required for Codespaces port forwarding
     port: 5173,
     strictPort: true, // Fail if port 5173 is occupied instead of picking another
-    allowedHosts: 'all', // Allow any forwarded host (Codespaces, Gitpod, etc.)
+    allowedHosts: true, // Allow any forwarded host (Codespaces, Gitpod, etc.)
     proxy: {
       '/api': {
         target: 'http://localhost:5000',

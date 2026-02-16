@@ -5,14 +5,13 @@ import {
   Alert,
   Loader,
   Table,
-  Tag,
 } from '@navikt/ds-react';
 import { useCases } from '../hooks/useCases.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { useUiStore } from '../stores/uiStore.ts';
 import { CaseStatusBadge } from '../components/cases/CaseStatusBadge.tsx';
 import { CASE_TYPE_LABELS } from '../lib/caseTypes.ts';
-import { AT_FIN_STATUSES, STATUS_LABELS } from '../lib/statusFlow.ts';
+import { AT_FIN_STATUSES } from '../lib/statusFlow.ts';
 import { formatAmountNOK, formatDateShort } from '../lib/formatters.ts';
 
 export function AtFinPage() {
@@ -79,7 +78,9 @@ export function AtFinPage() {
                 <Table.HeaderCell>Saksnavn</Table.HeaderCell>
                 <Table.HeaderCell>Type</Table.HeaderCell>
                 <Table.HeaderCell>Kap/post</Table.HeaderCell>
-                <Table.HeaderCell>Beløp (1 000 kr)</Table.HeaderCell>
+                <Table.HeaderCell>FAGs forslag</Table.HeaderCell>
+                <Table.HeaderCell>FINs tilråding</Table.HeaderCell>
+                <Table.HeaderCell>R-vedtak</Table.HeaderCell>
                 <Table.HeaderCell>Status hos FIN</Table.HeaderCell>
                 <Table.HeaderCell>Oppdatert</Table.HeaderCell>
               </Table.Row>
@@ -102,6 +103,12 @@ export function AtFinPage() {
                   </Table.DataCell>
                   <Table.DataCell className="text-right">
                     {formatAmountNOK(c.amount)}
+                  </Table.DataCell>
+                  <Table.DataCell className="text-right">
+                    {formatAmountNOK(c.finAmount)}
+                  </Table.DataCell>
+                  <Table.DataCell className="text-right">
+                    {formatAmountNOK(c.govAmount)}
                   </Table.DataCell>
                   <Table.DataCell>
                     <CaseStatusBadge status={c.status} />

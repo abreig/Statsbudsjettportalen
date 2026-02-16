@@ -6,7 +6,8 @@ export const STATUS_LABELS: Record<string, string> = {
   godkjent_pol: 'Godkjent av POL',
   sendt_til_fin: 'Sendt til FIN',
   under_vurdering_fin: 'Under vurdering (FIN)',
-  returnert_til_fag: 'Avvist av FIN',
+  returnert_til_fag: 'Returnert til FAG',
+  avvist_av_fin: 'Avvist av FIN',
   ferdigbehandlet_fin: 'Ferdigbehandlet (FIN)',
   sendt_til_regjeringen: 'Sendt til regjeringen',
   regjeringsbehandlet: 'Regjeringsbehandlet',
@@ -22,7 +23,8 @@ export const STATUS_VARIANTS: Record<string, StatusVariant> = {
   godkjent_pol: 'success',
   sendt_til_fin: 'info',
   under_vurdering_fin: 'alt1',
-  returnert_til_fag: 'error',
+  returnert_til_fag: 'warning',
+  avvist_av_fin: 'error',
   ferdigbehandlet_fin: 'success',
   sendt_til_regjeringen: 'alt3',
   regjeringsbehandlet: 'success',
@@ -33,13 +35,13 @@ export const FIN_STATUS_FLOW = ['sendt_til_fin', 'under_vurdering_fin', 'ferdigb
 export const POST_FIN_FLOW = ['ferdigbehandlet_fin', 'sendt_til_regjeringen', 'regjeringsbehandlet'];
 export const ALL_STATUSES = [
   'draft', 'under_arbeid', 'til_avklaring', 'klarert', 'godkjent_pol',
-  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag', 'ferdigbehandlet_fin',
-  'sendt_til_regjeringen', 'regjeringsbehandlet',
+  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag', 'avvist_av_fin',
+  'ferdigbehandlet_fin', 'sendt_til_regjeringen', 'regjeringsbehandlet',
 ];
 
 // Statuses where FAG cannot see FIN fields
 export const FIN_FIELDS_HIDDEN_FROM_FAG = [
-  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag', 'ferdigbehandlet_fin',
+  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag', 'avvist_av_fin', 'ferdigbehandlet_fin',
 ];
 
 // Statuses where FAG CAN see FIN fields
@@ -52,7 +54,7 @@ export const AT_FIN_STATUSES = [
 
 // Statuses visible to FIN users
 export const FIN_VISIBLE_STATUSES = [
-  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag',
+  'sendt_til_fin', 'under_vurdering_fin', 'returnert_til_fag', 'avvist_av_fin',
   'ferdigbehandlet_fin', 'sendt_til_regjeringen', 'regjeringsbehandlet',
 ];
 
@@ -65,8 +67,9 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   klarert: ['godkjent_pol', 'under_arbeid', 'til_avklaring'],
   godkjent_pol: ['sendt_til_fin', 'under_arbeid', 'til_avklaring', 'klarert'],
   sendt_til_fin: ['under_vurdering_fin', 'godkjent_pol', 'klarert'],
-  under_vurdering_fin: ['returnert_til_fag', 'ferdigbehandlet_fin', 'sendt_til_fin'],
+  under_vurdering_fin: ['returnert_til_fag', 'avvist_av_fin', 'ferdigbehandlet_fin', 'sendt_til_fin'],
   returnert_til_fag: ['under_arbeid'],
+  avvist_av_fin: [],
   ferdigbehandlet_fin: ['sendt_til_regjeringen', 'under_vurdering_fin'],
   sendt_til_regjeringen: ['regjeringsbehandlet', 'ferdigbehandlet_fin'],
 };
@@ -83,7 +86,7 @@ const FAG_LEADER_TRANSITIONS = new Set([
 const FIN_LEADER_TRANSITIONS = new Set([
   'sendt_til_fin->under_vurdering_fin',
   'sendt_til_fin->klarert',
-  'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->sendt_til_fin',
+  'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->avvist_av_fin', 'under_vurdering_fin->sendt_til_fin',
   'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
   'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
 ]);
@@ -100,7 +103,7 @@ const ROLE_TRANSITIONS: Record<string, Set<string>> = {
   saksbehandler_fin: new Set([
     'sendt_til_fin->under_vurdering_fin',
     'sendt_til_fin->klarert',
-    'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
+    'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->avvist_av_fin', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
   ]),
   underdirektor_fin: new Set([
@@ -118,7 +121,7 @@ const ROLE_TRANSITIONS: Record<string, Set<string>> = {
     'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
     'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
     'sendt_til_fin->under_vurdering_fin', 'sendt_til_fin->godkjent_pol', 'sendt_til_fin->klarert',
-    'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
+    'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->avvist_av_fin', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
     'returnert_til_fag->under_arbeid',
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
     'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
@@ -151,9 +154,10 @@ export function getAllowedTransitions(currentStatus: string, userRole: string): 
       const isBackward = targetIdx >= 0 && currentIdx >= 0 && targetIdx < currentIdx;
 
       let label: string;
-      if (s === 'returnert_til_fag') {
-        // "Avvist av FIN" action from under_vurdering_fin
-        label = 'Avvis - returner til FAG';
+      if (s === 'avvist_av_fin') {
+        label = 'Avvis forslag';
+      } else if (s === 'returnert_til_fag') {
+        label = 'Returner til FAG';
       } else if (currentStatus === 'sendt_til_fin' && s === 'klarert') {
         // New "Returner til FAG" action from sendt_til_fin
         label = 'Returner til FAG';

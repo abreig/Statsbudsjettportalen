@@ -8,11 +8,14 @@ import { CaseDocument, CaseSection, SectionTitle, SectionContent } from './CaseD
 import { InsertionMark } from './marks/InsertionMark';
 import { DeletionMark } from './marks/DeletionMark';
 import { FormatChangeMark } from './marks/FormatChangeMark';
+import { CommentMark } from './marks/CommentMark';
 import { TrackChangesExtension, type TrackMode } from './TrackChangesExtension';
+import { CommentsExtension } from './CommentsExtension';
 import { EditorToolbar } from './EditorToolbar';
 
 import './caseDocument.css';
 import './trackChanges.css';
+import './comments.css';
 
 interface CaseDocumentEditorProps {
   initialContent: JSONContent;
@@ -56,10 +59,12 @@ export function CaseDocumentEditor({
       InsertionMark,
       DeletionMark,
       FormatChangeMark,
+      CommentMark,
       TrackChangesExtension,
+      CommentsExtension,
     ],
     content: initialContent,
-    editable: editable && trackMode !== 'review',
+    editable,
     onUpdate: ({ editor }) => {
       onUpdateRef.current?.(editor.getJSON());
     },
@@ -102,8 +107,7 @@ export function CaseDocumentEditor({
   useEffect(() => {
     if (editor) {
       editor.commands.setTrackMode(trackMode);
-      // In review mode, make read-only but still allow accept/reject commands
-      editor.setEditable(editable && trackMode !== 'review');
+      editor.setEditable(editable);
     }
   }, [editor, trackMode, editable]);
 
@@ -117,9 +121,9 @@ export function CaseDocumentEditor({
   // Update editable state when prop changes
   useEffect(() => {
     if (editor) {
-      editor.setEditable(editable && trackMode !== 'review');
+      editor.setEditable(editable);
     }
-  }, [editor, editable, trackMode]);
+  }, [editor, editable]);
 
   // Update content when initialContent changes (e.g., after server reload)
   const contentKey = useRef<string>('');

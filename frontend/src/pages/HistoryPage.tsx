@@ -35,10 +35,6 @@ export function HistoryPage() {
         .sort((a, b) => b - a)
     : [];
 
-  // Extract unique departments
-  const departments = cases
-    ? [...new Set(cases.map((c) => c.departmentCode).filter(Boolean))]
-    : [];
 
   return (
     <div>
@@ -107,7 +103,9 @@ export function HistoryPage() {
                 <Table.HeaderCell>Saksnavn</Table.HeaderCell>
                 <Table.HeaderCell>Type</Table.HeaderCell>
                 <Table.HeaderCell>Kap/post</Table.HeaderCell>
-                <Table.HeaderCell>Beløp (1 000 kr)</Table.HeaderCell>
+                <Table.HeaderCell>FAGs forslag</Table.HeaderCell>
+                <Table.HeaderCell>FINs tilråding</Table.HeaderCell>
+                <Table.HeaderCell>R-vedtak</Table.HeaderCell>
                 <Table.HeaderCell>Status</Table.HeaderCell>
                 <Table.HeaderCell>Departement</Table.HeaderCell>
                 <Table.HeaderCell>Oppdatert</Table.HeaderCell>
@@ -131,6 +129,12 @@ export function HistoryPage() {
                   </Table.DataCell>
                   <Table.DataCell className="text-right">
                     {formatAmountNOK(c.amount)}
+                  </Table.DataCell>
+                  <Table.DataCell className="text-right">
+                    {formatAmountNOK(c.finAmount)}
+                  </Table.DataCell>
+                  <Table.DataCell className="text-right">
+                    {formatAmountNOK(c.govAmount)}
                   </Table.DataCell>
                   <Table.DataCell>
                     <CaseStatusBadge status={c.status} />

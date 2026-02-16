@@ -16,6 +16,11 @@ public class Question
     public string QuestionText { get; set; } = string.Empty;
 
     public string? AnswerText { get; set; }
+
+    /// <summary>Rich text answer as ProseMirror JSON.</summary>
+    [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "jsonb")]
+    public string? AnswerJson { get; set; }
+
     public Guid? AnsweredBy { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

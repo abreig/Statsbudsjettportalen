@@ -77,7 +77,8 @@ export function buildDocumentFromContent(
   fagFields: CaseFieldConfig[],
   finFields: CaseFieldConfig[],
   caseId: string,
-  showFinFields: boolean
+  showFinFields: boolean,
+  govConclusionField?: CaseFieldConfig | null
 ): JSONContent {
   const sections: JSONContent[] = [];
 
@@ -125,6 +126,28 @@ export function buildDocumentFromContent(
         ],
       });
     }
+  }
+
+  if (govConclusionField) {
+    const value = content?.[govConclusionField.key as keyof CaseContent] as string | null;
+    sections.push({
+      type: 'caseSection',
+      attrs: {
+        fieldKey: govConclusionField.key,
+        label: govConclusionField.label,
+        required: false,
+      },
+      content: [
+        {
+          type: 'sectionTitle',
+          content: [{ type: 'text', text: govConclusionField.label }],
+        },
+        {
+          type: 'sectionContent',
+          content: textToParagraphs(value),
+        },
+      ],
+    });
   }
 
   return {

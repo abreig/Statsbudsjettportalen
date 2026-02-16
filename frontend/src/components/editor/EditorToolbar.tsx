@@ -9,8 +9,13 @@ import {
   Undo2,
   Redo2,
   GitCompareArrows,
+  Check,
+  X,
+  MessageSquarePlus,
 } from 'lucide-react';
 import type { TrackMode } from './TrackChangesExtension';
+import { getChangeAtCursor, getChangeIdsInRange, type TrackedChange } from './TrackChangesExtension';
+import { getCommentAtCursor, type CommentInfo } from './CommentsExtension';
 
 interface EditorToolbarProps {
   editor: Editor | null;
@@ -18,6 +23,16 @@ interface EditorToolbarProps {
   trackMode?: TrackMode;
   onToggleTracking?: () => void;
   onSetTrackMode?: (mode: TrackMode) => void;
+}
+
+function getActiveChange(editor: Editor): TrackedChange | null {
+  const { from } = editor.state.selection;
+  return getChangeAtCursor(editor.state.doc, from);
+}
+
+function getActiveComment(editor: Editor): CommentInfo | null {
+  const { from } = editor.state.selection;
+  return getCommentAtCursor(editor.state.doc, from);
 }
 
 export function EditorToolbar({
@@ -28,6 +43,15 @@ export function EditorToolbar({
   onSetTrackMode,
 }: EditorToolbarProps) {
   if (!editor) return null;
+
+  const activeChange = trackingEnabled ? getActiveChange(editor) : null;
+  const { from, to } = editor.state.selection;
+  const hasSelection = from !== to;
+  const selectionHasChanges = trackingEnabled && hasSelection
+    ? getChangeIdsInRange(editor.state.doc, from, to).length > 0
+    : false;
+  const showAcceptReject = trackingEnabled && (activeChange || selectionHasChanges);
+  const activeComment = getActiveComment(editor);
 
   const toolbarItems = [
     {
@@ -79,7 +103,7 @@ export function EditorToolbar({
   ] as const;
 
   return (
-    <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 rounded-t-lg sticky top-0 z-10">
+    <div className="flex items-center gap-1 border-b border-gray-200 bg-gray-50 px-3 py-2 rounded-t-lg sticky top-0 z-10 flex-wrap" role="toolbar" aria-label="Formateringsverktøy">
       {toolbarItems.map((item, idx) => {
         if (item === 'separator') {
           return (
@@ -122,12 +146,51 @@ export function EditorToolbar({
             title={trackingEnabled ? 'Slå av spor endringer' : 'Slå på spor endringer'}
             className={
               trackingEnabled
-                ? 'bg-green-100 text-green-700 rounded'
+                ? 'bg-blue-600 text-white rounded'
                 : 'rounded'
             }
           >
             Spor endringer
           </Button>
+
+          {/* Inline accept/reject when cursor is on a tracked change or selection contains changes */}
+          {showAcceptReject && (
+            <>
+              <div className="mx-1 h-5 w-px bg-gray-300" />
+              <Button
+                type="button"
+                variant="tertiary"
+                size="xsmall"
+                icon={<Check size={14} />}
+                onClick={() => {
+                  if (hasSelection) {
+                    editor.commands.acceptChangesInRange();
+                  } else if (activeChange) {
+                    editor.commands.acceptChange(activeChange.changeId);
+                  }
+                }}
+                className="text-green-700 rounded"
+              >
+                Godta endringer
+              </Button>
+              <Button
+                type="button"
+                variant="tertiary"
+                size="xsmall"
+                icon={<X size={14} />}
+                onClick={() => {
+                  if (hasSelection) {
+                    editor.commands.rejectChangesInRange();
+                  } else if (activeChange) {
+                    editor.commands.rejectChange(activeChange.changeId);
+                  }
+                }}
+                className="text-red-700 rounded"
+              >
+                Avvis endringer
+              </Button>
+            </>
+          )}
 
           {trackingEnabled && onSetTrackMode && (
             <ToggleGroup
@@ -141,6 +204,49 @@ export function EditorToolbar({
               <ToggleGroup.Item value="final">Endelig</ToggleGroup.Item>
             </ToggleGroup>
           )}
+        </>
+      )}
+
+      {/* Comment section */}
+      <div className="mx-1 h-5 w-px bg-gray-300" />
+      <Button
+        type="button"
+        variant="tertiary"
+        size="xsmall"
+        icon={<MessageSquarePlus size={16} />}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          const { from, to } = editor.state.selection;
+          if (from === to) return;
+          window.dispatchEvent(
+            new CustomEvent('editor:add-comment', {
+              detail: {
+                from,
+                to,
+                text: editor.state.doc.textBetween(from, to, ' '),
+              },
+            })
+          );
+        }}
+        title="Legg til kommentar (Ctrl+Shift+C)"
+        className="rounded"
+      >
+        Kommentar
+      </Button>
+
+      {/* Active comment indicator */}
+      {activeComment && !activeComment.resolved && (
+        <>
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={<Check size={14} />}
+            onClick={() => editor.commands.resolveCommentMark(activeComment.commentId)}
+            className="text-green-700 rounded"
+          >
+            Løs kommentar
+          </Button>
         </>
       )}
     </div>
