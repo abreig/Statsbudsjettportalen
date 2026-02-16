@@ -251,11 +251,15 @@ export function CaseDetailPage() {
       caseName: editedMetaFields.caseName ?? budgetCase.caseName ?? null,
       chapter: editedMetaFields.chapter ?? budgetCase.chapter ?? null,
       post: editedMetaFields.post ?? budgetCase.post ?? null,
-      amount: editedMetaFields.amount
+      amount: editedMetaFields.amount !== undefined
         ? Number(editedMetaFields.amount)
         : budgetCase.amount ?? null,
-      finAmount: budgetCase.finAmount ?? null,
-      govAmount: budgetCase.govAmount ?? null,
+      finAmount: editedMetaFields.finAmount !== undefined
+        ? Number(editedMetaFields.finAmount)
+        : budgetCase.finAmount ?? null,
+      govAmount: editedMetaFields.govAmount !== undefined
+        ? Number(editedMetaFields.govAmount)
+        : budgetCase.govAmount ?? null,
       trackChangesActive: trackChangesEnabled,
       expectedVersion: budgetCase.version,
     }, {
