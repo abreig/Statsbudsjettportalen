@@ -76,13 +76,10 @@ export function useReplaceTemplateSections(templateId: string) {
 
 // ===== Department List Hooks =====
 
-export function useDepartmentLists(budgetRoundId?: string, departmentId?: string) {
+export function useDepartmentLists(filters?: { budget_round_id?: string; department_id?: string }) {
   return useQuery({
-    queryKey: ['department-lists', budgetRoundId, departmentId],
-    queryFn: () => fetchDepartmentLists({
-      budget_round_id: budgetRoundId,
-      department_id: departmentId,
-    }),
+    queryKey: ['department-lists', filters?.budget_round_id, filters?.department_id],
+    queryFn: () => fetchDepartmentLists(filters),
   });
 }
 

@@ -1,0 +1,328 @@
+/* ══════════════════════════════════════════════════════════════
+   Department List WYSIWYG Styles
+   Matches the Word template: Calibri/Calibri Light typography
+   ══════════════════════════════════════════════════════════════ */
+
+.dl-document {
+  font-family: 'Calibri', 'Segoe UI', sans-serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #1a1a1a;
+  max-width: 210mm;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.12);
+  padding: 40px 50px;
+  min-height: 297mm;
+  counter-reset: dl-h1;
+}
+
+/* ── Heading Styles ──────────────────────────────────── */
+
+.dl-h1 {
+  font-family: 'Calibri Light', 'Calibri', sans-serif;
+  font-size: 16pt;
+  font-weight: 700;
+  margin: 24px 0 12px 0;
+  counter-increment: dl-h1;
+  counter-reset: dl-h2;
+}
+
+.dl-h1::before {
+  content: counter(dl-h1) " ";
+}
+
+.dl-h2 {
+  font-family: 'Calibri Light', 'Calibri', sans-serif;
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 20px 0 10px 0;
+  counter-increment: dl-h2;
+  counter-reset: dl-h3;
+}
+
+.dl-h2::before {
+  content: counter(dl-h1) "." counter(dl-h2) " ";
+}
+
+.dl-h3 {
+  font-family: 'Calibri Light', 'Calibri', sans-serif;
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 16px 0 8px 0;
+  counter-increment: dl-h3;
+}
+
+.dl-h3::before {
+  content: counter(dl-h1) "." counter(dl-h2) "." counter(dl-h3) " ";
+}
+
+.dl-h5 {
+  font-family: 'Calibri', sans-serif;
+  font-size: 12pt;
+  font-weight: 700;
+  margin: 14px 0 6px 0;
+}
+
+.dl-h7 {
+  font-family: 'Calibri', sans-serif;
+  font-size: 12pt;
+  font-weight: 700;
+  text-decoration: underline;
+  margin: 12px 0 6px 0;
+}
+
+/* Department header (level 1) — no numbering */
+.dl-h1.dl-department-header {
+  font-size: 18pt;
+  border-bottom: 2px solid #1a1a1a;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+  counter-increment: none;
+}
+
+.dl-h1.dl-department-header::before {
+  content: none;
+}
+
+/* ── Classification Box ──────────────────────────────── */
+
+.dl-classification-box {
+  border: 2px solid #c00;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 11pt;
+  color: #c00;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Body text ───────────────────────────────────────── */
+
+.dl-body {
+  font-family: 'Calibri', sans-serif;
+  font-size: 12pt;
+  margin: 6px 0;
+  line-height: 1.5;
+}
+
+.dl-body p {
+  margin: 6px 0;
+}
+
+/* ── Table styles ────────────────────────────────────── */
+
+.dl-table-title {
+  font-family: 'Calibri', sans-serif;
+  font-size: 12pt;
+  font-weight: 700;
+  font-style: italic;
+  margin: 12px 0 4px 0;
+}
+
+.dl-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+  margin: 8px 0 16px 0;
+}
+
+.dl-table th,
+.dl-table td {
+  border: 1px solid #999;
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dl-table th {
+  background: #e8e8e8;
+  font-weight: 700;
+}
+
+.dl-table td.dl-amount {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dl-table tfoot td {
+  font-weight: 700;
+  border-top: 2px solid #666;
+}
+
+/* ── Figure styles ───────────────────────────────────── */
+
+.dl-figure {
+  margin: 16px 0;
+  text-align: center;
+}
+
+.dl-figure img {
+  max-width: 100%;
+  height: auto;
+}
+
+.dl-fig-title {
+  font-family: 'Calibri', sans-serif;
+  font-size: 10pt;
+  font-style: italic;
+  text-align: center;
+  margin-top: 4px;
+  color: #444;
+}
+
+/* ── Case Entry styles ───────────────────────────────── */
+
+.dl-case-entry {
+  margin: 12px 0;
+  padding: 8px 0;
+  border-bottom: 1px dotted transparent;
+  transition: border-color 0.2s;
+}
+
+.dl-case-entry:hover {
+  border-bottom-color: #ccc;
+}
+
+.dl-case-field {
+  margin: 4px 0;
+  font-size: 12pt;
+}
+
+.dl-case-field-inline {
+  display: inline;
+}
+
+.dl-case-amount {
+  font-style: italic;
+  margin: 4px 0;
+}
+
+/* ── Conclusion List ─────────────────────────────────── */
+
+.dl-conclusion-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 8px 0;
+  counter-reset: dl-conclusion;
+}
+
+.dl-conclusion-item {
+  font-weight: 700;
+  margin: 4px 0;
+  padding-left: 24px;
+  position: relative;
+  counter-increment: dl-conclusion;
+}
+
+.dl-conclusion-item::before {
+  content: counter(dl-conclusion, lower-alpha) ")";
+  position: absolute;
+  left: 0;
+  font-weight: 700;
+}
+
+/* ── Subgroup headers ────────────────────────────────── */
+
+.dl-subgroup {
+  margin: 16px 0 8px 0;
+}
+
+.dl-subgroup-title {
+  font-weight: 700;
+  font-size: 12pt;
+  margin-bottom: 8px;
+}
+
+/* ── Editable content areas ──────────────────────────── */
+
+.dl-editable-area {
+  min-height: 24px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  transition: border-color 0.2s, background-color 0.2s;
+  padding: 2px 4px;
+  margin: -2px -4px;
+}
+
+.dl-editable-area:hover {
+  border-color: #ddd;
+  background-color: #fafafa;
+}
+
+.dl-editable-area:focus-within {
+  border-color: #0067c5;
+  background-color: #fff;
+  box-shadow: 0 0 0 2px rgba(0, 103, 197, 0.15);
+}
+
+.dl-editable-area .ProseMirror {
+  outline: none;
+  min-height: 20px;
+}
+
+.dl-editable-area .ProseMirror p {
+  margin: 4px 0;
+}
+
+/* ── Section dividers ────────────────────────────────── */
+
+.dl-section {
+  margin-bottom: 8px;
+}
+
+.dl-section-children {
+  margin-left: 0;
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+
+.dl-empty-section {
+  color: #999;
+  font-style: italic;
+  padding: 8px;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  text-align: center;
+  margin: 8px 0;
+}
+
+/* ── Figure upload zone ──────────────────────────────── */
+
+.dl-figure-upload {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  color: #999;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  margin: 12px 0;
+}
+
+.dl-figure-upload:hover {
+  border-color: #0067c5;
+  background: #f0f7ff;
+}
+
+/* ── Print styles ────────────────────────────────────── */
+
+@media print {
+  .dl-document {
+    box-shadow: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .dl-editable-area {
+    border: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .dl-figure-upload {
+    display: none;
+  }
+}

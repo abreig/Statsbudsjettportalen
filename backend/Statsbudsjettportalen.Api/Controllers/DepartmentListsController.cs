@@ -286,6 +286,116 @@ public class DepartmentListsController : ControllerBase
         return Ok(new { entryId = entry.Id, sectionId = entry.SectionId });
     }
 
+    // ===== Figures =====
+
+    [HttpPost("{listId}/figures")]
+    [RequestSizeLimit(10_485_760)] // 10 MB
+    public async Task<ActionResult<DepartmentListFigureResponseDto>> UploadFigure(
+        Guid listId,
+        [FromForm] IFormFile file,
+        [FromForm] Guid sectionId,
+        [FromForm] string? caption)
+    {
+        var dl = await _db.DepartmentLists.FindAsync(listId);
+        if (dl == null) return NotFound();
+
+        var section = await _db.DepartmentListSections
+            .FirstOrDefaultAsync(s => s.Id == sectionId && s.DepartmentListId == listId);
+        if (section == null) return BadRequest(new { message = "Seksjon ikke funnet" });
+
+        var userId = MockAuth.GetUserId(User);
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext != ".png" && ext != ".svg" && ext != ".jpg" && ext != ".jpeg")
+            return BadRequest(new { message = "Bare PNG, SVG og JPEG er tillatt." });
+
+        // Save file to wwwroot/uploads/figures
+        var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "figures");
+        Directory.CreateDirectory(uploadsDir);
+
+        var fileName = $"{Guid.NewGuid()}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        await using var stream = new FileStream(filePath, FileMode.Create);
+        await file.CopyToAsync(stream);
+
+        var fileUrl = $"/uploads/figures/{fileName}";
+
+        var figure = new DepartmentListFigure
+        {
+            Id = Guid.NewGuid(),
+            DepartmentListId = listId,
+            SectionId = sectionId,
+            FileUrl = fileUrl,
+            FileType = ext.TrimStart('.'),
+            Caption = caption,
+            WidthPercent = 100,
+            SortOrder = 0,
+            UploadedBy = userId,
+            UploadedAt = DateTime.UtcNow,
+        };
+
+        _db.DepartmentListFigures.Add(figure);
+
+        // Also update the section's contentJson with the figure URL
+        var configJson = section.ContentJson;
+        var config = string.IsNullOrEmpty(configJson)
+            ? new Dictionary<string, object>()
+            : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(configJson) ?? new();
+        config["file_url"] = fileUrl;
+        if (caption != null) config["caption"] = caption;
+        section.ContentJson = System.Text.Json.JsonSerializer.Serialize(config);
+
+        dl.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Created("", new DepartmentListFigureResponseDto(
+            figure.Id, figure.SectionId, figure.FileUrl, figure.FileType,
+            figure.Caption, figure.WidthPercent, figure.SortOrder,
+            figure.UploadedBy, figure.UploadedAt));
+    }
+
+    // ===== Word Export =====
+
+    [HttpGet("{listId}/export/word")]
+    public async Task<IActionResult> ExportWord(Guid listId)
+    {
+        var dl = await _db.DepartmentLists
+            .Include(d => d.Template)
+            .Include(d => d.Department)
+            .Include(d => d.Sections)
+                .ThenInclude(s => s.TemplateSection)
+            .Include(d => d.Sections)
+                .ThenInclude(s => s.CaseEntries)
+                    .ThenInclude(e => e.Case)
+            .FirstOrDefaultAsync(d => d.Id == listId);
+
+        if (dl == null) return NotFound();
+
+        // Fetch conclusions for all cases in this list
+        var caseIds = dl.Sections
+            .SelectMany(s => s.CaseEntries)
+            .Select(e => e.CaseId)
+            .Distinct()
+            .ToList();
+
+        var conclusions = await _db.CaseConclusions
+            .Where(c => caseIds.Contains(c.CaseId))
+            .OrderBy(c => c.SortOrder)
+            .ToListAsync();
+
+        var conclusionsByCaseId = conclusions
+            .GroupBy(c => c.CaseId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        var exportService = new DepListWordExportService();
+        var docxBytes = exportService.GenerateDocx(dl, conclusionsByCaseId);
+
+        var fileName = $"Departementsliste_{dl.Department?.Code ?? "dep"}_{DateTime.Now:yyyyMMdd}.docx";
+        return File(docxBytes,
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            fileName);
+    }
+
     // ===== Mapping =====
 
     private static DepartmentListResponseDto MapToDto(DepartmentList dl, bool includeSections)

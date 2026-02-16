@@ -215,3 +215,36 @@ export async function replaceConclusions(
   const { data } = await apiClient.put<CaseConclusion[]>(`/cases/${caseId}/conclusions`, conclusions);
   return data;
 }
+
+// ===== Auto-placement =====
+
+export async function autoPlaceCases(listId: string): Promise<{ placed: number }> {
+  const { data } = await apiClient.post<{ placed: number }>(`/department-lists/${listId}/auto-place`);
+  return data;
+}
+
+// ===== Figures =====
+
+export async function uploadFigure(
+  listId: string,
+  sectionId: string,
+  file: File,
+  caption?: string,
+): Promise<{ fileUrl: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('sectionId', sectionId);
+  if (caption) formData.append('caption', caption);
+  const { data } = await apiClient.post<{ fileUrl: string }>(
+    `/department-lists/${listId}/figures`,
+    formData,
+    { headers: { 'Content-Type': 'multipart/form-data' } }
+  );
+  return data;
+}
+
+// ===== Word Export =====
+
+export function getDepListExportUrl(listId: string): string {
+  return `/api/department-lists/${listId}/export/word`;
+}
