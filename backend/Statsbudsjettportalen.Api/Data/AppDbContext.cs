@@ -23,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<RoundFieldOverride> RoundFieldOverrides => Set<RoundFieldOverride>();
     public DbSet<UserDepartmentAssignment> UserDepartmentAssignments => Set<UserDepartmentAssignment>();
     public DbSet<CaseComment> CaseComments => Set<CaseComment>();
+    public DbSet<ResourceLock> ResourceLocks => Set<ResourceLock>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -149,5 +150,18 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<CaseComment>()
             .HasIndex(cc => cc.ParentCommentId);
+
+        // ResourceLock relationships
+        modelBuilder.Entity<ResourceLock>()
+            .HasOne(rl => rl.LockedByUser)
+            .WithMany()
+            .HasForeignKey(rl => rl.LockedBy);
+
+        modelBuilder.Entity<ResourceLock>()
+            .HasIndex(rl => new { rl.ResourceType, rl.ResourceId })
+            .IsUnique();
+
+        modelBuilder.Entity<ResourceLock>()
+            .HasIndex(rl => rl.ExpiresAt);
     }
 }

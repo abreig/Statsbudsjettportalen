@@ -21,6 +21,7 @@ interface CaseDocumentEditorProps {
   initialContent: JSONContent;
   editable: boolean;
   onUpdate?: (doc: JSONContent) => void;
+  onActivity?: () => void;
   trackChangesEnabled?: boolean;
   trackMode?: TrackMode;
   onToggleTracking?: () => void;
@@ -33,6 +34,7 @@ export function CaseDocumentEditor({
   initialContent,
   editable,
   onUpdate,
+  onActivity,
   trackChangesEnabled = false,
   trackMode = 'editing',
   onToggleTracking,
@@ -67,6 +69,10 @@ export function CaseDocumentEditor({
     editable,
     onUpdate: ({ editor }) => {
       onUpdateRef.current?.(editor.getJSON());
+      onActivity?.();
+    },
+    onSelectionUpdate: () => {
+      onActivity?.();
     },
     editorProps: {
       attributes: {

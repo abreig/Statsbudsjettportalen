@@ -140,6 +140,10 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<Guid?>("FinAssignedTo")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("FinListPlacement")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<long?>("GovAmount")
                         .HasColumnType("bigint");
 
@@ -155,6 +159,9 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<string>("Post")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<int?>("PriorityNumber")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -548,6 +555,44 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.ToTable("Questions");
                 });
 
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.ResourceLock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastHeartbeat")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LockedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("LockedBy");
+
+                    b.HasIndex("ResourceType", "ResourceId")
+                        .IsUnique();
+
+                    b.ToTable("ResourceLocks");
+                });
+
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.RoundFieldOverride", b =>
                 {
                     b.Property<Guid>("Id")
@@ -875,6 +920,17 @@ namespace Statsbudsjettportalen.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.ResourceLock", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.User", "LockedByUser")
+                        .WithMany()
+                        .HasForeignKey("LockedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LockedByUser");
                 });
 
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.RoundFieldOverride", b =>

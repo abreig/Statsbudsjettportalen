@@ -87,6 +87,7 @@ export interface DocumentSavePayload {
   finAmount?: number | null;
   govAmount?: number | null;
   trackChangesActive?: boolean;
+  expectedVersion?: number | null;
 }
 
 export async function saveDocument(id: string, payload: DocumentSavePayload): Promise<CaseContent> {

@@ -48,6 +48,11 @@ public class Case
     [MaxLength(100)]
     public string? ResponsibleDivision { get; set; } // Ansvarlig avdeling
 
+    [MaxLength(20)]
+    public string? FinListPlacement { get; set; } // Plassering i FIN-liste
+
+    public int? PriorityNumber { get; set; } // Prioriteringsnummer
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

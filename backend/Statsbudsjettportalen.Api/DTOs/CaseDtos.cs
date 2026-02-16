@@ -153,7 +153,8 @@ public record DocumentSaveDto(
     long? Amount = null,
     long? FinAmount = null,
     long? GovAmount = null,
-    bool TrackChangesActive = false
+    bool TrackChangesActive = false,
+    int? ExpectedVersion = null
 );
 
 public record CaseEventDto(

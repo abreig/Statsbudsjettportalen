@@ -555,6 +555,17 @@ public class CasesController : ControllerBase
             .Where(cc => cc.CaseId == id)
             .MaxAsync(cc => (int?)cc.Version) ?? 0;
 
+        // Optimistic concurrency check: if client sends expectedVersion, verify it matches
+        if (dto.ExpectedVersion.HasValue && dto.ExpectedVersion.Value != currentMaxVersion)
+        {
+            return Conflict(new
+            {
+                message = "En annen bruker har lagret endringer siden du startet redigeringen.",
+                currentVersion = currentMaxVersion,
+                yourVersion = dto.ExpectedVersion.Value,
+            });
+        }
+
         var newVersion = currentMaxVersion + 1;
 
         // Parse the document JSON to extract individual field values for backwards compatibility
