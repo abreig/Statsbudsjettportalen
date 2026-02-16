@@ -61,4 +61,5 @@ public class Case
     public ICollection<Question> Questions { get; set; } = new List<Question>();
     public ICollection<Clearance> Clearances { get; set; } = new List<Clearance>();
     public ICollection<CaseOpinion> Opinions { get; set; } = new List<CaseOpinion>();
+    public ICollection<CaseConclusion> Conclusions { get; set; } = new List<CaseConclusion>();
 }

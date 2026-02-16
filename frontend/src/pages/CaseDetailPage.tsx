@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { JSONContent } from '@tiptap/core';
 import {
   Heading,
@@ -57,6 +58,7 @@ import { ConflictDialog } from '../components/lock/ConflictDialog.tsx';
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const role = user?.role ?? '';
 
@@ -1066,6 +1068,55 @@ export function CaseDetailPage() {
                       )}
                     </div>
                   </div>
+                )}
+
+                {showFinHandler && (
+                  <>
+                    <div>
+                      <Label size="small" className="text-gray-500">A/B-liste</Label>
+                      {editable && userIsFin ? (
+                        <select
+                          className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+                          value={budgetCase.finListPlacement ?? ''}
+                          onChange={async (e) => {
+                            const val = e.target.value || null;
+                            await apiClient.patch(`/cases/${budgetCase.id}/list-placement`, { finListPlacement: val });
+                            void queryClient.invalidateQueries({ queryKey: ['cases', id] });
+                          }}
+                        >
+                          <option value="">Ikke satt</option>
+                          <option value="a_list">A-listen</option>
+                          <option value="b_list">B-listen</option>
+                        </select>
+                      ) : (
+                        <BodyShort size="small">
+                          {budgetCase.finListPlacement === 'a_list' ? 'A-listen' :
+                           budgetCase.finListPlacement === 'b_list' ? 'B-listen' : 'Ikke satt'}
+                        </BodyShort>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label size="small" className="text-gray-500">Prioriteringsnummer</Label>
+                      {editable && userIsFin ? (
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+                          value={budgetCase.priorityNumber ?? ''}
+                          onChange={async (e) => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            await apiClient.patch(`/cases/${budgetCase.id}/list-placement`, { priorityNumber: val });
+                            void queryClient.invalidateQueries({ queryKey: ['cases', id] });
+                          }}
+                        />
+                      ) : (
+                        <BodyShort size="small">
+                          {budgetCase.priorityNumber ?? 'Ikke satt'}
+                        </BodyShort>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 <div>

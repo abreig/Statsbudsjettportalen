@@ -21,7 +21,9 @@ public record CaseUpdateDto(
     string? CaseName,
     string? Chapter,
     string? Post,
-    long? Amount
+    long? Amount,
+    string? FinListPlacement,
+    int? PriorityNumber
 );
 
 public record CaseContentUpdateDto(
@@ -70,6 +72,8 @@ public record CaseResponseDto(
     string CreatedByName,
     string Origin,
     string? ResponsibleDivision,
+    string? FinListPlacement,
+    int? PriorityNumber,
     int Version,
     DateTime CreatedAt,
     DateTime UpdatedAt,

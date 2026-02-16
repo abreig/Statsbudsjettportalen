@@ -79,6 +79,12 @@ export function Sidebar() {
       icon: <Settings size={20} />,
       show: isAdmin(role),
     },
+    {
+      to: '/admin/templates',
+      label: 'Deplistemaler',
+      icon: <Building2 size={20} />,
+      show: isAdmin(role) || (isFinRole(role) && !isFagRole(role)),
+    },
   ];
 
   const visibleItems = items.filter((item) => item.show);

@@ -95,6 +95,15 @@ export async function saveDocument(id: string, payload: DocumentSavePayload): Pr
   return data;
 }
 
+export interface ListPlacementPayload {
+  finListPlacement?: string | null;
+  priorityNumber?: number | null;
+}
+
+export async function updateListPlacement(id: string, payload: ListPlacementPayload): Promise<void> {
+  await apiClient.patch(`/cases/${id}/list-placement`, payload);
+}
+
 export async function fetchContentVersions(id: string): Promise<CaseContent[]> {
   const { data } = await apiClient.get<CaseContent[]>(`/cases/${id}/content`);
   return data;

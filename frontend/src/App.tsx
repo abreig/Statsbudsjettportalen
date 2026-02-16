@@ -14,6 +14,7 @@ import { VersionDetailPage } from './pages/VersionDetailPage.tsx';
 import { HistoryPage } from './pages/HistoryPage.tsx';
 import { AtFinPage } from './pages/AtFinPage.tsx';
 import { MySakerPage } from './pages/MySakerPage.tsx';
+import { AdminTemplatesPage } from './pages/AdminTemplatesPage.tsx';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +44,7 @@ function App() {
               <Route path="/at-fin" element={<AtFinPage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/admin/case-types" element={<AdminCaseTypesPage />} />
+              <Route path="/admin/templates" element={<AdminTemplatesPage />} />
             </Route>
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />

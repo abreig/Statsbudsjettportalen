@@ -24,6 +24,13 @@ public class AppDbContext : DbContext
     public DbSet<UserDepartmentAssignment> UserDepartmentAssignments => Set<UserDepartmentAssignment>();
     public DbSet<CaseComment> CaseComments => Set<CaseComment>();
     public DbSet<ResourceLock> ResourceLocks => Set<ResourceLock>();
+    public DbSet<DepartmentListTemplate> DepartmentListTemplates => Set<DepartmentListTemplate>();
+    public DbSet<DepartmentListTemplateSection> DepartmentListTemplateSections => Set<DepartmentListTemplateSection>();
+    public DbSet<CaseConclusion> CaseConclusions => Set<CaseConclusion>();
+    public DbSet<DepartmentList> DepartmentLists => Set<DepartmentList>();
+    public DbSet<DepartmentListSection> DepartmentListSections => Set<DepartmentListSection>();
+    public DbSet<DepartmentListCaseEntry> DepartmentListCaseEntries => Set<DepartmentListCaseEntry>();
+    public DbSet<DepartmentListFigure> DepartmentListFigures => Set<DepartmentListFigure>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -163,5 +170,95 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<ResourceLock>()
             .HasIndex(rl => rl.ExpiresAt);
+
+        // DepartmentListTemplate relationships
+        modelBuilder.Entity<DepartmentListTemplateSection>()
+            .HasOne(s => s.Template)
+            .WithMany(t => t.Sections)
+            .HasForeignKey(s => s.TemplateId);
+
+        modelBuilder.Entity<DepartmentListTemplateSection>()
+            .HasOne(s => s.Parent)
+            .WithMany(s => s.Children)
+            .HasForeignKey(s => s.ParentId);
+
+        modelBuilder.Entity<DepartmentListTemplateSection>()
+            .HasIndex(s => new { s.TemplateId, s.SortOrder });
+
+        // CaseConclusion relationships
+        modelBuilder.Entity<CaseConclusion>()
+            .HasOne(cc => cc.Case)
+            .WithMany(c => c.Conclusions)
+            .HasForeignKey(cc => cc.CaseId);
+
+        modelBuilder.Entity<CaseConclusion>()
+            .HasIndex(cc => cc.CaseId);
+
+        // DepartmentList relationships
+        modelBuilder.Entity<DepartmentList>()
+            .HasOne(dl => dl.Template)
+            .WithMany()
+            .HasForeignKey(dl => dl.TemplateId);
+
+        modelBuilder.Entity<DepartmentList>()
+            .HasOne(dl => dl.BudgetRound)
+            .WithMany()
+            .HasForeignKey(dl => dl.BudgetRoundId);
+
+        modelBuilder.Entity<DepartmentList>()
+            .HasOne(dl => dl.Department)
+            .WithMany()
+            .HasForeignKey(dl => dl.DepartmentId);
+
+        modelBuilder.Entity<DepartmentList>()
+            .HasIndex(dl => new { dl.BudgetRoundId, dl.DepartmentId })
+            .IsUnique();
+
+        // DepartmentListSection relationships
+        modelBuilder.Entity<DepartmentListSection>()
+            .HasOne(s => s.DepartmentList)
+            .WithMany(dl => dl.Sections)
+            .HasForeignKey(s => s.DepartmentListId);
+
+        modelBuilder.Entity<DepartmentListSection>()
+            .HasOne(s => s.TemplateSection)
+            .WithMany()
+            .HasForeignKey(s => s.TemplateSectionId);
+
+        modelBuilder.Entity<DepartmentListSection>()
+            .HasOne(s => s.Parent)
+            .WithMany(s => s.Children)
+            .HasForeignKey(s => s.ParentId);
+
+        // DepartmentListCaseEntry relationships
+        modelBuilder.Entity<DepartmentListCaseEntry>()
+            .HasOne(e => e.DepartmentList)
+            .WithMany(dl => dl.CaseEntries)
+            .HasForeignKey(e => e.DepartmentListId);
+
+        modelBuilder.Entity<DepartmentListCaseEntry>()
+            .HasOne(e => e.Section)
+            .WithMany(s => s.CaseEntries)
+            .HasForeignKey(e => e.SectionId);
+
+        modelBuilder.Entity<DepartmentListCaseEntry>()
+            .HasOne(e => e.Case)
+            .WithMany()
+            .HasForeignKey(e => e.CaseId);
+
+        modelBuilder.Entity<DepartmentListCaseEntry>()
+            .HasIndex(e => new { e.DepartmentListId, e.CaseId })
+            .IsUnique();
+
+        // DepartmentListFigure relationships
+        modelBuilder.Entity<DepartmentListFigure>()
+            .HasOne(f => f.DepartmentList)
+            .WithMany(dl => dl.Figures)
+            .HasForeignKey(f => f.DepartmentListId);
+
+        modelBuilder.Entity<DepartmentListFigure>()
+            .HasOne(f => f.Section)
+            .WithMany()
+            .HasForeignKey(f => f.SectionId);
     }
 }

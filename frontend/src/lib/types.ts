@@ -52,6 +52,8 @@ export interface BudgetCase {
   createdByName: string;
   origin: string;
   responsibleDivision: string | null;
+  finListPlacement: string | null;
+  priorityNumber: number | null;
   version: number;
   createdAt: string;
   updatedAt: string;
@@ -164,4 +166,82 @@ export interface CaseTypeDefinition {
   isActive: boolean;
   sortOrder: number;
   fields: { key: string; label: string; required: boolean }[];
+}
+
+// ===== Department List Types =====
+
+export interface DepartmentListTemplate {
+  id: string;
+  name: string;
+  budgetRoundType: string;
+  departmentNamePlaceholder: string;
+  isActive: boolean;
+  classificationText: string | null;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  sections: DepartmentListTemplateSection[];
+}
+
+export interface DepartmentListTemplateSection {
+  id: string;
+  templateId: string;
+  parentId: string | null;
+  titleTemplate: string;
+  headingStyle: string;
+  sectionType: string;
+  sortOrder: number;
+  config: string | null;
+  children: DepartmentListTemplateSection[];
+}
+
+export interface DepartmentList {
+  id: string;
+  templateId: string;
+  templateName: string;
+  budgetRoundId: string;
+  departmentId: string;
+  departmentCode: string;
+  departmentName: string;
+  status: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  sections: DepartmentListSection[] | null;
+}
+
+export interface DepartmentListSection {
+  id: string;
+  departmentListId: string;
+  templateSectionId: string;
+  parentId: string | null;
+  title: string | null;
+  sortOrder: number;
+  contentJson: string | null;
+  sectionType: string;
+  headingStyle: string;
+  children: DepartmentListSection[];
+  caseEntries: DepartmentListCaseEntry[];
+}
+
+export interface DepartmentListCaseEntry {
+  id: string;
+  caseId: string;
+  caseName: string;
+  caseType: string;
+  subgroup: string | null;
+  sortOrder: number;
+  amount: number | null;
+  finAmount: number | null;
+  govAmount: number | null;
+  overrideContent: string | null;
+}
+
+export interface CaseConclusion {
+  id: string;
+  caseId: string;
+  sortOrder: number;
+  text: string;
+  createdBy: string;
+  createdAt: string;
 }

@@ -463,6 +463,31 @@ public class CasesController : ControllerBase
         return Ok(new { message = "FIN-saksbehandler endret", finAssignedTo = dto.NewAssignedTo, finAssignedToName = newAssignee.FullName });
     }
 
+    /// <summary>
+    /// Update A/B list placement and priority number for a case (FIN only).
+    /// </summary>
+    [HttpPatch("{id}/list-placement")]
+    public async Task<IActionResult> UpdateListPlacement(Guid id, [FromBody] CaseUpdateDto dto)
+    {
+        var userRole = MockAuth.GetUserRole(User);
+        if (!_workflow.IsFinRole(userRole) && userRole != "administrator")
+            return Forbid();
+
+        var c = await _db.Cases.FindAsync(id);
+        if (c == null) return NotFound();
+
+        if (dto.FinListPlacement != null) c.FinListPlacement = dto.FinListPlacement;
+        if (dto.PriorityNumber.HasValue) c.PriorityNumber = dto.PriorityNumber;
+        if (dto.CaseName != null) c.CaseName = dto.CaseName;
+        if (dto.Chapter != null) c.Chapter = dto.Chapter;
+        if (dto.Post != null) c.Post = dto.Post;
+        if (dto.Amount.HasValue) c.Amount = dto.Amount;
+        c.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return Ok(new { finListPlacement = c.FinListPlacement, priorityNumber = c.PriorityNumber });
+    }
+
     [HttpPost("{id}/content")]
     public async Task<ActionResult<CaseContentDto>> SaveContent(Guid id, [FromBody] CaseContentUpdateDto dto)
     {
@@ -1010,7 +1035,8 @@ public class CasesController : ControllerBase
             c.FinAssignedTo,
             c.FinAssignedTo.HasValue ? users.GetValueOrDefault(c.FinAssignedTo.Value, "") : null,
             c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""),
-            c.Origin, c.ResponsibleDivision, c.Version, c.CreatedAt, c.UpdatedAt,
+            c.Origin, c.ResponsibleDivision, c.FinListPlacement, c.PriorityNumber,
+            c.Version, c.CreatedAt, c.UpdatedAt,
             contentDto, opinions
         );
     }

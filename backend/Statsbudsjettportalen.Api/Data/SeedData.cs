@@ -559,5 +559,176 @@ public static class SeedData
         }
 
         await db.SaveChangesAsync();
+
+        // ===== Seed Department List Template: Mars Conference =====
+        await SeedMarsConferenceTemplate(db);
+    }
+
+    private static async Task SeedMarsConferenceTemplate(AppDbContext db)
+    {
+        if (await db.DepartmentListTemplates.AnyAsync()) return;
+
+        var templateId = G(80, 1);
+        var adminId = G(10, 1); // First FIN user
+
+        var template = new DepartmentListTemplate
+        {
+            Id = templateId,
+            Name = "Marskonferansen 2027",
+            BudgetRoundType = "mars",
+            DepartmentNamePlaceholder = "XX",
+            IsActive = true,
+            ClassificationText = "STRENGT FORTROLIG jf. statsbudsjettet, kgl. res. av 22.12.2023",
+            CreatedBy = adminId,
+            CreatedAt = SeedDate,
+            UpdatedAt = SeedDate,
+        };
+
+        db.DepartmentListTemplates.Add(template);
+
+        int sortOrder = 0;
+
+        // 1. Department header
+        var s1 = AddSection(db, templateId, null, ++sortOrder,
+            "{department_name}departementet",
+            "Deplisteoverskrift1", "department_header", null);
+
+        // 1.1 Mal, status og prioriteringer
+        var s1_1 = AddSection(db, templateId, s1, ++sortOrder,
+            "Mal, status og prioriteringer for firearsperioden",
+            "Deplisteoverskrift2", "fixed_content", null);
+
+        // 1.1 - Table placeholder
+        AddSection(db, templateId, s1_1, ++sortOrder,
+            "Mal og statusvurdering",
+            "Deplisteoverskrift3", "fixed_content",
+            @"{""description"":""Tabell med mal og statusvurdering (trafikklysikoner)""}");
+
+        // 1.1 - Figure placeholder
+        AddSection(db, templateId, s1_1, ++sortOrder,
+            "Budsjettutvikling",
+            "Deplisteoverskrift3", "figure_placeholder",
+            @"{""figures"":[{""type"":""sector_diagram"",""caption"":""Sektordiagram med budsjettall""},{""type"":""bar_chart"",""caption"":""Stolpediagram med budsjettendringer""}]}");
+
+        // 1.1 - Overordnet om strukturarbeid
+        AddSection(db, templateId, s1_1, ++sortOrder,
+            "Overordnet om strukturarbeid og prioriteringer",
+            "Overskrift7", "freetext", null);
+
+        // 1.1.x Utdypende om utvalgte temaer
+        AddSection(db, templateId, s1_1, ++sortOrder,
+            "Utdypende om utvalgte budsjettprioriteringer",
+            "Deplisteoverskrift3", "freetext", null);
+
+        // 1.2 Beslutninger om 2027-budsjettet
+        var s1_2 = AddSection(db, templateId, s1, ++sortOrder,
+            "Beslutninger om 2027-budsjettet",
+            "Deplisteoverskrift2", "fixed_content", null);
+
+        // 1.2 - Budget changes figure
+        AddSection(db, templateId, s1_2, ++sortOrder,
+            "Budsjettendringer",
+            "Deplisteoverskrift3", "figure_placeholder",
+            @"{""figures"":[{""type"":""bar_chart"",""caption"":""Stolpediagram med budsjettendringer""}]}");
+
+        // 1.2.1 Innsparingstiltak
+        var s1_2_1 = AddSection(db, templateId, s1_2, ++sortOrder,
+            "Innsparingstiltak",
+            "Deplisteoverskrift3", "case_group",
+            @"{""case_type_filter"":""budsjettiltak"",""subgroup_field"":""fin_list_placement"",""subgroups"":[{""value"":""a_list"",""title"":""Omtale av innsparingstiltak som helt eller delvis fores pa A-listen""},{""value"":""b_list"",""title"":""Omtale av innsparingstiltak pa B-listen""}],""summary_table"":false}");
+
+        // A-list subgroup
+        AddSection(db, templateId, s1_2_1, ++sortOrder,
+            "Omtale av innsparingstiltak som helt eller delvis fores pa A-listen",
+            "Overskrift5", "case_subgroup",
+            @"{""list_placement"":""a_list""}");
+
+        // B-list subgroup
+        AddSection(db, templateId, s1_2_1, ++sortOrder,
+            "Omtale av innsparingstiltak pa B-listen",
+            "Overskrift5", "case_subgroup",
+            @"{""list_placement"":""b_list""}");
+
+        // Case entry template for innsparinger
+        AddSection(db, templateId, s1_2_1, ++sortOrder,
+            "{case_name}",
+            "Overskrift7", "case_entry_template",
+            @"{""heading_format"":""{case_name}"",""fields"":[{""key"":""proposal_text"",""render_as"":""paragraph""}]}");
+
+        // 1.2.2 Satsingsforslag
+        var s1_2_2 = AddSection(db, templateId, s1_2, ++sortOrder,
+            "Satsingsforslag",
+            "Deplisteoverskrift3", "case_group",
+            @"{""case_type_filter"":""satsingsforslag"",""subgroup_field"":""fin_list_placement"",""subgroups"":[{""value"":""a_list"",""title"":""Omtale av satsingsforslag som helt eller delvis fores pa A-listen""},{""value"":""b_list"",""title"":""Omtale av satsingsforslag som ikke fores pa A-listen""}],""intro_text_template"":""FIN tilraar at det fores satsingsforslag pa til sammen {total_amount} mill. kroner pa A-listen under {department_name}."",""summary_table"":true}");
+
+        // Summary table
+        AddSection(db, templateId, s1_2_2, ++sortOrder,
+            "Oppsummering satsingsforslag",
+            "Overskrift5", "auto_table",
+            @"{""table_type"":""satsingsforslag_summary"",""columns"":[""priority"",""case_name"",""amount"",""fin_amount""]}");
+
+        // A-list subgroup for satsingsforslag
+        AddSection(db, templateId, s1_2_2, ++sortOrder,
+            "Omtale av satsingsforslag som helt eller delvis fores pa A-listen",
+            "Overskrift5", "case_subgroup",
+            @"{""list_placement"":""a_list""}");
+
+        // B-list subgroup for satsingsforslag
+        AddSection(db, templateId, s1_2_2, ++sortOrder,
+            "Omtale av satsingsforslag som ikke fores pa A-listen",
+            "Overskrift5", "case_subgroup",
+            @"{""list_placement"":""b_list""}");
+
+        // Case entry template for satsingsforslag
+        AddSection(db, templateId, s1_2_2, ++sortOrder,
+            "{department_abbrev}s pri. {priority} {case_name}",
+            "Overskrift7", "case_entry_template",
+            @"{""heading_format"":""{department_abbrev}s pri. {priority} {case_name}"",""fields"":[{""key"":""proposal_text"",""render_as"":""paragraph""},{""key"":""amount"",""render_as"":""inline"",""format"":""{department_abbrev}s forslag: {value} mill. kroner""},{""key"":""fin_amount"",""render_as"":""inline"",""format"":""FINs tilraading: {value} mill. kroner fores pa A-listen""}]}");
+
+        // 1.3 Andre viktige beslutninger
+        var s1_3 = AddSection(db, templateId, s1, ++sortOrder,
+            "Andre viktige beslutninger",
+            "Deplisteoverskrift2", "decisions_section",
+            @"{""has_conclusion"":true,""conclusion_style"":""Konklusjonbokstavert"",""conclusion_numbering"":""alphabetic"",""fields"":[{""key"":""description"",""render_as"":""paragraph""},{""key"":""fin_r_conclusion"",""render_as"":""conclusion_list""}]}");
+
+        // Case entry template for decisions
+        AddSection(db, templateId, s1_3, ++sortOrder,
+            "{case_name}",
+            "Deplisteoverskrift3", "case_entry_template",
+            @"{""heading_format"":""{case_name}"",""fields"":[{""key"":""description"",""render_as"":""paragraph""},{""key"":""fin_r_conclusion"",""render_as"":""conclusion_list""}]}");
+
+        // 1.4 Omtalesaker
+        var s1_4 = AddSection(db, templateId, s1, ++sortOrder,
+            "Omtalesaker",
+            "Deplisteoverskrift2", "summary_section",
+            @"{""case_type_filter"":""andre_saker""}");
+
+        // Case entry template for omtalesaker
+        AddSection(db, templateId, s1_4, ++sortOrder,
+            "{case_name}",
+            "Deplisteoverskrift3", "case_entry_template",
+            @"{""heading_format"":""{case_name}"",""fields"":[{""key"":""proposal_text"",""render_as"":""paragraph""}]}");
+
+        await db.SaveChangesAsync();
+    }
+
+    private static int _sectionCounter = 0;
+
+    private static Guid AddSection(AppDbContext db, Guid templateId, Guid? parentId,
+        int sortOrder, string titleTemplate, string headingStyle, string sectionType, string? config)
+    {
+        var sectionId = G(81, ++_sectionCounter);
+        db.DepartmentListTemplateSections.Add(new DepartmentListTemplateSection
+        {
+            Id = sectionId,
+            TemplateId = templateId,
+            ParentId = parentId,
+            TitleTemplate = titleTemplate,
+            HeadingStyle = headingStyle,
+            SectionType = sectionType,
+            SortOrder = sortOrder,
+            Config = config,
+        });
+        return sectionId;
     }
 }
