@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
@@ -62,9 +63,9 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
     // Export endpoints: 5 req/min per user
-    options.AddPolicy("export", context =>
+    options.AddPolicy("export", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            MockAuth.GetUserIdString(context.HttpContext.User),
+            MockAuth.GetUserIdString(httpContext.User),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
@@ -72,9 +73,9 @@ builder.Services.AddRateLimiter(options =>
             }));
 
     // Save endpoints: 30 req/min per user
-    options.AddPolicy("save", context =>
+    options.AddPolicy("save", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            MockAuth.GetUserIdString(context.HttpContext.User),
+            MockAuth.GetUserIdString(httpContext.User),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 30,
@@ -82,9 +83,9 @@ builder.Services.AddRateLimiter(options =>
             }));
 
     // General API: 120 req/min per user
-    options.AddPolicy("general", context =>
+    options.AddPolicy("general", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            MockAuth.GetUserIdString(context.HttpContext.User),
+            MockAuth.GetUserIdString(httpContext.User),
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 120,
@@ -237,7 +238,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // Enhanced health check (checks DB + Redis connectivity)
-app.MapGet("/api/health", async (AppDbContext db, Microsoft.Extensions.Caching.Distributed.IDistributedCache cache) =>
+app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache) =>
 {
     var checks = new Dictionary<string, object>();
     var healthy = true;
@@ -260,7 +261,7 @@ app.MapGet("/api/health", async (AppDbContext db, Microsoft.Extensions.Caching.D
     try
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
-        await cache.SetStringAsync("_health", "ok", new Microsoft.Extensions.Caching.Distributed.DistributedCacheEntryOptions
+        await cache.SetStringAsync("_health", "ok", new DistributedCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5),
         });
