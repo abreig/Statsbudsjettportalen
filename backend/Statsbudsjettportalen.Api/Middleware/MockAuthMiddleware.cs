@@ -50,4 +50,10 @@ public static class MockAuth
 
     public static Guid GetDepartmentId(ClaimsPrincipal user) =>
         Guid.Parse(user.FindFirst("department_id")?.Value ?? throw new UnauthorizedAccessException());
+
+    /// <summary>
+    /// Returns user ID as string for rate limiting partition keys. Returns "anonymous" for unauthenticated requests.
+    /// </summary>
+    public static string GetUserIdString(ClaimsPrincipal user) =>
+        user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "anonymous";
 }

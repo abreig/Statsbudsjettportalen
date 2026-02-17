@@ -56,6 +56,13 @@ public class Case
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+    /// <summary>
+    /// Denormalized pointer to the latest CaseContent row.
+    /// Updated on every save to avoid MAX(version) subqueries in list endpoints.
+    /// </summary>
+    public Guid? LatestContentId { get; set; }
+    public CaseContent? LatestContent { get; set; }
+
     public ICollection<CaseContent> ContentVersions { get; set; } = new List<CaseContent>();
     public ICollection<CaseEvent> Events { get; set; } = new List<CaseEvent>();
     public ICollection<Question> Questions { get; set; } = new List<Question>();

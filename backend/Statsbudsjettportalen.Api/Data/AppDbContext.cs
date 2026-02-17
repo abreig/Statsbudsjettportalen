@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<DepartmentListSection> DepartmentListSections => Set<DepartmentListSection>();
     public DbSet<DepartmentListCaseEntry> DepartmentListCaseEntries => Set<DepartmentListCaseEntry>();
     public DbSet<DepartmentListFigure> DepartmentListFigures => Set<DepartmentListFigure>();
+    public DbSet<ExportJob> ExportJobs => Set<ExportJob>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -249,6 +250,17 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<DepartmentListCaseEntry>()
             .HasIndex(e => new { e.DepartmentListId, e.CaseId })
             .IsUnique();
+
+        // Case.LatestContent (denormalized FK)
+        modelBuilder.Entity<Case>()
+            .HasOne(c => c.LatestContent)
+            .WithMany()
+            .HasForeignKey(c => c.LatestContentId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        // ExportJob indexes
+        modelBuilder.Entity<ExportJob>()
+            .HasIndex(j => j.Status);
 
         // DepartmentListFigure relationships
         modelBuilder.Entity<DepartmentListFigure>()
