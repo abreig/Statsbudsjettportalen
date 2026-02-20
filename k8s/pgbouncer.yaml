@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgbouncer
+  labels:
+    app: statsbudsjettportalen
+    component: pgbouncer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: statsbudsjettportalen
+      component: pgbouncer
+  template:
+    metadata:
+      labels:
+        app: statsbudsjettportalen
+        component: pgbouncer
+    spec:
+      containers:
+        - name: pgbouncer
+          image: edoburu/pgbouncer:1.22.0
+          ports:
+            - containerPort: 6432
+              name: pgbouncer
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: statsbudsjettportalen-secrets
+                  key: db-direct-url
+            - name: POOL_MODE
+              value: "transaction"
+            - name: DEFAULT_POOL_SIZE
+              value: "40"
+            - name: MAX_CLIENT_CONN
+              value: "300"
+            - name: MAX_DB_CONNECTIONS
+              value: "50"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          livenessProbe:
+            tcpSocket:
+              port: pgbouncer
+            initialDelaySeconds: 5
+            periodSeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgbouncer
+  labels:
+    app: statsbudsjettportalen
+    component: pgbouncer
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6432
+      targetPort: pgbouncer
+      protocol: TCP
+  selector:
+    app: statsbudsjettportalen
+    component: pgbouncer

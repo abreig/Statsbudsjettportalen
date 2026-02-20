@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import type { JSONContent } from '@tiptap/core';
 import {
   Heading,
@@ -48,10 +49,16 @@ import { formatAmountNOK, formatDate } from '../lib/formatters.ts';
 import { isFagRole, isFinRole, isFinLeader, canChangeResponsible, canSendOpinion } from '../lib/roles.ts';
 import type { CaseOpinion } from '../lib/types.ts';
 import apiClient from '../api/client.ts';
+import { useResourceLock } from '../hooks/useResourceLock.ts';
+import { LockBanner } from '../components/lock/LockBanner.tsx';
+import { IdleWarningDialog } from '../components/lock/IdleWarningDialog.tsx';
+import { IdleKickMessage } from '../components/lock/IdleKickMessage.tsx';
+import { ConflictDialog } from '../components/lock/ConflictDialog.tsx';
 
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const role = user?.role ?? '';
 
@@ -109,6 +116,7 @@ export function CaseDetailPage() {
   const [opinionComment, setOpinionComment] = useState('');
   const [opinionUserSearch, setOpinionUserSearch] = useState('');
   const [opinionUsers, setOpinionUsers] = useState<Array<{ id: string; fullName: string; email: string }>>([]);
+  const [conflict, setConflict] = useState<{ currentVersion: number; yourVersion: number } | null>(null);
 
   const userIsFag = isFagRole(role);
   const userIsFin = isFinRole(role);
@@ -133,6 +141,54 @@ export function CaseDetailPage() {
     if (isReturned && userIsFin) return false; // FIN cannot edit returned case
     return true;
   })();
+
+  // Resource lock - acquire when editing is possible
+  const saveBeforeKick = useCallback(async (): Promise<{ saved: boolean; conflict: boolean }> => {
+    const docToSave = latestDocJson.current;
+    if (!id || !budgetCase || !docToSave || !documentDirty) {
+      return { saved: false, conflict: false };
+    }
+    try {
+      await saveDocumentMut.mutateAsync({
+        contentJson: JSON.stringify(docToSave),
+        caseName: budgetCase.caseName ?? null,
+        chapter: budgetCase.chapter ?? null,
+        post: budgetCase.post ?? null,
+        amount: budgetCase.amount ?? null,
+        finAmount: budgetCase.finAmount ?? null,
+        govAmount: budgetCase.govAmount ?? null,
+        trackChangesActive: trackChangesOverride ?? false,
+        expectedVersion: budgetCase.version,
+      });
+      return { saved: true, conflict: false };
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { status: number } };
+      if (axiosErr.response?.status === 409) {
+        return { saved: false, conflict: true };
+      }
+      return { saved: false, conflict: false };
+    }
+  }, [id, budgetCase, documentDirty, saveDocumentMut, trackChangesOverride]);
+
+  const {
+    lockHolder,
+    isReadOnly: lockReadOnly,
+    idleWarning,
+    idleSecondsLeft,
+    idleKickReason,
+    dismissIdleKick,
+    acquire: acquireLock,
+    stayActive,
+    registerActivity,
+  } = useResourceLock({
+    resourceType: 'case',
+    resourceId: id,
+    enabled: canEdit,
+    onSaveBeforeKick: saveBeforeKick,
+  });
+
+  // The editor is editable only if canEdit AND we hold the lock
+  const editable = canEdit && !lockReadOnly;
 
   // Auto-enable tracking when FIN edits a case, or when FAG reviews returned case
   const autoTrackingEnabled = (() => {
@@ -195,22 +251,36 @@ export function CaseDetailPage() {
       caseName: editedMetaFields.caseName ?? budgetCase.caseName ?? null,
       chapter: editedMetaFields.chapter ?? budgetCase.chapter ?? null,
       post: editedMetaFields.post ?? budgetCase.post ?? null,
-      amount: editedMetaFields.amount
+      amount: editedMetaFields.amount !== undefined
         ? Number(editedMetaFields.amount)
         : budgetCase.amount ?? null,
-      finAmount: budgetCase.finAmount ?? null,
-      govAmount: budgetCase.govAmount ?? null,
+      finAmount: editedMetaFields.finAmount !== undefined
+        ? Number(editedMetaFields.finAmount)
+        : budgetCase.finAmount ?? null,
+      govAmount: editedMetaFields.govAmount !== undefined
+        ? Number(editedMetaFields.govAmount)
+        : budgetCase.govAmount ?? null,
       trackChangesActive: trackChangesEnabled,
+      expectedVersion: budgetCase.version,
     }, {
       onSuccess: () => {
         setDocumentDirty(false);
         setEditedMetaFields({});
         setSaveSuccess(true);
         setSaveError(null);
+        setConflict(null);
       },
       onError: (err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Ukjent feil ved lagring';
-        setSaveError(`Kunne ikke lagre: ${message}. Prøv igjen.`);
+        const axiosErr = err as { response?: { status: number; data?: { currentVersion?: number; yourVersion?: number } } };
+        if (axiosErr.response?.status === 409 && axiosErr.response.data) {
+          setConflict({
+            currentVersion: axiosErr.response.data.currentVersion ?? 0,
+            yourVersion: axiosErr.response.data.yourVersion ?? budgetCase.version,
+          });
+        } else {
+          const message = err instanceof Error ? err.message : 'Ukjent feil ved lagring';
+          setSaveError(`Kunne ikke lagre: ${message}. Prøv igjen.`);
+        }
       },
     });
   }, [id, budgetCase, editedMetaFields, saveDocumentMut, trackChangesEnabled]);
@@ -383,6 +453,35 @@ export function CaseDetailPage() {
         <Alert variant="error" size="small" className="mb-4">
           {saveError}
         </Alert>
+      )}
+
+      {/* Lock banner - shown when another user is editing */}
+      {lockHolder && (
+        <LockBanner
+          holderName={lockHolder.fullName}
+          lockedAt={lockHolder.lockedAt}
+          onRetry={acquireLock}
+        />
+      )}
+
+      {/* Idle kick message */}
+      {idleKickReason && (
+        <IdleKickMessage reason={idleKickReason} onDismiss={dismissIdleKick} />
+      )}
+
+      {/* Idle warning overlay */}
+      {idleWarning && (
+        <IdleWarningDialog secondsLeft={idleSecondsLeft} onStayActive={stayActive} />
+      )}
+
+      {/* Version conflict dialog */}
+      {conflict && (
+        <ConflictDialog
+          currentVersion={conflict.currentVersion}
+          yourVersion={conflict.yourVersion}
+          onDismiss={() => setConflict(null)}
+          onReload={() => window.location.reload()}
+        />
       )}
 
       {/* Status change confirmation */}
@@ -637,8 +736,9 @@ export function CaseDetailPage() {
           {/* ─── Document Editor ─────────────────────────── */}
           <CaseDocumentEditor
             initialContent={documentContent}
-            editable={canEdit}
+            editable={editable}
             onUpdate={handleDocumentUpdate}
+            onActivity={registerActivity}
             trackChangesEnabled={trackChangesEnabled}
             trackMode={trackMode}
             onToggleTracking={() => setTrackChangesOverride((prev) => !(prev ?? autoTrackingEnabled))}
@@ -972,6 +1072,55 @@ export function CaseDetailPage() {
                       )}
                     </div>
                   </div>
+                )}
+
+                {showFinHandler && (
+                  <>
+                    <div>
+                      <Label size="small" className="text-gray-500">A/B-liste</Label>
+                      {editable && userIsFin ? (
+                        <select
+                          className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+                          value={budgetCase.finListPlacement ?? ''}
+                          onChange={async (e) => {
+                            const val = e.target.value || null;
+                            await apiClient.patch(`/cases/${budgetCase.id}/list-placement`, { finListPlacement: val });
+                            void queryClient.invalidateQueries({ queryKey: ['cases', id] });
+                          }}
+                        >
+                          <option value="">Ikke satt</option>
+                          <option value="a_list">A-listen</option>
+                          <option value="b_list">B-listen</option>
+                        </select>
+                      ) : (
+                        <BodyShort size="small">
+                          {budgetCase.finListPlacement === 'a_list' ? 'A-listen' :
+                           budgetCase.finListPlacement === 'b_list' ? 'B-listen' : 'Ikke satt'}
+                        </BodyShort>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label size="small" className="text-gray-500">Prioriteringsnummer</Label>
+                      {editable && userIsFin ? (
+                        <input
+                          type="number"
+                          min="1"
+                          className="w-full rounded border border-gray-300 bg-white px-2 py-1 text-sm"
+                          value={budgetCase.priorityNumber ?? ''}
+                          onChange={async (e) => {
+                            const val = e.target.value ? Number(e.target.value) : null;
+                            await apiClient.patch(`/cases/${budgetCase.id}/list-placement`, { priorityNumber: val });
+                            void queryClient.invalidateQueries({ queryKey: ['cases', id] });
+                          }}
+                        />
+                      ) : (
+                        <BodyShort size="small">
+                          {budgetCase.priorityNumber ?? 'Ikke satt'}
+                        </BodyShort>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 <div>

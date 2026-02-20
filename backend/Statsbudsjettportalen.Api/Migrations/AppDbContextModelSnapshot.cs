@@ -140,6 +140,10 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<Guid?>("FinAssignedTo")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("FinListPlacement")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<long?>("GovAmount")
                         .HasColumnType("bigint");
 
@@ -155,6 +159,9 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Property<string>("Post")
                         .HasMaxLength(10)
                         .HasColumnType("character varying(10)");
+
+                    b.Property<int?>("PriorityNumber")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -548,6 +555,319 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.ToTable("Questions");
                 });
 
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.ResourceLock", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LastHeartbeat")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("LockedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LockedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ResourceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ResourceType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("LockedBy");
+
+                    b.HasIndex("ResourceType", "ResourceId")
+                        .IsUnique();
+
+                    b.ToTable("ResourceLocks");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseConclusion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaseId");
+
+                    b.ToTable("CaseConclusions");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("BudgetRoundType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("DepartmentNamePlaceholder")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ClassificationText")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DepartmentListTemplates");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListTemplateSection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TitleTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("HeadingStyle")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("SectionType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Config")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentId");
+
+                    b.HasIndex("TemplateId", "SortOrder");
+
+                    b.ToTable("DepartmentListTemplateSections");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentList", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BudgetRoundId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DepartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("BudgetRoundId", "DepartmentId")
+                        .IsUnique();
+
+                    b.ToTable("DepartmentLists");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListSection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DepartmentListId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("TemplateSectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ContentJson")
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentListId");
+
+                    b.HasIndex("TemplateSectionId");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("DepartmentListSections");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListCaseEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DepartmentListId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Subgroup")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OverrideContent")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("IncludedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SectionId");
+
+                    b.HasIndex("CaseId");
+
+                    b.HasIndex("DepartmentListId", "CaseId")
+                        .IsUnique();
+
+                    b.ToTable("DepartmentListCaseEntries");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListFigure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("DepartmentListId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SectionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FileType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("Caption")
+                        .HasColumnType("text");
+
+                    b.Property<int>("WidthPercent")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UploadedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DepartmentListId");
+
+                    b.HasIndex("SectionId");
+
+                    b.ToTable("DepartmentListFigures");
+                });
+
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.RoundFieldOverride", b =>
                 {
                     b.Property<Guid>("Id")
@@ -877,6 +1197,143 @@ namespace Statsbudsjettportalen.Api.Migrations
                     b.Navigation("Case");
                 });
 
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.ResourceLock", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.User", "LockedByUser")
+                        .WithMany()
+                        .HasForeignKey("LockedBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LockedByUser");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.CaseConclusion", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.Case", "Case")
+                        .WithMany("Conclusions")
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListTemplateSection", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListTemplate", "Template")
+                        .WithMany("Sections")
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListTemplateSection", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId");
+
+                    b.Navigation("Template");
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentList", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListTemplate", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.BudgetRound", "BudgetRound")
+                        .WithMany()
+                        .HasForeignKey("BudgetRoundId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Template");
+
+                    b.Navigation("BudgetRound");
+
+                    b.Navigation("Department");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListSection", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentList", "DepartmentList")
+                        .WithMany("Sections")
+                        .HasForeignKey("DepartmentListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListTemplateSection", "TemplateSection")
+                        .WithMany()
+                        .HasForeignKey("TemplateSectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListSection", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId");
+
+                    b.Navigation("DepartmentList");
+
+                    b.Navigation("TemplateSection");
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListCaseEntry", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentList", "DepartmentList")
+                        .WithMany("CaseEntries")
+                        .HasForeignKey("DepartmentListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListSection", "Section")
+                        .WithMany("CaseEntries")
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.Case", "Case")
+                        .WithMany()
+                        .HasForeignKey("CaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DepartmentList");
+
+                    b.Navigation("Section");
+
+                    b.Navigation("Case");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListFigure", b =>
+                {
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentList", "DepartmentList")
+                        .WithMany("Figures")
+                        .HasForeignKey("DepartmentListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Statsbudsjettportalen.Api.Models.DepartmentListSection", "Section")
+                        .WithMany()
+                        .HasForeignKey("SectionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DepartmentList");
+
+                    b.Navigation("Section");
+                });
+
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.RoundFieldOverride", b =>
                 {
                     b.HasOne("Statsbudsjettportalen.Api.Models.BudgetRound", "BudgetRound")
@@ -900,6 +1357,8 @@ namespace Statsbudsjettportalen.Api.Migrations
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.Case", b =>
                 {
                     b.Navigation("Clearances");
+
+                    b.Navigation("Conclusions");
 
                     b.Navigation("ContentVersions");
 
@@ -925,6 +1384,32 @@ namespace Statsbudsjettportalen.Api.Migrations
             modelBuilder.Entity("Statsbudsjettportalen.Api.Models.User", b =>
                 {
                     b.Navigation("DepartmentAssignments");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListTemplate", b =>
+                {
+                    b.Navigation("Sections");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListTemplateSection", b =>
+                {
+                    b.Navigation("Children");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentList", b =>
+                {
+                    b.Navigation("CaseEntries");
+
+                    b.Navigation("Figures");
+
+                    b.Navigation("Sections");
+                });
+
+            modelBuilder.Entity("Statsbudsjettportalen.Api.Models.DepartmentListSection", b =>
+                {
+                    b.Navigation("CaseEntries");
+
+                    b.Navigation("Children");
                 });
 #pragma warning restore 612, 618
         }

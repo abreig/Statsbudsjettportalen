@@ -1,5 +1,9 @@
 using System.Text;
+using System.Threading.RateLimiting;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
@@ -14,9 +18,80 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")
         ?? "Host=localhost;Database=statsbudsjett;Username=statsbudsjett;Password=localdev"));
 
+// Redis distributed cache
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "statsbudsjett:";
+    });
+}
+else
+{
+    // Fallback to in-memory distributed cache for local dev without Redis
+    builder.Services.AddDistributedMemoryCache();
+}
+
 // Services
 builder.Services.AddSingleton<WorkflowService>();
 builder.Services.AddSingleton<WordExportService>();
+builder.Services.AddScoped<ResourceLockService>();
+builder.Services.AddScoped<DepartmentListService>();
+builder.Services.AddScoped<CacheService>();
+builder.Services.AddSingleton<ExportJobService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<ExportJobService>());
+
+// Response compression (gzip + brotli)
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[]
+    {
+        "application/json",
+        "application/javascript",
+        "text/css",
+    });
+});
+
+// Rate limiting
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // Export endpoints: 5 req/min per user
+    options.AddPolicy("export", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            MockAuth.GetUserIdString(httpContext.User),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+            }));
+
+    // Save endpoints: 30 req/min per user
+    options.AddPolicy("save", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            MockAuth.GetUserIdString(httpContext.User),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+            }));
+
+    // General API: 120 req/min per user
+    options.AddPolicy("general", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            MockAuth.GetUserIdString(httpContext.User),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 120,
+                Window = TimeSpan.FromMinutes(1),
+            }));
+});
 
 // JWT secret from config (falls back to default for local dev)
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? MockAuth.DefaultSecretKey;
@@ -148,21 +223,66 @@ if (app.Environment.IsDevelopment() ||
     app.UseSwaggerUI();
 }
 
+// Response compression (before routing)
+app.UseResponseCompression();
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Rate limiting
+app.UseRateLimiter();
 
 // Serve React frontend from wwwroot
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// API health check (Azure health probe)
-app.MapGet("/api/health", () => Results.Ok(new
+// Enhanced health check (checks DB + Redis connectivity)
+app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache) =>
 {
-    status = "ok",
-    timestamp = DateTime.UtcNow,
-    environment = app.Environment.EnvironmentName
-}));
+    var checks = new Dictionary<string, object>();
+    var healthy = true;
+
+    // Database check
+    try
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await db.Database.ExecuteSqlRawAsync("SELECT 1");
+        sw.Stop();
+        checks["database"] = new { status = "ok", responseTimeMs = sw.ElapsedMilliseconds };
+    }
+    catch (Exception ex)
+    {
+        healthy = false;
+        checks["database"] = new { status = "error", message = ex.Message };
+    }
+
+    // Redis check
+    try
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await cache.SetStringAsync("_health", "ok", new DistributedCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(5),
+        });
+        var val = await cache.GetStringAsync("_health");
+        sw.Stop();
+        checks["redis"] = new { status = val == "ok" ? "ok" : "degraded", responseTimeMs = sw.ElapsedMilliseconds };
+    }
+    catch (Exception ex)
+    {
+        // Redis is optional — degrade gracefully
+        checks["redis"] = new { status = "unavailable", message = ex.Message };
+    }
+
+    return Results.Ok(new
+    {
+        status = healthy ? "ok" : "degraded",
+        timestamp = DateTime.UtcNow,
+        environment = app.Environment.EnvironmentName,
+        checks,
+    });
+});
 
 app.MapControllers();
 

@@ -109,6 +109,90 @@ public class CasesController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Lightweight case list — excludes content_json to reduce payload from ~50 KB to ~1 KB per case.
+    /// Uses denormalized LatestContentId for fast joins without MAX(version) subquery.
+    /// </summary>
+    [HttpGet("list")]
+    public async Task<ActionResult<List<CaseListItemDto>>> GetList(
+        [FromQuery] Guid? budget_round_id,
+        [FromQuery] Guid? department_id,
+        [FromQuery] string? status,
+        [FromQuery] string? case_type,
+        [FromQuery] string? search,
+        [FromQuery] string? division,
+        [FromQuery] bool? my_departments)
+    {
+        var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
+        var userId = MockAuth.GetUserId(User);
+
+        var query = _db.Cases
+            .Include(c => c.Department)
+            .AsQueryable();
+
+        if (_workflow.IsFagRole(userRole))
+        {
+            query = query.Where(c => c.DepartmentId == userDeptId);
+        }
+        else if (_workflow.IsFinRole(userRole))
+        {
+            query = query.Where(c => WorkflowService.FinVisibleStatuses.Contains(c.Status));
+            if ((my_departments ?? true) && !department_id.HasValue)
+            {
+                var assignedDeptIds = await _db.UserDepartmentAssignments
+                    .Where(a => a.UserId == userId)
+                    .Select(a => a.DepartmentId)
+                    .ToListAsync();
+                if (assignedDeptIds.Count > 0)
+                    query = query.Where(c => assignedDeptIds.Contains(c.DepartmentId));
+            }
+        }
+
+        if (budget_round_id.HasValue)
+            query = query.Where(c => c.BudgetRoundId == budget_round_id.Value);
+        if (department_id.HasValue)
+            query = query.Where(c => c.DepartmentId == department_id.Value);
+        if (!string.IsNullOrEmpty(status))
+            query = query.Where(c => c.Status == status);
+        if (!string.IsNullOrEmpty(case_type))
+            query = query.Where(c => c.CaseType == case_type);
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(c => c.CaseName.ToLower().Contains(search.ToLower()));
+        if (!string.IsNullOrEmpty(division))
+            query = query.Where(c => c.ResponsibleDivision == division);
+
+        var cases = await query
+            .OrderByDescending(c => c.UpdatedAt)
+            .ToListAsync();
+
+        var userIds = cases.SelectMany(c => new[] { c.CreatedBy, c.AssignedTo, c.FinAssignedTo })
+            .Where(id => id.HasValue || id != null)
+            .Select(id => id ?? Guid.Empty)
+            .Concat(cases.Select(c => c.CreatedBy))
+            .Distinct()
+            .ToList();
+
+        var users = await _db.Users
+            .Where(u => userIds.Contains(u.Id))
+            .ToDictionaryAsync(u => u.Id, u => u.FullName);
+
+        var result = cases.Select(c => new CaseListItemDto(
+            c.Id, c.BudgetRoundId, c.DepartmentId,
+            c.Department?.Code ?? "",
+            c.CaseName, c.Chapter, c.Post, c.Amount, c.FinAmount, c.GovAmount,
+            c.CaseType, c.Status, c.AssignedTo,
+            c.AssignedTo.HasValue ? users.GetValueOrDefault(c.AssignedTo.Value, "") : null,
+            c.FinAssignedTo,
+            c.FinAssignedTo.HasValue ? users.GetValueOrDefault(c.FinAssignedTo.Value, "") : null,
+            c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""),
+            c.Origin, c.ResponsibleDivision, c.FinListPlacement, c.PriorityNumber,
+            c.Version, c.CreatedAt, c.UpdatedAt
+        )).ToList();
+
+        return Ok(result);
+    }
+
     // History endpoint: cases across all closed rounds (punkt 9)
     [HttpGet("history")]
     public async Task<ActionResult<List<CaseResponseDto>>> GetHistory(
@@ -463,6 +547,31 @@ public class CasesController : ControllerBase
         return Ok(new { message = "FIN-saksbehandler endret", finAssignedTo = dto.NewAssignedTo, finAssignedToName = newAssignee.FullName });
     }
 
+    /// <summary>
+    /// Update A/B list placement and priority number for a case (FIN only).
+    /// </summary>
+    [HttpPatch("{id}/list-placement")]
+    public async Task<IActionResult> UpdateListPlacement(Guid id, [FromBody] CaseUpdateDto dto)
+    {
+        var userRole = MockAuth.GetUserRole(User);
+        if (!_workflow.IsFinRole(userRole) && userRole != "administrator")
+            return Forbid();
+
+        var c = await _db.Cases.FindAsync(id);
+        if (c == null) return NotFound();
+
+        if (dto.FinListPlacement != null) c.FinListPlacement = dto.FinListPlacement;
+        if (dto.PriorityNumber.HasValue) c.PriorityNumber = dto.PriorityNumber;
+        if (dto.CaseName != null) c.CaseName = dto.CaseName;
+        if (dto.Chapter != null) c.Chapter = dto.Chapter;
+        if (dto.Post != null) c.Post = dto.Post;
+        if (dto.Amount.HasValue) c.Amount = dto.Amount;
+        c.UpdatedAt = DateTime.UtcNow;
+
+        await _db.SaveChangesAsync();
+        return Ok(new { finListPlacement = c.FinListPlacement, priorityNumber = c.PriorityNumber });
+    }
+
     [HttpPost("{id}/content")]
     public async Task<ActionResult<CaseContentDto>> SaveContent(Guid id, [FromBody] CaseContentUpdateDto dto)
     {
@@ -513,6 +622,7 @@ public class CasesController : ControllerBase
         if (dto.FinAmount.HasValue) c.FinAmount = dto.FinAmount;
         if (dto.GovAmount.HasValue) c.GovAmount = dto.GovAmount;
         c.Version = newVersion;
+        c.LatestContentId = content.Id;
         c.UpdatedAt = DateTime.UtcNow;
 
         _db.CaseEvents.Add(new CaseEvent
@@ -554,6 +664,17 @@ public class CasesController : ControllerBase
         var currentMaxVersion = await _db.CaseContents
             .Where(cc => cc.CaseId == id)
             .MaxAsync(cc => (int?)cc.Version) ?? 0;
+
+        // Optimistic concurrency check: if client sends expectedVersion, verify it matches
+        if (dto.ExpectedVersion.HasValue && dto.ExpectedVersion.Value != currentMaxVersion)
+        {
+            return Conflict(new
+            {
+                message = "En annen bruker har lagret endringer siden du startet redigeringen.",
+                currentVersion = currentMaxVersion,
+                yourVersion = dto.ExpectedVersion.Value,
+            });
+        }
 
         var newVersion = currentMaxVersion + 1;
 
@@ -634,6 +755,7 @@ public class CasesController : ControllerBase
         if (dto.FinAmount.HasValue) c.FinAmount = dto.FinAmount;
         if (dto.GovAmount.HasValue) c.GovAmount = dto.GovAmount;
         c.Version = newVersion;
+        c.LatestContentId = content.Id;
         c.UpdatedAt = DateTime.UtcNow;
 
         _db.CaseEvents.Add(new CaseEvent
@@ -999,7 +1121,8 @@ public class CasesController : ControllerBase
             c.FinAssignedTo,
             c.FinAssignedTo.HasValue ? users.GetValueOrDefault(c.FinAssignedTo.Value, "") : null,
             c.CreatedBy, users.GetValueOrDefault(c.CreatedBy, ""),
-            c.Origin, c.ResponsibleDivision, c.Version, c.CreatedAt, c.UpdatedAt,
+            c.Origin, c.ResponsibleDivision, c.FinListPlacement, c.PriorityNumber,
+            c.Version, c.CreatedAt, c.UpdatedAt,
             contentDto, opinions
         );
     }

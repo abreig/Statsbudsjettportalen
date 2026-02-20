@@ -87,11 +87,21 @@ export interface DocumentSavePayload {
   finAmount?: number | null;
   govAmount?: number | null;
   trackChangesActive?: boolean;
+  expectedVersion?: number | null;
 }
 
 export async function saveDocument(id: string, payload: DocumentSavePayload): Promise<CaseContent> {
   const { data } = await apiClient.put<CaseContent>(`/cases/${id}/document`, payload);
   return data;
+}
+
+export interface ListPlacementPayload {
+  finListPlacement?: string | null;
+  priorityNumber?: number | null;
+}
+
+export async function updateListPlacement(id: string, payload: ListPlacementPayload): Promise<void> {
+  await apiClient.patch(`/cases/${id}/list-placement`, payload);
 }
 
 export async function fetchContentVersions(id: string): Promise<CaseContent[]> {

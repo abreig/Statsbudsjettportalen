@@ -11,6 +11,7 @@ import {
   Building2,
   Archive,
   UserCircle,
+  FileText,
 } from 'lucide-react';
 
 interface NavItem {
@@ -68,6 +69,12 @@ export function Sidebar() {
       show: isFinRole(role) && !isFagRole(role),
     },
     {
+      to: '/department-lists',
+      label: 'Departementslister',
+      icon: <FileText size={20} />,
+      show: isFinRole(role) || isAdmin(role),
+    },
+    {
       to: '/history',
       label: 'Historikk',
       icon: <Archive size={20} />,
@@ -78,6 +85,12 @@ export function Sidebar() {
       label: 'Sakstyper',
       icon: <Settings size={20} />,
       show: isAdmin(role),
+    },
+    {
+      to: '/admin/templates',
+      label: 'Deplistemaler',
+      icon: <Building2 size={20} />,
+      show: isAdmin(role) || (isFinRole(role) && !isFagRole(role)),
     },
   ];
 

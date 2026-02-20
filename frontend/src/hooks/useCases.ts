@@ -14,6 +14,7 @@ import {
   createOpinion,
   resolveOpinion,
   forwardApproval,
+  updateListPlacement,
 } from '../api/cases.ts';
 import type {
   CaseCreatePayload,
@@ -22,6 +23,7 @@ import type {
   CreateOpinionPayload,
   ResolveOpinionPayload,
   HistoryFilters,
+  ListPlacementPayload,
 } from '../api/cases.ts';
 
 interface CaseFilters {
@@ -162,5 +164,15 @@ export function useMyTasks() {
   return useQuery({
     queryKey: ['my-tasks'],
     queryFn: () => fetchMyTasks(),
+  });
+}
+
+export function useUpdateListPlacement(caseId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ListPlacementPayload) => updateListPlacement(caseId, payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['cases', caseId] });
+    },
   });
 }

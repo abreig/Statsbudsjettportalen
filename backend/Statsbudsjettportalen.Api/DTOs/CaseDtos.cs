@@ -21,7 +21,9 @@ public record CaseUpdateDto(
     string? CaseName,
     string? Chapter,
     string? Post,
-    long? Amount
+    long? Amount,
+    string? FinListPlacement,
+    int? PriorityNumber
 );
 
 public record CaseContentUpdateDto(
@@ -70,6 +72,8 @@ public record CaseResponseDto(
     string CreatedByName,
     string Origin,
     string? ResponsibleDivision,
+    string? FinListPlacement,
+    int? PriorityNumber,
     int Version,
     DateTime CreatedAt,
     DateTime UpdatedAt,
@@ -153,7 +157,8 @@ public record DocumentSaveDto(
     long? Amount = null,
     long? FinAmount = null,
     long? GovAmount = null,
-    bool TrackChangesActive = false
+    bool TrackChangesActive = false,
+    int? ExpectedVersion = null
 );
 
 public record CaseEventDto(
@@ -163,4 +168,50 @@ public record CaseEventDto(
     Guid UserId,
     string UserName,
     DateTime CreatedAt
+);
+
+/// <summary>
+/// Lightweight DTO for case list endpoints — excludes content_json to reduce payload.
+/// Typically 1 KB per case vs 5-50 KB with full content.
+/// </summary>
+public record CaseListItemDto(
+    Guid Id,
+    Guid BudgetRoundId,
+    Guid DepartmentId,
+    string DepartmentCode,
+    string CaseName,
+    string? Chapter,
+    string? Post,
+    long? Amount,
+    long? FinAmount,
+    long? GovAmount,
+    string CaseType,
+    string Status,
+    Guid? AssignedTo,
+    string? AssignedToName,
+    Guid? FinAssignedTo,
+    string? FinAssignedToName,
+    Guid CreatedBy,
+    string CreatedByName,
+    string Origin,
+    string? ResponsibleDivision,
+    string? FinListPlacement,
+    int? PriorityNumber,
+    int Version,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+/// <summary>
+/// DTO for export job status polling.
+/// </summary>
+public record ExportJobDto(
+    Guid Id,
+    string JobType,
+    string Status,
+    string? ResultUrl,
+    string? ErrorMessage,
+    DateTime CreatedAt,
+    DateTime? StartedAt,
+    DateTime? CompletedAt
 );
