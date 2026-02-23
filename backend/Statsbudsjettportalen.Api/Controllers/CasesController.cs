@@ -201,12 +201,20 @@ public class CasesController : ControllerBase
         [FromQuery] Guid? department_id,
         [FromQuery] int? year)
     {
+        var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
+
         var query = _db.Cases
             .Include(c => c.Department)
             .Include(c => c.ContentVersions)
             .Include(c => c.BudgetRound)
             .Where(c => c.BudgetRound.Status == "closed")
             .AsQueryable();
+
+        // SIKKERHETSFIKSING: Historikk skal også respektere departementstilgang.
+        // FAG-brukere ser kun historikk for eget departement.
+        if (_workflow.IsFagRole(userRole))
+            query = query.Where(c => c.DepartmentId == userDeptId);
 
         if (department_id.HasValue)
             query = query.Where(c => c.DepartmentId == department_id.Value);
@@ -224,7 +232,8 @@ public class CasesController : ControllerBase
         return Ok(cases.Select(c =>
         {
             var currentContent = c.ContentVersions.MaxBy(cv => cv.Version);
-            return MapToDto(c, currentContent, users, userRole: "administrator"); // history shows all fields
+            // SIKKERHETSFIKSING: Bruk faktisk brukerrolle, ikke hardkodet "administrator"
+            return MapToDto(c, currentContent, users, userRole: userRole);
         }).ToList());
     }
 
@@ -314,6 +323,7 @@ public class CasesController : ControllerBase
     public async Task<ActionResult<CaseResponseDto>> GetById(Guid id)
     {
         var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
         var c = await _db.Cases
             .Include(c => c.Department)
             .Include(c => c.ContentVersions)
@@ -321,6 +331,14 @@ public class CasesController : ControllerBase
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (c == null) return NotFound();
+
+        // SIKKERHETSFIKSING (IDOR): Verifiser departementstilgang.
+        // FAG-brukere kan kun se saker fra eget departement.
+        // FIN-brukere kan kun se saker med FIN-synlig status.
+        if (_workflow.IsFagRole(userRole) && c.DepartmentId != userDeptId)
+            return NotFound();
+        if (_workflow.IsFinRole(userRole) && !WorkflowService.FinVisibleStatuses.Contains(c.Status))
+            return NotFound();
 
         var currentContent = c.ContentVersions.MaxBy(cv => cv.Version);
         var userIds = new List<Guid> { c.CreatedBy };
@@ -414,8 +432,13 @@ public class CasesController : ControllerBase
     {
         var userId = MockAuth.GetUserId(User);
         var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
         var c = await _db.Cases.Include(c => c.Opinions).FirstOrDefaultAsync(c => c.Id == id);
         if (c == null) return NotFound();
+
+        // SIKKERHETSFIKSING (IDOR): Verifiser at brukeren har tilgang til saken
+        if (_workflow.IsFagRole(userRole) && c.DepartmentId != userDeptId)
+            return NotFound();
 
         // Block status change if there are pending sub-processes
         if (WorkflowService.IsCaseLockedBySubProcess(c.Opinions))
@@ -576,8 +599,14 @@ public class CasesController : ControllerBase
     public async Task<ActionResult<CaseContentDto>> SaveContent(Guid id, [FromBody] CaseContentUpdateDto dto)
     {
         var userId = MockAuth.GetUserId(User);
+        var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
         var c = await _db.Cases.FindAsync(id);
         if (c == null) return NotFound();
+
+        // SIKKERHETSFIKSING (IDOR): Verifiser at brukeren har tilgang til å redigere saken
+        if (_workflow.IsFagRole(userRole) && c.DepartmentId != userDeptId)
+            return NotFound();
 
         var currentMaxVersion = await _db.CaseContents
             .Where(cc => cc.CaseId == id)
@@ -658,8 +687,14 @@ public class CasesController : ControllerBase
     public async Task<ActionResult<CaseContentDto>> SaveDocument(Guid id, [FromBody] DocumentSaveDto dto)
     {
         var userId = MockAuth.GetUserId(User);
+        var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
         var c = await _db.Cases.FindAsync(id);
         if (c == null) return NotFound();
+
+        // SIKKERHETSFIKSING (IDOR): Verifiser at brukeren har tilgang til å redigere saken
+        if (_workflow.IsFagRole(userRole) && c.DepartmentId != userDeptId)
+            return NotFound();
 
         var currentMaxVersion = await _db.CaseContents
             .Where(cc => cc.CaseId == id)

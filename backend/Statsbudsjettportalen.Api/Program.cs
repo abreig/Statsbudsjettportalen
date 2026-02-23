@@ -97,6 +97,9 @@ builder.Services.AddRateLimiter(options =>
 var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? MockAuth.DefaultSecretKey;
 MockAuth.Configure(jwtSecret);
 
+// SIKKERHETSSJEKK: Blokker oppstart i produksjon med standard POC-nøkkel
+MockAuth.ValidateProductionSecret(builder.Environment.EnvironmentName);
+
 // Authentication (mock JWT)
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -226,6 +229,22 @@ if (app.Environment.IsDevelopment() ||
 // Response compression (before routing)
 app.UseResponseCompression();
 
+// SIKKERHETSFIKSING: Legg til sikkerhets-headere for å motvirke vanlige angrep.
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["X-XSS-Protection"] = "0"; // Anbefalt å deaktivere - bruk CSP i stedet
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    // Merk: Content-Security-Policy bør konfigureres i produksjon med strenge regler
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    }
+    await next();
+});
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
@@ -238,10 +257,13 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 // Enhanced health check (checks DB + Redis connectivity)
-app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache) =>
+// SIKKERHETSFIKSING: Fjernet ex.Message fra respons i produksjon for å unngå informasjonslekkasje.
+// Miljønavn fjernet fra respons da det kan gi angripere nyttig informasjon.
+app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache, IWebHostEnvironment env) =>
 {
     var checks = new Dictionary<string, object>();
     var healthy = true;
+    var isDev = env.IsDevelopment();
 
     // Database check
     try
@@ -254,7 +276,10 @@ app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache) =>
     catch (Exception ex)
     {
         healthy = false;
-        checks["database"] = new { status = "error", message = ex.Message };
+        // Vis kun feilmelding i dev-miljø, ikke i produksjon
+        checks["database"] = isDev
+            ? new { status = "error", message = ex.Message }
+            : (object)new { status = "error" };
     }
 
     // Redis check
@@ -272,14 +297,15 @@ app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache) =>
     catch (Exception ex)
     {
         // Redis is optional — degrade gracefully
-        checks["redis"] = new { status = "unavailable", message = ex.Message };
+        checks["redis"] = isDev
+            ? new { status = "unavailable", message = ex.Message }
+            : (object)new { status = "unavailable" };
     }
 
     return Results.Ok(new
     {
         status = healthy ? "ok" : "degraded",
         timestamp = DateTime.UtcNow,
-        environment = app.Environment.EnvironmentName,
         checks,
     });
 });

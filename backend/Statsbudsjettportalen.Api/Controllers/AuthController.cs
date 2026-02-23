@@ -12,13 +12,25 @@ namespace Statsbudsjettportalen.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(AppDbContext db) => _db = db;
+    public AuthController(AppDbContext db, ILogger<AuthController> logger)
+    {
+        _db = db;
+        _logger = logger;
+    }
 
+    /// <summary>
+    /// POC-innlogging uten passord. MÅ erstattes med Entra ID-integrasjon før produksjon.
+    /// </summary>
+    [Obsolete("POC-only: Erstatt med Entra ID-integrasjon (Microsoft.Identity.Web) før produksjon")]
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
+        _logger.LogWarning("ADVARSEL: Passordløs POC-innlogging brukt for {Email}. " +
+            "Denne autentiseringsmetoden MÅ erstattes med Entra ID før produksjonsdeployment.", request.Email);
+
         var user = await _db.Users
             .Include(u => u.Department)
             .Include(u => u.DepartmentAssignments)
@@ -50,8 +62,12 @@ public class AuthController : ControllerBase
         return Ok(MapUserDto(user));
     }
 
+    /// <summary>
+    /// SIKKERHETSFIKSING: Endret fra [AllowAnonymous] til [Authorize].
+    /// Anonyme brukere skal ikke kunne liste alle brukere med roller og departementstilhørighet.
+    /// </summary>
     [HttpGet("users")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<ActionResult<List<UserDto>>> GetUsers()
     {
         var users = await _db.Users

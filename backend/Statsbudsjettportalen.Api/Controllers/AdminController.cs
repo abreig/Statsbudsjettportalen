@@ -42,7 +42,9 @@ public class AdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Database reset failed");
-            return StatusCode(500, new { message = "Kunne ikke nullstille databasen.", error = ex.Message });
+            // SIKKERHETSFIKSING: Fjernet ex.Message fra HTTP-respons for å unngå lekkasje
+            // av intern databaseinformasjon til klienten. Detaljer logges server-side.
+            return StatusCode(500, new { message = "Kunne ikke nullstille databasen. Se serverlogger for detaljer." });
         }
     }
 }

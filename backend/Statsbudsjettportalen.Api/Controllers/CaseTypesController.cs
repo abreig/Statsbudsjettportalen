@@ -9,8 +9,11 @@ using Statsbudsjettportalen.Api.Models;
 
 namespace Statsbudsjettportalen.Api.Controllers;
 
+/// SIKKERHETSFIKSING: Lagt til [Authorize] på kontroller-nivå.
+/// GET-endepunkter var tidligere [AllowAnonymous] - sakstypedefinisjoner bør kreve autentisering.
 [ApiController]
 [Route("api/case-types")]
+[Authorize]
 public class CaseTypesController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -18,7 +21,6 @@ public class CaseTypesController : ControllerBase
     public CaseTypesController(AppDbContext db) => _db = db;
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<ActionResult<List<CaseTypeDto>>> GetAll([FromQuery] bool includeInactive = false)
     {
         var query = _db.CaseTypeDefinitions.AsQueryable();
@@ -31,7 +33,6 @@ public class CaseTypesController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<ActionResult<CaseTypeDto>> GetById(Guid id)
     {
         var ct = await _db.CaseTypeDefinitions.FindAsync(id);
@@ -40,7 +41,6 @@ public class CaseTypesController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize]
     public async Task<ActionResult<CaseTypeDto>> Create([FromBody] CaseTypeCreateDto dto)
     {
         var userRole = MockAuth.GetUserRole(User);
@@ -68,7 +68,6 @@ public class CaseTypesController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize]
     public async Task<ActionResult<CaseTypeDto>> Update(Guid id, [FromBody] CaseTypeUpdateDto dto)
     {
         var userRole = MockAuth.GetUserRole(User);
@@ -90,7 +89,6 @@ public class CaseTypesController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize]
     public async Task<IActionResult> Delete(Guid id)
     {
         var userRole = MockAuth.GetUserRole(User);

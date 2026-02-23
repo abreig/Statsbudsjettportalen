@@ -15,6 +15,21 @@ public static class MockAuth
 
     public static string SecretKey => _configuredSecret ?? DefaultSecretKey;
 
+    /// <summary>
+    /// SIKKERHETSSJEKK: Verifiser at standard POC-nøkkel ALDRI brukes i produksjon.
+    /// Kaster unntak ved oppstart dersom ASPNETCORE_ENVIRONMENT=Production og nøkkelen er standardverdien.
+    /// </summary>
+    public static void ValidateProductionSecret(string environment)
+    {
+        if (string.Equals(environment, "Production", StringComparison.OrdinalIgnoreCase)
+            && SecretKey == DefaultSecretKey)
+        {
+            throw new InvalidOperationException(
+                "KRITISK SIKKERHETSFEIL: Standard POC JWT-nøkkel kan ikke brukes i produksjon. " +
+                "Sett JwtSettings:Secret til en unik, sterk hemmelighet (minst 32 tegn) via miljøvariabel eller konfigurasjon.");
+        }
+    }
+
     public static string GenerateToken(Guid userId, string email, string role, Guid departmentId,
         string? jobTitle = null, string? leaderLevel = null)
     {

@@ -1,54 +1,59 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace Statsbudsjettportalen.Api.DTOs;
+
+/// SIKKERHETSFIKSING: Lagt til [MaxLength] og [Required] validering på alle inndata-DTOer
+/// for å hindre lagring av ubegrensede strenger og potensielt DoS via store payloads.
 
 public record CaseCreateDto(
     Guid BudgetRoundId,
-    string CaseName,
-    string CaseType,
-    string? Chapter,
-    string? Post,
+    [Required][MaxLength(300)] string CaseName,
+    [Required][MaxLength(50)] string CaseType,
+    [MaxLength(20)] string? Chapter,
+    [MaxLength(20)] string? Post,
     long? Amount,
     // Initial content fields
-    string? ProposalText,
-    string? Justification,
-    string? VerbalConclusion,
-    string? SocioeconomicAnalysis,
-    string? GoalIndicator,
-    string? BenefitPlan,
-    string? Comment
+    [MaxLength(100_000)] string? ProposalText,
+    [MaxLength(100_000)] string? Justification,
+    [MaxLength(100_000)] string? VerbalConclusion,
+    [MaxLength(100_000)] string? SocioeconomicAnalysis,
+    [MaxLength(100_000)] string? GoalIndicator,
+    [MaxLength(100_000)] string? BenefitPlan,
+    [MaxLength(100_000)] string? Comment
 );
 
 public record CaseUpdateDto(
-    string? CaseName,
-    string? Chapter,
-    string? Post,
+    [MaxLength(300)] string? CaseName,
+    [MaxLength(20)] string? Chapter,
+    [MaxLength(20)] string? Post,
     long? Amount,
-    string? FinListPlacement,
+    [MaxLength(10)] string? FinListPlacement,
     int? PriorityNumber
 );
 
 public record CaseContentUpdateDto(
-    string? CaseName,
-    string? Chapter,
-    string? Post,
+    [MaxLength(300)] string? CaseName,
+    [MaxLength(20)] string? Chapter,
+    [MaxLength(20)] string? Post,
     long? Amount,
     long? FinAmount,
     long? GovAmount,
-    string? ProposalText,
-    string? Justification,
-    string? VerbalConclusion,
-    string? SocioeconomicAnalysis,
-    string? GoalIndicator,
-    string? BenefitPlan,
-    string? Comment,
-    string? FinAssessment,
-    string? FinVerbal,
-    string? FinRConclusion
+    [MaxLength(100_000)] string? ProposalText,
+    [MaxLength(100_000)] string? Justification,
+    [MaxLength(100_000)] string? VerbalConclusion,
+    [MaxLength(100_000)] string? SocioeconomicAnalysis,
+    [MaxLength(100_000)] string? GoalIndicator,
+    [MaxLength(100_000)] string? BenefitPlan,
+    [MaxLength(100_000)] string? Comment,
+    [MaxLength(100_000)] string? FinAssessment,
+    [MaxLength(100_000)] string? FinVerbal,
+    [MaxLength(100_000)] string? FinRConclusion
 );
 
 public record StatusChangeDto(
-    string Status,
-    string? Reason,
-    string? Comment
+    [Required][MaxLength(50)] string Status,
+    [MaxLength(5_000)] string? Reason,
+    [MaxLength(5_000)] string? Comment
 );
 
 public record CaseResponseDto(
@@ -100,9 +105,9 @@ public record CaseOpinionDto(
 );
 
 public record CreateOpinionDto(
-    string AssignedTo,
-    string Type = "uttalelse",
-    string? Comment = null
+    [Required][MaxLength(300)] string AssignedTo,
+    [MaxLength(20)] string Type = "uttalelse",
+    [MaxLength(5_000)] string? Comment = null
 );
 
 public record ForwardApprovalDto(
@@ -114,8 +119,8 @@ public record ChangeResponsibleDto(
 );
 
 public record ResolveOpinionDto(
-    string Status,   // "given" or "declined"
-    string? OpinionText
+    [Required][MaxLength(20)] string Status,   // "given" or "declined"
+    [MaxLength(100_000)] string? OpinionText
 );
 
 public record CaseContentDto(
@@ -148,12 +153,13 @@ public record CaseContentDto(
 /// <summary>
 /// DTO for saving the full ProseMirror document (Fase 2).
 /// The backend splits the document into individual fields for backwards compatibility.
+/// SIKKERHETSFIKSING: Lagt til MaxLength(5_000_000) på ContentJson (5 MB grense).
 /// </summary>
 public record DocumentSaveDto(
-    string ContentJson,
-    string? CaseName = null,
-    string? Chapter = null,
-    string? Post = null,
+    [Required][MaxLength(5_000_000)] string ContentJson,
+    [MaxLength(300)] string? CaseName = null,
+    [MaxLength(20)] string? Chapter = null,
+    [MaxLength(20)] string? Post = null,
     long? Amount = null,
     long? FinAmount = null,
     long? GovAmount = null,

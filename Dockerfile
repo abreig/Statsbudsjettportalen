@@ -19,16 +19,26 @@ RUN dotnet publish backend/Statsbudsjettportalen.Api/Statsbudsjettportalen.Api.c
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
 
+# SIKKERHETSFIKSING: Kjør som non-root bruker for å begrense skadeomfang ved kompromittering.
+RUN adduser --disabled-password --gecos "" --uid 1001 appuser
+
 # Copy published backend
 COPY --from=backend-build /app/publish .
 
 # Copy frontend build to wwwroot
 COPY --from=frontend-build /app/frontend/dist ./wwwroot/
 
+# Opprett mapper som appuser trenger skrivetilgang til (eksporter, figurer)
+RUN mkdir -p /app/wwwroot/exports /app/wwwroot/uploads && \
+    chown -R appuser:appuser /app
+
 # Azure Web App for Containers uses PORT env var (default 8080)
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV PORT=8080
 EXPOSE 8080
+
+# Bytt til non-root bruker
+USER appuser
 
 # Health check for Azure
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

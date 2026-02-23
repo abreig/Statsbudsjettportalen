@@ -11,9 +11,15 @@ node_modules/
 dist/
 .vite/
 
-# Environment
+# Environment & hemmeligheter
+# SIKKERHETSFIKSING: Utvidet for å dekke flere konfigurasjonsfiler med sensitiv informasjon
 .env
+.env.*
 *.local
+appsettings.Production.json
+appsettings.Staging.json
+secrets.json
+credentials.json
 
 # IDE
 .idea/
