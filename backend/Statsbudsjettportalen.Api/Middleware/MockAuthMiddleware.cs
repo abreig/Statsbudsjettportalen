@@ -7,13 +7,12 @@ namespace Statsbudsjettportalen.Api.Middleware;
 
 public static class MockAuth
 {
-    public const string DefaultSecretKey = "poc-secret-key-not-for-production-use-only-minimum-32-chars";
-
     private static string? _configuredSecret;
 
     public static void Configure(string secret) => _configuredSecret = secret;
 
-    public static string SecretKey => _configuredSecret ?? DefaultSecretKey;
+    public static string SecretKey => _configuredSecret
+        ?? throw new InvalidOperationException("MockAuth.Configure() må kalles før SecretKey brukes.");
 
     public static string GenerateToken(Guid userId, string email, string role, Guid departmentId,
         string? jobTitle = null, string? leaderLevel = null)

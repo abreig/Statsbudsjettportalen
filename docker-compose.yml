@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: statsbudsjett
       POSTGRES_PASSWORD: localdev
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     command: >
@@ -25,20 +25,6 @@ services:
       timeout: 5s
       retries: 5
 
-  pgbouncer:
-    image: edoburu/pgbouncer:1.22.0
-    environment:
-      DATABASE_URL: postgres://statsbudsjett:localdev@db:5432/statsbudsjett
-      POOL_MODE: transaction
-      DEFAULT_POOL_SIZE: 40
-      MAX_CLIENT_CONN: 300
-      MAX_DB_CONNECTIONS: 50
-    ports:
-      - "6432:6432"
-    depends_on:
-      db:
-        condition: service_healthy
-
   redis:
     image: redis:7-alpine
     ports:
@@ -50,22 +36,22 @@ services:
       timeout: 3s
       retries: 5
 
+  # Full-stack container for testing/produksjonslikt miljø.
+  # Startes kun eksplisitt: docker compose --profile app up
   app:
+    profiles: ["app"]
     build: .
     ports:
       - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__DefaultConnection: "Host=pgbouncer;Port=6432;Database=statsbudsjett;Username=statsbudsjett;Password=localdev;No Reset On Close=true;Enlist=false;Multiplexing=false"
-      ConnectionStrings__DirectConnection: "Host=db;Database=statsbudsjett;Username=statsbudsjett;Password=localdev"
+      ConnectionStrings__DefaultConnection: "Host=db;Port=5432;Database=statsbudsjett;Username=statsbudsjett;Password=localdev"
       ConnectionStrings__Redis: "redis:6379"
       JwtSettings__Secret: "poc-secret-key-not-for-production-use-only-minimum-32-chars"
       EnableSwagger: "true"
     depends_on:
       db:
         condition: service_healthy
-      pgbouncer:
-        condition: service_started
       redis:
         condition: service_healthy
 

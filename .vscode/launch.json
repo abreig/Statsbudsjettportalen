@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: Start og debug",
+      "type": "dotnet",
+      "request": "launch",
+      "projectPath": "${workspaceFolder}/backend/Statsbudsjettportalen.Api/Statsbudsjettportalen.Api.csproj",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    {
+      "name": "Backend: Koble til kjørende prosess",
+      "type": "dotnet",
+      "request": "attach",
+      "processId": "${command:pickProcess}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full stack: debug backend + frontend",
+      "configurations": ["Backend: Start og debug"],
+      "preLaunchTask": "Docker: start tjenester (postgres + redis)",
+      "stopAll": true
+    }
+  ]
+}

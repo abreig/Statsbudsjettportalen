@@ -1,5 +1,6 @@
+import { useRef, useEffect, useReducer } from 'react';
 import type { Editor } from '@tiptap/react';
-import { Button, ToggleGroup } from '@navikt/ds-react';
+import { Button } from '@navikt/ds-react';
 import {
   Bold,
   Italic,
@@ -12,6 +13,11 @@ import {
   Check,
   X,
   MessageSquarePlus,
+  ImagePlus,
+  Eye,
+  EyeOff,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import type { TrackMode } from './TrackChangesExtension';
 import { getChangeAtCursor, getChangeIdsInRange, type TrackedChange } from './TrackChangesExtension';
@@ -23,6 +29,9 @@ interface EditorToolbarProps {
   trackMode?: TrackMode;
   onToggleTracking?: () => void;
   onSetTrackMode?: (mode: TrackMode) => void;
+  onImageUpload?: (file: File) => Promise<string>;
+  focusMode?: boolean;
+  onToggleFocusMode?: () => void;
 }
 
 function getActiveChange(editor: Editor): TrackedChange | null {
@@ -41,16 +50,38 @@ export function EditorToolbar({
   trackMode = 'editing',
   onToggleTracking,
   onSetTrackMode,
+  onImageUpload,
+  focusMode = false,
+  onToggleFocusMode,
 }: EditorToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Force re-render on cursor movement so activeChange reflects the current position.
+  const [, forceUpdate] = useReducer((n: number) => n + 1, 0);
+  useEffect(() => {
+    if (!editor) return;
+    editor.on('selectionUpdate', forceUpdate);
+    return () => { editor.off('selectionUpdate', forceUpdate); };
+  }, [editor]);
+
+  // Remember the last non-final mode so "Vis spor" can restore it correctly.
+  const prevNonFinalModeRef = useRef<TrackMode>(trackMode !== 'final' ? trackMode : 'editing');
+  useEffect(() => {
+    if (trackMode !== 'final') prevNonFinalModeRef.current = trackMode;
+  }, [trackMode]);
+
   if (!editor) return null;
 
-  const activeChange = trackingEnabled ? getActiveChange(editor) : null;
+  // Compute active change regardless of trackingEnabled so accept/reject
+  // remain available for existing marks even when new tracking is off.
+  const activeChange = getActiveChange(editor);
   const { from, to } = editor.state.selection;
   const hasSelection = from !== to;
-  const selectionHasChanges = trackingEnabled && hasSelection
+  const selectionHasChanges = hasSelection
     ? getChangeIdsInRange(editor.state.doc, from, to).length > 0
     : false;
-  const showAcceptReject = trackingEnabled && (activeChange || selectionHasChanges);
+  const hasAnyChange = !!activeChange || selectionHasChanges;
+  const acceptRejectDisabled = !hasAnyChange;
   const activeComment = getActiveComment(editor);
 
   const toolbarItems = [
@@ -146,15 +177,15 @@ export function EditorToolbar({
             title={trackingEnabled ? 'Slå av spor endringer' : 'Slå på spor endringer'}
             className={
               trackingEnabled
-                ? 'bg-blue-600 text-white rounded'
+                ? '!bg-blue-600 !text-white rounded'
                 : 'rounded'
             }
           >
             Spor endringer
           </Button>
 
-          {/* Inline accept/reject when cursor is on a tracked change or selection contains changes */}
-          {showAcceptReject && (
+          {/* Accept/reject — visible when tracking is on OR there are existing marks at cursor/selection */}
+          {(trackingEnabled || hasAnyChange) && (
             <>
               <div className="mx-1 h-5 w-px bg-gray-300" />
               <Button
@@ -162,6 +193,7 @@ export function EditorToolbar({
                 variant="tertiary"
                 size="xsmall"
                 icon={<Check size={14} />}
+                disabled={acceptRejectDisabled}
                 onClick={() => {
                   if (hasSelection) {
                     editor.commands.acceptChangesInRange();
@@ -178,6 +210,7 @@ export function EditorToolbar({
                 variant="tertiary"
                 size="xsmall"
                 icon={<X size={14} />}
+                disabled={acceptRejectDisabled}
                 onClick={() => {
                   if (hasSelection) {
                     editor.commands.rejectChangesInRange();
@@ -192,18 +225,58 @@ export function EditorToolbar({
             </>
           )}
 
-          {trackingEnabled && onSetTrackMode && (
-            <ToggleGroup
-              size="small"
-              value={trackMode}
-              onChange={(val) => onSetTrackMode(val as TrackMode)}
-              className="ml-2"
-            >
-              <ToggleGroup.Item value="editing">Redigering</ToggleGroup.Item>
-              <ToggleGroup.Item value="review">Gjennomgang</ToggleGroup.Item>
-              <ToggleGroup.Item value="final">Endelig</ToggleGroup.Item>
-            </ToggleGroup>
+          {/* Show/hide tracked changes markup toggle — restores previous non-final mode */}
+          {onSetTrackMode && (
+            <>
+              <div className="mx-1 h-5 w-px bg-gray-300" />
+              <Button
+                type="button"
+                variant="tertiary"
+                size="xsmall"
+                icon={trackMode === 'final' ? <Eye size={16} /> : <EyeOff size={16} />}
+                onClick={() => onSetTrackMode(trackMode === 'final' ? prevNonFinalModeRef.current : 'final')}
+                title={trackMode === 'final' ? 'Vis sporendringer' : 'Skjul sporendringer'}
+                className={trackMode !== 'final' ? 'bg-blue-100 text-blue-700 rounded' : 'rounded'}
+              >
+                {trackMode === 'final' ? 'Vis spor' : 'Skjul spor'}
+              </Button>
+            </>
           )}
+        </>
+      )}
+
+      {/* Image upload */}
+      {onImageUpload && (
+        <>
+          <div className="mx-1 h-5 w-px bg-gray-300" />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              e.target.value = '';
+              try {
+                const url = await onImageUpload(file);
+                editor.chain().focus().setImage({ src: url }).run();
+              } catch {
+                // silent — user can retry
+              }
+            }}
+          />
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={<ImagePlus size={16} />}
+            onClick={() => fileInputRef.current?.click()}
+            title="Sett inn bilde"
+            className="rounded"
+          >
+            Bilde
+          </Button>
         </>
       )}
 
@@ -247,6 +320,22 @@ export function EditorToolbar({
           >
             Løs kommentar
           </Button>
+        </>
+      )}
+
+      {/* Focus mode toggle */}
+      {onToggleFocusMode && (
+        <>
+          <div className="mx-1 h-5 w-px bg-gray-300" />
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={focusMode ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            onClick={onToggleFocusMode}
+            title={focusMode ? 'Avslutt fokusmodus (Esc)' : 'Fokusmodus (F11)'}
+            className="rounded"
+          />
         </>
       )}
     </div>

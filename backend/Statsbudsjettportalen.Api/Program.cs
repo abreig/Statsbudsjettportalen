@@ -93,8 +93,12 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
-// JWT secret from config (falls back to default for local dev)
-var jwtSecret = builder.Configuration["JwtSettings:Secret"] ?? MockAuth.DefaultSecretKey;
+// JWT secret must be provided via config (appsettings / env var JwtSettings__Secret).
+var jwtSecret = builder.Configuration["JwtSettings:Secret"];
+if (string.IsNullOrEmpty(jwtSecret))
+    throw new InvalidOperationException(
+        "JwtSettings:Secret er ikke konfigurert. " +
+        "Sett verdien i appsettings.Development.json eller miljøvariabelen JwtSettings__Secret.");
 MockAuth.Configure(jwtSecret);
 
 // Authentication (mock JWT)
@@ -113,7 +117,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    // Departementslistemodulen er forbeholdt FIN-brukere (roller som slutter på _fin).
+    options.AddPolicy("FinOnly", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value is string role &&
+            role.EndsWith("_fin", StringComparison.OrdinalIgnoreCase)));
+});
 
 // CORS
 var isCodespaces = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CODESPACES"));

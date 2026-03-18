@@ -31,6 +31,13 @@ body {
   background-color: var(--color-gray-50);
 }
 
+/* Focus mode: blur the app root while overlay is active */
+#root[data-focus-mode="true"] {
+  filter: blur(4px);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* Utility classes for role-based coloring */
 .role-fag { color: var(--color-fag); }
 .role-fin { color: var(--color-fin); }

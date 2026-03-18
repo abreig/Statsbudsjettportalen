@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { downloadFileWithAuth } from '../lib/download.ts';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { JSONContent } from '@tiptap/core';
@@ -82,6 +83,9 @@ export function CaseDetailPage() {
   // Track changes override state (resolved after auto-values are computed below)
   const [trackChangesOverride, setTrackChangesOverride] = useState<boolean | null>(null);
   const [trackModeOverride, setTrackModeOverride] = useState<TrackMode | null>(null);
+
+  // Focus mode
+  const [focusMode, setFocusMode] = useState(false);
 
   // Comments state
   const editorRef = useRef<Editor | null>(null);
@@ -241,6 +245,18 @@ export function CaseDetailPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [documentDirty]);
 
+  // F11 toggles focus mode
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        setFocusMode((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
   const triggerSave = useCallback((doc?: JSONContent) => {
     const docToSave = doc ?? latestDocJson.current;
     if (!id || !budgetCase || !docToSave) return;
@@ -383,7 +399,7 @@ export function CaseDetailPage() {
             size="small"
             icon={<FileDown size={16} />}
             onClick={() => {
-              window.open(`/api/cases/${id}/export/word`, '_blank');
+              void downloadFileWithAuth(`/api/cases/${id}/export/word`, `sak-${id}.docx`);
             }}
           >
             Eksporter Word
@@ -456,7 +472,7 @@ export function CaseDetailPage() {
       )}
 
       {/* Lock banner - shown when another user is editing */}
-      {lockHolder && (
+      {lockHolder && lockHolder.userId !== user?.id && (
         <LockBanner
           holderName={lockHolder.fullName}
           lockedAt={lockHolder.lockedAt}
@@ -526,212 +542,241 @@ export function CaseDetailPage() {
         </Alert>
       )}
 
+
       {/* ═══════════════════════════════════════════════════════
           MAIN LAYOUT: Document (70%) + Sidebar (30%)
           ═══════════════════════════════════════════════════════ */}
       <div className="flex gap-6">
         {/* ─── Left: Document Panel ──────────────────────── */}
         <div className={sidebarOpen ? 'w-[70%] min-w-0' : 'w-full'}>
-          {/* Action bar */}
-          {(nextStatuses.length > 0 || isResponsible) && !isClosed && (
-            <div className="mb-4 rounded-lg border border-gray-200 bg-white p-3">
-              <div className="flex flex-wrap gap-2">
-                {canEdit && (
-                  <Button
-                    size="small"
-                    variant="secondary"
-                    onClick={handleManualSave}
-                    loading={saveDocumentMut.isPending}
-                    icon={<Save size={14} />}
-                    disabled={!hasEdits}
-                  >
-                    Lagre
-                  </Button>
+          {/* ─── Action bar ──────────────────────────────── */}
+          {(nextStatuses.length > 0 || isResponsible) && !isClosed && (() => {
+            const forwardActions = nextStatuses.filter(
+              (a) => !a.isBackward && a.status !== 'avvist_av_fin' && a.status !== 'returnert_til_fag'
+            );
+            const backwardActions = nextStatuses.filter(
+              (a) => (a.isBackward || a.status === 'returnert_til_fag') && a.status !== 'avvist_av_fin'
+            );
+            const destructiveAction = nextStatuses.find((a) => a.status === 'avvist_av_fin');
+            const hasWorkflowRow = backwardActions.length > 0 || !!destructiveAction || forwardActions.length > 0;
+
+            return (
+              <div className="mb-4 space-y-2">
+
+                {/* ── Boks 1: Lagre + innspill ─────────────── */}
+                {(canEdit || isLocked || documentDirty || saveDocumentMut.isPending || canOpinion) && (
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                    <div className="flex items-center gap-3">
+                      {canEdit && (
+                        <Button
+                          size="small"
+                          variant="secondary"
+                          onClick={handleManualSave}
+                          loading={saveDocumentMut.isPending}
+                          icon={<Save size={14} />}
+                          disabled={!hasEdits}
+                        >
+                          Lagre
+                        </Button>
+                      )}
+                      {documentDirty && !saveDocumentMut.isPending && (
+                        <BodyShort size="small" className="text-amber-600">Ulagrede endringer</BodyShort>
+                      )}
+                      {saveDocumentMut.isPending && (
+                        <BodyShort size="small" className="text-blue-600">Lagrer...</BodyShort>
+                      )}
+                      {isLocked && (
+                        <BodyShort size="small" className="text-amber-700">
+                          Saken er låst – ventende uttalelser/godkjenninger
+                        </BodyShort>
+                      )}
+                      {canOpinion && (
+                        <div className="flex items-center gap-1 rounded border border-gray-200 px-2 py-1">
+                          <Button
+                            size="small"
+                            variant="tertiary"
+                            icon={<MessageSquarePlus size={14} />}
+                            onClick={async () => {
+                              const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
+                              setOpinionUsers(data.filter((u) => u.id !== user?.id));
+                              setOpinionUserSearch('');
+                              setOpinionComment('');
+                              setOpinionAssignee('');
+                              setShowOpinionForm('uttalelse');
+                            }}
+                          >
+                            Til uttalelse
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="tertiary"
+                            icon={<ShieldCheck size={14} />}
+                            onClick={async () => {
+                              const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
+                              setOpinionUsers(data.filter((u) => u.id !== user?.id));
+                              setOpinionUserSearch('');
+                              setOpinionComment('');
+                              setOpinionAssignee('');
+                              setShowOpinionForm('godkjenning');
+                            }}
+                          >
+                            Til godkjenning
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    {/* Inline opinion form */}
+                    {showOpinionForm && (
+                      <div className="mt-3 border-t border-gray-200 pt-3">
+                        <Heading size="xsmall" level="3" className="mb-3">
+                          {showOpinionForm === 'uttalelse' ? 'Send til uttalelse' : 'Send til godkjenning'}
+                        </Heading>
+                        <Label size="small" className="mb-1">Velg mottaker</Label>
+                        <TextField
+                          label=""
+                          hideLabel
+                          placeholder="Søk etter bruker..."
+                          value={opinionUserSearch}
+                          onChange={(e) => setOpinionUserSearch(e.target.value)}
+                          size="small"
+                          className="mb-2"
+                        />
+                        {!opinionAssignee && (
+                          <div className="mb-3 max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-2">
+                            {opinionUsers
+                              .filter((u) => {
+                                const q = opinionUserSearch.toLowerCase();
+                                return !q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+                              })
+                              .map((u) => (
+                                <Button
+                                  key={u.id}
+                                  size="xsmall"
+                                  variant="tertiary"
+                                  className="w-full justify-start"
+                                  onClick={() => setOpinionAssignee(u.id)}
+                                >
+                                  {u.fullName} ({u.email})
+                                </Button>
+                              ))}
+                          </div>
+                        )}
+                        {opinionAssignee && (
+                          <div className="mb-3 flex items-center gap-2">
+                            <Tag variant="info" size="small">
+                              {opinionUsers.find((u) => u.id === opinionAssignee)?.fullName ?? opinionAssignee}
+                            </Tag>
+                            <Button size="xsmall" variant="tertiary" onClick={() => setOpinionAssignee('')}>
+                              Endre
+                            </Button>
+                          </div>
+                        )}
+                        <Textarea
+                          label="Kommentar til mottaker (valgfritt)"
+                          value={opinionComment}
+                          onChange={(e) => setOpinionComment(e.target.value)}
+                          minRows={2}
+                          resize="vertical"
+                          size="small"
+                          className="mb-3"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            size="small"
+                            onClick={handleRequestOpinion}
+                            loading={createOpinionMut.isPending}
+                            icon={showOpinionForm === 'uttalelse' ? <MessageSquarePlus size={14} /> : <ShieldCheck size={14} />}
+                            disabled={!opinionAssignee}
+                          >
+                            Send forespørsel
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="secondary"
+                            onClick={() => { setShowOpinionForm(false); setOpinionAssignee(''); setOpinionComment(''); setOpinionUserSearch(''); }}
+                          >
+                            Avbryt
+                          </Button>
+                        </div>
+                        {createOpinionMut.isError && (
+                          <Alert variant="error" size="small" className="mt-2">
+                            Kunne ikke sende forespørsel.
+                          </Alert>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
 
-                {nextStatuses.map((action) => {
-                  if (action.status === 'returnert_til_fag') {
-                    return (
-                      <Button
-                        key={action.status}
-                        size="small"
-                        variant="secondary"
-                        icon={<RotateCcw size={14} />}
-                        onClick={() => setShowReturnModal(true)}
-                        disabled={isLocked}
-                      >
-                        {action.label}
-                      </Button>
-                    );
-                  }
-                  if (action.status === 'avvist_av_fin') {
-                    return (
-                      <Button
-                        key={action.status}
-                        size="small"
-                        variant="danger"
-                        icon={<XCircle size={14} />}
-                        onClick={() => setShowRejectModal(true)}
-                        disabled={isLocked}
-                      >
-                        {action.label}
-                      </Button>
-                    );
-                  }
-                  return (
-                    <Button
-                      key={action.status}
-                      size="small"
-                      variant={action.isBackward ? 'secondary' : 'primary'}
-                      icon={action.isBackward ? <RotateCcw size={14} /> : <ArrowRightCircle size={14} />}
-                      onClick={() => setConfirmAction(action)}
-                      disabled={isLocked}
-                    >
-                      {action.label}
-                    </Button>
-                  );
-                })}
-
-                {canOpinion && (
-                  <>
-                    <Button
-                      size="small"
-                      variant="tertiary"
-                      icon={<MessageSquarePlus size={14} />}
-                      onClick={async () => {
-                        const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
-                        setOpinionUsers(data.filter((u) => u.id !== user?.id));
-                        setOpinionUserSearch('');
-                        setOpinionComment('');
-                        setOpinionAssignee('');
-                        setShowOpinionForm('uttalelse');
-                      }}
-                    >
-                      Til uttalelse
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="tertiary"
-                      icon={<ShieldCheck size={14} />}
-                      onClick={async () => {
-                        const { data } = await apiClient.get<Array<{ id: string; fullName: string; email: string; departmentId: string }>>('/auth/users');
-                        setOpinionUsers(data.filter((u) => u.id !== user?.id));
-                        setOpinionUserSearch('');
-                        setOpinionComment('');
-                        setOpinionAssignee('');
-                        setShowOpinionForm('godkjenning');
-                      }}
-                    >
-                      Til godkjenning
-                    </Button>
-                  </>
-                )}
-
-                {isLocked && (
-                  <BodyShort size="small" className="self-center text-amber-700">
-                    Saken er låst – ventende uttalelser/godkjenninger
-                  </BodyShort>
-                )}
-
-                {documentDirty && !saveDocumentMut.isPending && (
-                  <BodyShort size="small" className="self-center text-amber-600">
-                    Ulagrede endringer
-                  </BodyShort>
-                )}
-                {saveDocumentMut.isPending && (
-                  <BodyShort size="small" className="self-center text-blue-600">
-                    Lagrer...
-                  </BodyShort>
+                {/* ── Boks 2: Workflow-beslutninger ────────── */}
+                {hasWorkflowRow && (
+                  <div className="rounded-lg border border-gray-200 bg-white px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      {backwardActions.length > 0 && (
+                        <div className="flex items-center gap-1 rounded border border-gray-200 px-2 py-1">
+                          {backwardActions.map((action) =>
+                            action.status === 'returnert_til_fag' ? (
+                              <Button
+                                key={action.status}
+                                size="small"
+                                variant="tertiary"
+                                icon={<RotateCcw size={14} />}
+                                onClick={() => setShowReturnModal(true)}
+                                disabled={isLocked}
+                              >
+                                {action.label}
+                              </Button>
+                            ) : (
+                              <Button
+                                key={action.status}
+                                size="small"
+                                variant="tertiary"
+                                icon={<RotateCcw size={14} />}
+                                onClick={() => setConfirmAction(action)}
+                                disabled={isLocked}
+                              >
+                                {action.label}
+                              </Button>
+                            )
+                          )}
+                        </div>
+                      )}
+                      {destructiveAction && (
+                        <div className="flex items-center rounded border border-gray-200 px-2 py-1">
+                          <Button
+                            size="small"
+                            variant="danger"
+                            icon={<XCircle size={14} />}
+                            onClick={() => setShowRejectModal(true)}
+                            disabled={isLocked}
+                          >
+                            {destructiveAction.label}
+                          </Button>
+                        </div>
+                      )}
+                      <div className="flex-1" />
+                      {forwardActions.length > 0 && (
+                        <div className="flex items-center gap-1 rounded border border-blue-200 px-2 py-1">
+                          {forwardActions.map((action) => (
+                            <Button
+                              key={action.status}
+                              size="small"
+                              variant="primary"
+                              icon={<ArrowRightCircle size={14} />}
+                              onClick={() => setConfirmAction(action)}
+                              disabled={isLocked}
+                            >
+                              {action.label}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {/* Inline opinion form */}
-              {showOpinionForm && (
-                <div className="mt-3 border-t border-gray-200 pt-3">
-                  <Heading size="xsmall" level="3" className="mb-3">
-                    {showOpinionForm === 'uttalelse' ? 'Send til uttalelse' : 'Send til godkjenning'}
-                  </Heading>
-
-                  <Label size="small" className="mb-1">Velg mottaker</Label>
-                  <TextField
-                    label=""
-                    hideLabel
-                    placeholder="Søk etter bruker..."
-                    value={opinionUserSearch}
-                    onChange={(e) => setOpinionUserSearch(e.target.value)}
-                    size="small"
-                    className="mb-2"
-                  />
-
-                  {!opinionAssignee && (
-                    <div className="mb-3 max-h-40 space-y-1 overflow-y-auto rounded border border-gray-200 bg-gray-50 p-2">
-                      {opinionUsers
-                        .filter((u) => {
-                          const q = opinionUserSearch.toLowerCase();
-                          return !q || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-                        })
-                        .map((u) => (
-                          <Button
-                            key={u.id}
-                            size="xsmall"
-                            variant="tertiary"
-                            className="w-full justify-start"
-                            onClick={() => setOpinionAssignee(u.id)}
-                          >
-                            {u.fullName} ({u.email})
-                          </Button>
-                        ))}
-                    </div>
-                  )}
-
-                  {opinionAssignee && (
-                    <div className="mb-3 flex items-center gap-2">
-                      <Tag variant="info" size="small">
-                        {opinionUsers.find((u) => u.id === opinionAssignee)?.fullName ?? opinionAssignee}
-                      </Tag>
-                      <Button size="xsmall" variant="tertiary" onClick={() => setOpinionAssignee('')}>
-                        Endre
-                      </Button>
-                    </div>
-                  )}
-
-                  <Textarea
-                    label="Kommentar til mottaker (valgfritt)"
-                    value={opinionComment}
-                    onChange={(e) => setOpinionComment(e.target.value)}
-                    minRows={2}
-                    resize="vertical"
-                    size="small"
-                    className="mb-3"
-                  />
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="small"
-                      onClick={handleRequestOpinion}
-                      loading={createOpinionMut.isPending}
-                      icon={showOpinionForm === 'uttalelse' ? <MessageSquarePlus size={14} /> : <ShieldCheck size={14} />}
-                      disabled={!opinionAssignee}
-                    >
-                      Send forespørsel
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="secondary"
-                      onClick={() => { setShowOpinionForm(false); setOpinionAssignee(''); setOpinionComment(''); setOpinionUserSearch(''); }}
-                    >
-                      Avbryt
-                    </Button>
-                  </div>
-                  {createOpinionMut.isError && (
-                    <Alert variant="error" size="small" className="mt-2">
-                      Kunne ikke sende forespørsel.
-                    </Alert>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+            );
+          })()}
 
           {/* ─── Document Editor ─────────────────────────── */}
           <CaseDocumentEditor
@@ -745,6 +790,10 @@ export function CaseDetailPage() {
             onSetTrackMode={(mode) => setTrackModeOverride(mode)}
             currentUser={user ? { id: user.id, name: user.fullName } : undefined}
             onEditorReady={(editor) => { editorRef.current = editor; }}
+            focusMode={focusMode}
+            onToggleFocusMode={() => setFocusMode((v) => !v)}
+            onSave={handleManualSave}
+            saving={saveDocumentMut.isPending}
           />
 
           {/* ─── Opinions section ─────────────────────────── */}

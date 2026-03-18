@@ -219,6 +219,9 @@ public class DepartmentListTemplatesController : ControllerBase
 
     /// <summary>
     /// Replace all sections in a template at once (for bulk editing from the admin UI).
+    /// Sections with a known Id are updated in-place (preserving DepartmentListSection FK links).
+    /// Sections without Id are created new. Sections removed from the list are deleted.
+    /// After upserting, cascades Title updates to all DepartmentListSection rows.
     /// </summary>
     [HttpPut("{templateId}/sections")]
     public async Task<ActionResult<TemplateResponseDto>> ReplaceSections(
@@ -233,14 +236,29 @@ public class DepartmentListTemplatesController : ControllerBase
             .FirstOrDefaultAsync(t => t.Id == templateId);
         if (template == null) return NotFound();
 
-        // Remove all existing sections
-        _db.DepartmentListTemplateSections.RemoveRange(template.Sections);
+        // Collect all submitted IDs (recursively) to detect which existing sections are removed
+        var submittedIds = CollectSubmittedIds(sections);
 
-        // Add new sections
-        AddSectionsRecursive(templateId, null, sections);
+        // Delete existing sections NOT in the submitted set (cascade-deletes their DepartmentListSection rows)
+        var toDelete = template.Sections
+            .Where(s => !submittedIds.Contains(s.Id))
+            .ToList();
+        _db.DepartmentListTemplateSections.RemoveRange(toDelete);
+
+        // Upsert submitted sections
+        var existingById = template.Sections.ToDictionary(s => s.Id);
+        UpsertSectionsRecursive(templateId, null, sections, existingById);
 
         template.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
+
+        // Reload updated template sections
+        var updatedSections = await _db.DepartmentListTemplateSections
+            .Where(s => s.TemplateId == templateId)
+            .ToListAsync();
+
+        // Cascade: update Title on DepartmentListSection rows for each updated template section
+        await CascadeTitleUpdatesAsync(updatedSections);
 
         // Reload
         var saved = await _db.DepartmentListTemplates
@@ -248,6 +266,88 @@ public class DepartmentListTemplatesController : ControllerBase
             .FirstAsync(t => t.Id == templateId);
 
         return Ok(MapTemplateToDto(saved));
+    }
+
+    private static HashSet<Guid> CollectSubmittedIds(List<TemplateSectionCreateDto> sections)
+    {
+        var ids = new HashSet<Guid>();
+        foreach (var s in sections)
+        {
+            if (s.Id.HasValue) ids.Add(s.Id.Value);
+            if (s.Children != null) ids.UnionWith(CollectSubmittedIds(s.Children));
+        }
+        return ids;
+    }
+
+    private void UpsertSectionsRecursive(
+        Guid templateId,
+        Guid? parentId,
+        List<TemplateSectionCreateDto> sections,
+        Dictionary<Guid, DepartmentListTemplateSection> existingById)
+    {
+        foreach (var dto in sections)
+        {
+            if (dto.Id.HasValue && existingById.TryGetValue(dto.Id.Value, out var existing))
+            {
+                // Update in place — preserves the ID so DepartmentListSection FK links survive
+                existing.TitleTemplate = dto.TitleTemplate;
+                existing.HeadingStyle = dto.HeadingStyle;
+                existing.SectionType = dto.SectionType;
+                existing.SortOrder = dto.SortOrder;
+                existing.Config = dto.Config;
+                existing.ParentId = parentId;
+            }
+            else
+            {
+                // New section
+                var newSection = new DepartmentListTemplateSection
+                {
+                    Id = Guid.NewGuid(),
+                    TemplateId = templateId,
+                    ParentId = parentId,
+                    TitleTemplate = dto.TitleTemplate,
+                    HeadingStyle = dto.HeadingStyle,
+                    SectionType = dto.SectionType,
+                    SortOrder = dto.SortOrder,
+                    Config = dto.Config,
+                };
+                _db.DepartmentListTemplateSections.Add(newSection);
+                existing = newSection;
+            }
+
+            if (dto.Children != null && dto.Children.Count > 0)
+            {
+                UpsertSectionsRecursive(templateId, existing.Id, dto.Children, existingById);
+            }
+        }
+    }
+
+    private async Task CascadeTitleUpdatesAsync(List<DepartmentListTemplateSection> templateSections)
+    {
+        var templateSectionIds = templateSections.Select(s => s.Id).ToList();
+
+        // Load all DepartmentListSection rows referencing these template sections, with their DepartmentList and Department
+        var depListSections = await _db.DepartmentListSections
+            .Include(s => s.DepartmentList)
+                .ThenInclude(dl => dl.Department)
+            .Where(s => templateSectionIds.Contains(s.TemplateSectionId))
+            .ToListAsync();
+
+        // Build lookup: templateSectionId -> TitleTemplate
+        var titleTemplateById = templateSections.ToDictionary(s => s.Id, s => s.TitleTemplate);
+
+        foreach (var dls in depListSections)
+        {
+            if (!titleTemplateById.TryGetValue(dls.TemplateSectionId, out var titleTemplate)) continue;
+            var dept = dls.DepartmentList?.Department;
+            var resolvedTitle = titleTemplate
+                .Replace("{department_name}", dept?.Name ?? "")
+                .Replace("{department_abbrev}", dept?.Code ?? "");
+            dls.Title = resolvedTitle;
+        }
+
+        if (depListSections.Count > 0)
+            await _db.SaveChangesAsync();
     }
 
     // ===== Helpers =====

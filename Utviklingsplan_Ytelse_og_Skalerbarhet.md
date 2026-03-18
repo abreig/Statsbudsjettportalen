@@ -1,7 +1,8 @@
 # Utviklingsplan: Ytelsesoptimalisering og lasttesting
 
 *Statsbudsjettportalen -- Februar 2026*
-*Gjennomfores etter at departementsliste-modulen (Sprint 0 + A.1-A.6, B og C) er ferdigstilt.*
+
+> **Status: ✅ Fullført (mars 2026).** Sprint Y.1–Y.4 er implementert: PgBouncer, ytelsesindekser, Redis-cache med in-memory fallback, asynkrone eksportjobber, Locust-lasttesting, rate limiting og Kubernetes HPA-manifester er alle i produksjon. Dokumentet bevares som teknisk referanse.
 
 ---
 

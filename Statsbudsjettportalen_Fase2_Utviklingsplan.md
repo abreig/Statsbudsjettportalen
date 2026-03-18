@@ -4,6 +4,8 @@
 
 *Februar 2026 – Finansdepartementet*
 
+> **Status: ✅ Fullført (mars 2026).** Sprint 2.1–2.4 er implementert. TipTap-dokumentmodell, egenutviklet spor endringer (ProseMirror-transaksjoner), kommentarer med tråder og Word-eksport er i produksjon. Dokumentet bevares som arkitekturgrunnlag og referanse for videre utvikling.
+
 ---
 
 ## 1. Sammendrag og kontekst

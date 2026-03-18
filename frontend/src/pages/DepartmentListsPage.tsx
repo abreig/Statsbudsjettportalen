@@ -9,9 +9,11 @@ import {
   Button,
   Select,
   Tag,
+  ConfirmationPanel,
 } from '@navikt/ds-react';
 import { Plus, FileText } from 'lucide-react';
 import { useDepartmentLists, useCreateDepartmentList, useTemplates } from '../hooks/useDepartmentLists.ts';
+import { useDepartments } from '../hooks/useDepartments.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { useUiStore } from '../stores/uiStore.ts';
 import { isFinRole, isAdmin } from '../lib/roles.ts';
@@ -36,35 +38,71 @@ export function DepartmentListsPage() {
   const role = user?.role ?? '';
 
   const canCreate = isFinRole(role) || isAdmin(role);
+  const isFin = isFinRole(role) || isAdmin(role);
 
   const filters = {
     budget_round_id: selectedRound?.id,
-    department_id: user?.departmentId,
   };
 
   const { data: lists, isLoading, error } = useDepartmentLists(filters);
   const { data: templates } = useTemplates();
+  const { data: departments } = useDepartments();
   const createMut = useCreateDepartmentList();
 
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [selectedDept] = useState(user?.departmentId ?? '');
+  const [selectedDept, setSelectedDept] = useState(isFin ? '' : (user?.departmentId ?? ''));
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
 
   const handleCreate = () => {
-    if (!selectedTemplate || !selectedRound?.id || !selectedDept) return;
+    const deptId = isFin ? selectedDept : (user?.departmentId ?? '');
+    if (!selectedTemplate || !selectedRound?.id || !deptId) return;
+
     createMut.mutate(
       {
         templateId: selectedTemplate,
         budgetRoundId: selectedRound.id,
-        departmentId: selectedDept,
+        departmentId: deptId,
       },
       {
         onSuccess: (newList) => {
           setShowCreate(false);
+          setShowOverwriteConfirm(false);
+          setOverwriteConfirmed(false);
           navigate(`/department-lists/${newList.id}`);
+        },
+        onError: (err: unknown) => {
+          const status = (err as { response?: { status?: number } })?.response?.status;
+          if (status === 409) {
+            setShowOverwriteConfirm(true);
+          }
         },
       }
     );
+  };
+
+  const handleOverwrite = () => {
+    if (!overwriteConfirmed) return;
+    // Find the existing list and navigate to it
+    const deptId = isFin ? selectedDept : (user?.departmentId ?? '');
+    const existing = lists?.find(
+      (l) => l.departmentId === deptId && l.templateName === templates?.find((t) => t.id === selectedTemplate)?.name
+    );
+    if (existing) {
+      navigate(`/department-lists/${existing.id}`);
+    }
+    setShowCreate(false);
+    setShowOverwriteConfirm(false);
+    setOverwriteConfirmed(false);
+  };
+
+  const resetCreateForm = () => {
+    setShowCreate(false);
+    setShowOverwriteConfirm(false);
+    setOverwriteConfirmed(false);
+    if (isFin) setSelectedDept('');
+    setSelectedTemplate('');
   };
 
   if (!selectedRound) {
@@ -106,44 +144,80 @@ export function DepartmentListsPage() {
           <Heading size="small" level="2" className="mb-3">
             Opprett ny departementsliste
           </Heading>
-          <div className="flex flex-wrap items-end gap-4">
-            <Select
-              label="Mal"
-              size="small"
-              value={selectedTemplate}
-              onChange={(e) => setSelectedTemplate(e.target.value)}
-            >
-              <option value="">Velg mal...</option>
-              {templates
-                ?.filter((t) => t.isActive)
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}
-                  </option>
-                ))}
-            </Select>
-            <div className="flex gap-2">
-              <Button
+
+          {!showOverwriteConfirm ? (
+            <>
+              <div className="flex flex-wrap items-end gap-4">
+                {isFin && (
+                  <Select
+                    label="Departement"
+                    size="small"
+                    value={selectedDept}
+                    onChange={(e) => setSelectedDept(e.target.value)}
+                  >
+                    <option value="">Velg departement...</option>
+                    {departments?.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.code} — {d.name}
+                      </option>
+                    ))}
+                  </Select>
+                )}
+                <Select
+                  label="Mal"
+                  size="small"
+                  value={selectedTemplate}
+                  onChange={(e) => setSelectedTemplate(e.target.value)}
+                >
+                  <option value="">Velg mal...</option>
+                  {templates
+                    ?.filter((t) => t.isActive)
+                    .map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name}
+                      </option>
+                    ))}
+                </Select>
+                <div className="flex gap-2">
+                  <Button
+                    size="small"
+                    onClick={handleCreate}
+                    disabled={!selectedTemplate || (isFin && !selectedDept)}
+                    loading={createMut.isPending}
+                  >
+                    Opprett
+                  </Button>
+                  <Button size="small" variant="secondary" onClick={resetCreateForm}>
+                    Avbryt
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <Alert variant="warning" size="small">
+                Det finnes allerede en departementsliste for dette departementet og denne malen. Vil du åpne den
+                eksisterende listen?
+              </Alert>
+              <ConfirmationPanel
+                checked={overwriteConfirmed}
+                onChange={(e) => setOverwriteConfirmed(e.target.checked)}
+                label="Ja, åpne den eksisterende listen"
                 size="small"
-                onClick={handleCreate}
-                disabled={!selectedTemplate}
-                loading={createMut.isPending}
-              >
-                Opprett
-              </Button>
-              <Button
-                size="small"
-                variant="secondary"
-                onClick={() => setShowCreate(false)}
-              >
-                Avbryt
-              </Button>
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="small"
+                  onClick={handleOverwrite}
+                  disabled={!overwriteConfirmed}
+                >
+                  Åpne eksisterende
+                </Button>
+                <Button size="small" variant="secondary" onClick={resetCreateForm}>
+                  Avbryt
+                </Button>
+              </div>
             </div>
-          </div>
-          {createMut.isError && (
-            <Alert variant="error" size="small" className="mt-2">
-              Kunne ikke opprette listen. Den kan allerede eksistere for dette departementet.
-            </Alert>
           )}
         </div>
       )}

@@ -12,7 +12,6 @@ interface DepListDocumentProps {
   onConclusionAdd?: (caseId: string, text: string) => void;
   onConclusionUpdate?: (conclusionId: string, text: string) => void;
   onConclusionDelete?: (conclusionId: string) => void;
-  onFigureUpload?: (sectionId: string, file: File) => void;
 }
 
 export function DepListDocument({
@@ -25,7 +24,6 @@ export function DepListDocument({
   onConclusionAdd,
   onConclusionUpdate,
   onConclusionDelete,
-  onFigureUpload,
 }: DepListDocumentProps) {
   const sections = depList.sections ?? [];
 
@@ -45,7 +43,6 @@ export function DepListDocument({
           onConclusionAdd={onConclusionAdd}
           onConclusionUpdate={onConclusionUpdate}
           onConclusionDelete={onConclusionDelete}
-          onFigureUpload={onFigureUpload}
         />
       ))}
     </div>

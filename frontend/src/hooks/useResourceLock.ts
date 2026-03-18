@@ -225,7 +225,9 @@ export function useResourceLock({
     setIdleKickReason(null);
   }, []);
 
-  // Auto-acquire on mount
+  // Auto-acquire on mount, and whenever user becomes available (e.g. auth store
+  // initialises after first page load). user?.id is used as the dep so that
+  // profile-only updates don't needlessly release and re-acquire the lock.
   useEffect(() => {
     if (!resourceId || !enabled || !user) return;
 
@@ -240,7 +242,7 @@ export function useResourceLock({
       clearTimers();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resourceId, enabled]);
+  }, [resourceId, enabled, user?.id]);
 
   // Track mount state
   useEffect(() => {

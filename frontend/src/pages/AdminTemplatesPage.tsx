@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useId, useMemo } from 'react';
 import {
   Heading,
   BodyShort,
@@ -6,11 +6,13 @@ import {
   TextField,
   Textarea,
   Select,
+  Checkbox,
   Alert,
   Loader,
   Table,
   Tag,
   Modal,
+  Label,
 } from '@navikt/ds-react';
 import {
   PlusCircle,
@@ -36,7 +38,6 @@ import { useQueryClient } from '@tanstack/react-query';
 const SECTION_TYPES = [
   { value: 'department_header', label: 'Departementsoverskrift' },
   { value: 'fixed_content', label: 'Fast innhold' },
-  { value: 'figure_placeholder', label: 'Figurplass' },
   { value: 'case_group', label: 'Sakskategori' },
   { value: 'case_subgroup', label: 'Undergruppe (A/B-liste)' },
   { value: 'case_entry_template', label: 'Saksmal' },
@@ -85,7 +86,11 @@ function templateSectionToEditable(s: DepartmentListTemplateSection): EditableSe
 }
 
 function editableToInput(s: EditableSection): TemplateSectionInput {
+  // Pass the existing ID for sections that came from the server so the backend can upsert in-place.
+  // New sections have IDs like "new-N" (from idCounter) which are not valid UUIDs — omit them.
+  const isExistingId = s.id && !s.id.startsWith('new-');
   return {
+    id: isExistingId ? s.id : null,
     titleTemplate: s.titleTemplate,
     headingStyle: s.headingStyle,
     sectionType: s.sectionType,
@@ -561,16 +566,14 @@ function SectionEditor({
 
           {(section.sectionType === 'case_group' ||
             section.sectionType === 'case_entry_template' ||
-            section.sectionType === 'decisions_section' ||
-            section.sectionType === 'auto_table') && (
-            <Textarea
-              label="Konfigurasjon (JSON)"
-              value={section.config}
-              onChange={(e) => onUpdate(path, 'config', e.target.value)}
-              size="small"
-              minRows={3}
-              description="JSONB-konfigurasjon for seksjonen"
-            />
+            section.sectionType === 'decisions_section') && (
+            <div className="rounded border border-blue-100 bg-blue-50 p-3">
+              <SectionConfigEditor
+                sectionType={section.sectionType}
+                config={section.config}
+                onChange={(newConfig) => onUpdate(path, 'config', newConfig)}
+              />
+            </div>
           )}
 
           {section.children.length > 0 && (
@@ -594,6 +597,258 @@ function SectionEditor({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ===== Section Config Editor =====
+
+interface SectionConfigEditorProps {
+  sectionType: string;
+  config: string;
+  onChange: (newConfig: string) => void;
+}
+
+function SectionConfigEditor({ sectionType, config, onChange }: SectionConfigEditorProps) {
+  const uid = useId();
+  const parsed = useMemo(() => {
+    if (!config) return {} as Record<string, unknown>;
+    try { return JSON.parse(config) as Record<string, unknown>; } catch { return {}; }
+  }, [config]);
+
+  const update = (key: string, value: unknown) => {
+    const next = { ...parsed, [key]: value };
+    Object.keys(next).forEach(k => {
+      const v = next[k];
+      if (v === undefined || v === null) delete next[k];
+      if (typeof v === 'string' && v === '') delete next[k];
+      if (Array.isArray(v) && (v as unknown[]).length === 0) delete next[k];
+    });
+    onChange(Object.keys(next).length > 0 ? JSON.stringify(next) : '');
+  };
+
+  if (sectionType === 'case_group') {
+    const subgroups = (parsed.subgroups as Array<{ value: string; label: string }>) ?? [];
+    const fields = (parsed.fields as Array<{ key: string; render_as: string; format?: string }>) ?? [];
+    return (
+      <div className="space-y-3">
+        <TextField
+          label="Sakstype-filter"
+          value={(parsed.case_type_filter as string) ?? ''}
+          onChange={(e) => update('case_type_filter', e.target.value)}
+          size="small"
+          description="f.eks. satsingsforslag, budsjettiltak, andre_saker — fritekst, fleksibelt for nye sakstyper"
+        />
+        <TextField
+          label="Overskriftsformat"
+          value={(parsed.heading_format as string) ?? ''}
+          onChange={(e) => update('heading_format', e.target.value)}
+          size="small"
+          description="f.eks. {case_name} eller {department_abbrev}: {case_name}"
+        />
+        <TextField
+          label="Introduksjonstekstmal"
+          value={(parsed.intro_text_template as string) ?? ''}
+          onChange={(e) => update('intro_text_template', e.target.value)}
+          size="small"
+        />
+        <Checkbox
+          checked={(parsed.summary_table as boolean) ?? false}
+          onChange={(e) => update('summary_table', e.target.checked || undefined)}
+          size="small"
+        >
+          Vis sammendragstabell
+        </Checkbox>
+        <SubgroupsEditor
+          uid={uid}
+          subgroups={subgroups}
+          onChange={(sg) => update('subgroups', sg.length > 0 ? sg : undefined)}
+        />
+        <FieldsEditor
+          uid={uid}
+          fields={fields}
+          onChange={(f) => update('fields', f.length > 0 ? f : undefined)}
+        />
+      </div>
+    );
+  }
+
+  if (sectionType === 'case_entry_template') {
+    const fields = (parsed.fields as Array<{ key: string; render_as: string; format?: string }>) ?? [];
+    return (
+      <div className="space-y-3">
+        <TextField
+          label="Overskriftsformat"
+          value={(parsed.heading_format as string) ?? ''}
+          onChange={(e) => update('heading_format', e.target.value)}
+          size="small"
+          description="f.eks. {case_name}"
+        />
+        <Checkbox
+          checked={(parsed.has_conclusion as boolean) ?? false}
+          onChange={(e) => update('has_conclusion', e.target.checked || undefined)}
+          size="small"
+        >
+          Har konklusjonspunkter
+        </Checkbox>
+        <FieldsEditor
+          uid={uid}
+          fields={fields}
+          onChange={(f) => update('fields', f.length > 0 ? f : undefined)}
+        />
+      </div>
+    );
+  }
+
+  if (sectionType === 'decisions_section') {
+    return (
+      <div className="space-y-3">
+        <TextField
+          label="Sakstype-filter"
+          value={(parsed.case_type_filter as string) ?? ''}
+          onChange={(e) => update('case_type_filter', e.target.value)}
+          size="small"
+          description="f.eks. satsingsforslag, budsjettiltak, andre_saker — fritekst, fleksibelt for nye sakstyper"
+        />
+        <Checkbox
+          checked={(parsed.has_conclusion as boolean) ?? false}
+          onChange={(e) => update('has_conclusion', e.target.checked || undefined)}
+          size="small"
+        >
+          Har konklusjonspunkter
+        </Checkbox>
+      </div>
+    );
+  }
+
+  return null;
+}
+
+// ===== Subgroups Editor =====
+
+interface SubgroupRow { value: string; label: string }
+
+interface SubgroupsEditorProps {
+  uid: string;
+  subgroups: SubgroupRow[];
+  onChange: (subgroups: SubgroupRow[]) => void;
+}
+
+function SubgroupsEditor({ subgroups, onChange }: SubgroupsEditorProps) {
+  const updateRow = (idx: number, field: keyof SubgroupRow, val: string) => {
+    onChange(subgroups.map((sg, i) => i === idx ? { ...sg, [field]: val } : sg));
+  };
+  return (
+    <div className="space-y-2">
+      <Label size="small">Undergrupper (A/B-liste)</Label>
+      {subgroups.map((sg, idx) => (
+        <div key={idx} className="flex gap-2 items-center">
+          <TextField
+            label="Verdi"
+            hideLabel
+            value={sg.value}
+            onChange={(e) => updateRow(idx, 'value', e.target.value)}
+            size="small"
+            placeholder="verdi (f.eks. a_list)"
+          />
+          <TextField
+            label="Etikett"
+            hideLabel
+            value={sg.label}
+            onChange={(e) => updateRow(idx, 'label', e.target.value)}
+            size="small"
+            placeholder="etikett (f.eks. A-liste)"
+          />
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={<Trash2 size={12} />}
+            onClick={() => onChange(subgroups.filter((_, i) => i !== idx))}
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="tertiary"
+        size="xsmall"
+        icon={<PlusCircle size={12} />}
+        onClick={() => onChange([...subgroups, { value: '', label: '' }])}
+      >
+        Legg til undergruppe
+      </Button>
+    </div>
+  );
+}
+
+// ===== Fields Editor =====
+
+interface FieldRow { key: string; render_as: string; format?: string }
+
+interface FieldsEditorProps {
+  uid: string;
+  fields: FieldRow[];
+  onChange: (fields: FieldRow[]) => void;
+}
+
+function FieldsEditor({ fields, onChange }: FieldsEditorProps) {
+  const updateRow = (idx: number, patch: Partial<FieldRow>) => {
+    onChange(fields.map((f, i) => i === idx ? { ...f, ...patch } : f));
+  };
+  return (
+    <div className="space-y-2">
+      <Label size="small">Felt å vise</Label>
+      {fields.map((f, idx) => (
+        <div key={idx} className="flex flex-wrap gap-2 items-center">
+          <TextField
+            label="Nøkkel"
+            hideLabel
+            value={f.key}
+            onChange={(e) => updateRow(idx, { key: e.target.value })}
+            size="small"
+            placeholder="f.eks. fin_amount"
+            className="w-32"
+          />
+          <Select
+            label="Rendring"
+            hideLabel
+            value={f.render_as}
+            onChange={(e) => updateRow(idx, { render_as: e.target.value })}
+            size="small"
+            className="w-32"
+          >
+            <option value="text">Tekst</option>
+            <option value="inline">Inline (format)</option>
+          </Select>
+          {f.render_as === 'inline' && (
+            <TextField
+              label="Format"
+              hideLabel
+              value={f.format ?? ''}
+              onChange={(e) => updateRow(idx, { format: e.target.value })}
+              size="small"
+              placeholder="f.eks. {department_abbrev}s forslag: {value}"
+              className="flex-1"
+            />
+          )}
+          <Button
+            type="button"
+            variant="tertiary"
+            size="xsmall"
+            icon={<Trash2 size={12} />}
+            onClick={() => onChange(fields.filter((_, i) => i !== idx))}
+          />
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="tertiary"
+        size="xsmall"
+        icon={<PlusCircle size={12} />}
+        onClick={() => onChange([...fields, { key: '', render_as: 'text' }])}
+      >
+        Legg til felt
+      </Button>
     </div>
   );
 }

@@ -19,7 +19,7 @@ type TextFieldKey = typeof TEXT_FIELD_KEYS[number];
  * Convert plain text to a ProseMirror paragraph node.
  * Splits by newlines to create separate paragraphs.
  */
-function textToParagraphs(text: string | null | undefined): JSONContent[] {
+export function textToParagraphs(text: string | null | undefined): JSONContent[] {
   if (!text || text.trim() === '') {
     return [{ type: 'paragraph' }];
   }
@@ -40,7 +40,7 @@ function hasDeletionMark(inline: JSONContent): boolean {
  * Extract plain text from ProseMirror content nodes.
  * Skips text nodes with deletion marks so flat fields contain clean text.
  */
-function paragraphsToText(content: JSONContent[] | undefined): string {
+export function paragraphsToText(content: JSONContent[] | undefined): string {
   if (!content || content.length === 0) return '';
 
   return content

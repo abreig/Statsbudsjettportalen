@@ -5,13 +5,14 @@ using Statsbudsjettportalen.Api.Data;
 using Statsbudsjettportalen.Api.DTOs;
 using Statsbudsjettportalen.Api.Middleware;
 using Statsbudsjettportalen.Api.Models;
+using Statsbudsjettportalen.Api.Helpers;
 using Statsbudsjettportalen.Api.Services;
 
 namespace Statsbudsjettportalen.Api.Controllers;
 
 [ApiController]
 [Route("api/department-lists")]
-[Authorize]
+[Authorize(Policy = "FinOnly")]
 public class DepartmentListsController : ControllerBase
 {
     private readonly AppDbContext _db;
@@ -55,6 +56,7 @@ public class DepartmentListsController : ControllerBase
             .Include(d => d.Sections)
                 .ThenInclude(s => s.CaseEntries)
                     .ThenInclude(e => e.Case)
+                        .ThenInclude(c => c.LatestContent)
             .FirstOrDefaultAsync(d => d.Id == id);
 
         if (dl == null) return NotFound();
@@ -200,7 +202,9 @@ public class DepartmentListsController : ControllerBase
         var dl = await _db.DepartmentLists.FindAsync(listId);
         if (dl == null) return NotFound();
 
-        var c = await _db.Cases.FindAsync(dto.CaseId);
+        var c = await _db.Cases
+            .Include(x => x.LatestContent)
+            .FirstOrDefaultAsync(x => x.Id == dto.CaseId);
         if (c == null) return BadRequest(new { message = "Sak ikke funnet" });
 
         var entry = new DepartmentListCaseEntry
@@ -223,7 +227,11 @@ public class DepartmentListsController : ControllerBase
             entry.Id, entry.CaseId, c.CaseName, c.CaseType,
             entry.Subgroup, entry.SortOrder,
             c.Amount, c.FinAmount, c.GovAmount,
-            entry.OverrideContent));
+            entry.OverrideContent,
+            c.LatestContent?.FinAssessment,
+            c.LatestContent?.FinVerbal,
+            c.LatestContent?.FinRConclusion,
+            c.LatestContent?.ProposalText));
     }
 
     [HttpPut("{listId}/case-entries/{entryId}")]
@@ -315,8 +323,20 @@ public class DepartmentListsController : ControllerBase
         var fileName = $"{Guid.NewGuid()}{ext}";
         var filePath = Path.Combine(uploadsDir, fileName);
 
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await file.CopyToAsync(stream);
+        if (ext == ".svg")
+        {
+            using var reader = new StreamReader(file.OpenReadStream());
+            var rawSvg = await reader.ReadToEndAsync();
+            string sanitized;
+            try { sanitized = SvgSanitizer.Sanitize(rawSvg); }
+            catch (InvalidOperationException) { return BadRequest(new { message = "Ugyldig SVG-fil." }); }
+            await System.IO.File.WriteAllTextAsync(filePath, sanitized);
+        }
+        else
+        {
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+        }
 
         var fileUrl = $"/uploads/figures/{fileName}";
 
@@ -442,7 +462,11 @@ public class DepartmentListsController : ControllerBase
                 e.Case?.CaseName ?? "", e.Case?.CaseType ?? "",
                 e.Subgroup, e.SortOrder,
                 e.Case?.Amount, e.Case?.FinAmount, e.Case?.GovAmount,
-                e.OverrideContent))
+                e.OverrideContent,
+                e.Case?.LatestContent?.FinAssessment,
+                e.Case?.LatestContent?.FinVerbal,
+                e.Case?.LatestContent?.FinRConclusion,
+                e.Case?.LatestContent?.ProposalText))
             .ToList() ?? new List<DepartmentListCaseEntryResponseDto>();
 
         return new DepartmentListSectionResponseDto(

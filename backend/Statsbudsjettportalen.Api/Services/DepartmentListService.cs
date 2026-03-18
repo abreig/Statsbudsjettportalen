@@ -19,13 +19,13 @@ public class DepartmentListService
     }
 
     /// <summary>
-    /// Place a case into the correct section(s) of a department list.
-    /// Finds matching case_group sections based on case_type_filter in config.
+    /// Place a single case into the correct section of a department list.
+    /// Case must be in ferdigbehandlet_fin status.
     /// </summary>
     public async Task<DepartmentListCaseEntry?> PlaceCaseAsync(Guid departmentListId, Guid caseId)
     {
         var c = await _db.Cases.FindAsync(caseId);
-        if (c == null) return null;
+        if (c == null || (c.Status != "under_vurdering_fin" && c.Status != "ferdigbehandlet_fin")) return null;
 
         var dl = await _db.DepartmentLists
             .Include(d => d.Sections)
@@ -72,8 +72,8 @@ public class DepartmentListService
     }
 
     /// <summary>
-    /// Place all eligible cases from a department into a department list.
-    /// Cases must be in FIN-visible statuses.
+    /// Place all ferdigbehandlet_fin cases from a department into a department list.
+    /// Only fully processed cases (ferdigbehandlet_fin) are eligible for placement.
     /// </summary>
     public async Task<int> PlaceAllCasesAsync(Guid departmentListId)
     {
@@ -85,16 +85,10 @@ public class DepartmentListService
 
         if (dl == null) return 0;
 
-        var finVisibleStatuses = new[]
-        {
-            "sendt_til_fin", "under_vurdering_fin", "ferdigbehandlet_fin",
-            "sendt_til_regjeringen", "regjeringsbehandlet"
-        };
-
         var cases = await _db.Cases
             .Where(c => c.DepartmentId == dl.DepartmentId
                      && c.BudgetRoundId == dl.BudgetRoundId
-                     && finVisibleStatuses.Contains(c.Status))
+                     && (c.Status == "under_vurdering_fin" || c.Status == "ferdigbehandlet_fin"))
             .ToListAsync();
 
         var existingCaseIds = dl.CaseEntries.Select(e => e.CaseId).ToHashSet();

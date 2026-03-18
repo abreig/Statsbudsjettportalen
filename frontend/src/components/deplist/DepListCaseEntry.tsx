@@ -1,7 +1,12 @@
+import { useState, useContext } from 'react';
+import { Button } from '@navikt/ds-react';
+import { Pencil } from 'lucide-react';
 import type { DepartmentListCaseEntry, CaseConclusion } from '../../lib/types';
 import { formatMillions, resolveHeadingFormat } from './deplistUtils';
 import { DepListConclusionList } from './DepListConclusionList';
 import { DepListContentEditor } from './DepListContentEditor';
+import { DepListCaseEditModal } from './DepListCaseEditModal';
+import { DepListEditorContext } from './DepListEditorContext';
 
 interface DepListCaseEntryProps {
   entry: DepartmentListCaseEntry;
@@ -26,6 +31,9 @@ export function DepListCaseEntry({
   onConclusionUpdate,
   onConclusionDelete,
 }: DepListCaseEntryProps) {
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const ctx = useContext(DepListEditorContext);
+
   // Resolve the heading format from config
   const headingFormat = (sectionConfig.heading_format as string) ?? '{case_name}';
   const heading = resolveHeadingFormat(headingFormat, entry, departmentAbbrev);
@@ -41,7 +49,29 @@ export function DepListCaseEntry({
 
   return (
     <div className="dl-case-entry" id={`case-${entry.caseId}`}>
-      <div className="dl-h7">{heading}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="dl-h7 flex-1">{heading}</div>
+        {editable && (
+          <Button
+            variant="tertiary"
+            size="xsmall"
+            icon={<Pencil size={14} />}
+            onClick={() => { setEditModalOpen(true); ctx?.setActiveCaseId(entry.caseId); }}
+            className="shrink-0 opacity-60 hover:opacity-100"
+          >
+            Rediger sak
+          </Button>
+        )}
+      </div>
+
+      {editModalOpen && (
+        <DepListCaseEditModal
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          caseId={entry.caseId}
+          caseName={entry.caseName}
+        />
+      )}
 
       {/* Override content (editable rich text) */}
       {entry.overrideContent ? (
@@ -88,7 +118,33 @@ export function DepListCaseEntry({
                   FINs tilråding: {formatMillions(entry.finAmount)}
                 </div>
               )}
+              {entry.proposalText && (
+                <div className="dl-case-field mt-1">
+                  <div className="dl-case-field-label">Forslag til omtale</div>
+                  <div className="whitespace-pre-wrap italic">{entry.proposalText}</div>
+                </div>
+              )}
             </>
+          )}
+
+          {/* FIN text fields — heading style, italicised body, shown when non-empty */}
+          {entry.finAssessment && (
+            <div className="dl-case-field">
+              <div className="dl-case-field-label">FINs vurdering</div>
+              <div className="whitespace-pre-wrap italic">{entry.finAssessment}</div>
+            </div>
+          )}
+          {entry.finVerbal && (
+            <div className="dl-case-field">
+              <div className="dl-case-field-label">Konklusjon</div>
+              <div className="whitespace-pre-wrap italic">{entry.finVerbal}</div>
+            </div>
+          )}
+          {entry.finRConclusion && (
+            <div className="dl-case-field">
+              <div className="dl-case-field-label">Regjeringens konklusjon</div>
+              <div className="whitespace-pre-wrap italic">{entry.finRConclusion}</div>
+            </div>
           )}
         </>
       )}

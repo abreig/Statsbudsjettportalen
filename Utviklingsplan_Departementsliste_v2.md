@@ -3,6 +3,8 @@
 *Statsbudsjettportalen -- Februar 2026*
 *Revidert etter gjennomgang av faktisk depliste-mal (DepXX_XX_Depliste_mars2027.docx)*
 
+> **Status: ✅ Fullført (mars 2026).** Sprint 0 (ressurslåsing) og Sprint A.1–A.6 (WYSIWYG departementsliste-redigering og Word-eksport) er implementert. Deplistevisning med egne Depliste-stiler, flernivå-nummerering, WYSIWYG-editor og mal-basert Word-eksport er i produksjon. Dokumentet bevares som teknisk referanse og arkitekturgrunnlag.
+
 ---
 
 ## 1. Analyse av den faktiske depliste-malen

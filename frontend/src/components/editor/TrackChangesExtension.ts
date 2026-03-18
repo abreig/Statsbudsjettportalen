@@ -39,32 +39,42 @@ export function getChangeAtCursor(doc: PMNode, pos: number): TrackedChange | nul
   const parent = $pos.parent;
   if (!parent.isTextblock) return null;
 
-  // Check the text node at cursor position
   const index = $pos.index();
-  if (index >= parent.childCount) return null;
 
-  const node = parent.child(index);
-  if (!node.isText) return null;
+  // When the cursor is at a node boundary (textOffset === 0), $pos.index() points
+  // to the node AFTER the cursor. This means a cursor at the end of an insertion
+  // mark (the normal position right after typing) yields index === childCount and
+  // finds nothing. We therefore check both the node after the cursor AND the node
+  // before it, preferring the one after when both have tracked marks.
+  const candidateIndices: number[] = [];
+  if (index < parent.childCount) candidateIndices.push(index);
+  if ($pos.textOffset === 0 && index > 0) candidateIndices.push(index - 1);
 
   const markTypes = ['insertion', 'deletion', 'formatChange'] as const;
-  for (const markType of markTypes) {
-    const mark = node.marks.find((m) => m.type.name === markType);
-    if (mark) {
-      // Calculate absolute position of this text node
-      let nodeStart = $pos.start();
-      for (let i = 0; i < index; i++) {
-        nodeStart += parent.child(i).nodeSize;
+
+  for (const idx of candidateIndices) {
+    const node = parent.child(idx);
+    if (!node.isText) continue;
+
+    for (const markType of markTypes) {
+      const mark = node.marks.find((m) => m.type.name === markType);
+      if (mark) {
+        // Calculate absolute position of this text node
+        let nodeStart = $pos.start();
+        for (let i = 0; i < idx; i++) {
+          nodeStart += parent.child(i).nodeSize;
+        }
+        return {
+          changeId: mark.attrs.changeId ?? '',
+          type: markType,
+          authorId: mark.attrs.authorId ?? '',
+          authorName: mark.attrs.authorName ?? '',
+          timestamp: mark.attrs.timestamp ?? '',
+          from: nodeStart,
+          to: nodeStart + node.nodeSize,
+          text: node.text ?? '',
+        };
       }
-      return {
-        changeId: mark.attrs.changeId ?? '',
-        type: markType,
-        authorId: mark.attrs.authorId ?? '',
-        authorName: mark.attrs.authorName ?? '',
-        timestamp: mark.attrs.timestamp ?? '',
-        from: nodeStart,
-        to: nodeStart + node.nodeSize,
-        text: node.text ?? '',
-      };
     }
   }
 
@@ -231,7 +241,7 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
 
     return {
       Backspace: ({ editor }) => {
-        if (!ext.storage.enabled || ext.storage.mode === 'final') return false;
+        if (!ext.storage.enabled) return false;
 
         const { state } = editor;
         const { from, to, empty } = state.selection;
@@ -250,7 +260,7 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
       },
 
       Delete: ({ editor }) => {
-        if (!ext.storage.enabled || ext.storage.mode === 'final') return false;
+        if (!ext.storage.enabled) return false;
 
         const { state } = editor;
         const { from, to, empty } = state.selection;
@@ -470,7 +480,7 @@ export const TrackChangesExtension = Extension.create<Record<string, never>, Tra
         key: trackChangesPluginKey,
 
         appendTransaction(transactions: readonly Transaction[], oldState: EditorState, newState: EditorState) {
-          if (!extensionStorage.enabled || extensionStorage.mode === 'final') return null;
+          if (!extensionStorage.enabled) return null;
 
           const hasDocChange = transactions.some((tr) => tr.docChanged);
           const isAcceptReject = transactions.some(

@@ -12,7 +12,7 @@ public class WorkflowService
         ["godkjent_pol"] = ["sendt_til_fin", "under_arbeid", "til_avklaring", "klarert"],
         ["sendt_til_fin"] = ["under_vurdering_fin", "godkjent_pol", "klarert"],
         ["under_vurdering_fin"] = ["returnert_til_fag", "avvist_av_fin", "ferdigbehandlet_fin", "sendt_til_fin"],
-        ["returnert_til_fag"] = ["under_arbeid"],
+        ["returnert_til_fag"] = ["klarert"],
         ["avvist_av_fin"] = [],
         ["ferdigbehandlet_fin"] = ["sendt_til_regjeringen", "under_vurdering_fin"],
         ["sendt_til_regjeringen"] = ["regjeringsbehandlet", "ferdigbehandlet_fin"],
@@ -52,6 +52,7 @@ public class WorkflowService
         "klarert->godkjent_pol", "klarert->under_arbeid", "klarert->til_avklaring",
         "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
         "sendt_til_fin->godkjent_pol",
+        "returnert_til_fag->klarert",
     ];
 
     // Shared FIN leader transitions
@@ -73,6 +74,7 @@ public class WorkflowService
     {
         ["saksbehandler_fag"] = [
             "draft->under_arbeid", "under_arbeid->til_avklaring", "under_arbeid->draft",
+            "returnert_til_fag->klarert",
         ],
         ["budsjettenhet_fag"] = FagLeaderTransitions,
         ["underdirektor_fag"] = FagLeaderTransitions,
@@ -107,7 +109,7 @@ public class WorkflowService
             "godkjent_pol->sendt_til_fin", "godkjent_pol->under_arbeid", "godkjent_pol->til_avklaring", "godkjent_pol->klarert",
             "sendt_til_fin->under_vurdering_fin", "sendt_til_fin->godkjent_pol", "sendt_til_fin->klarert",
             "under_vurdering_fin->returnert_til_fag", "under_vurdering_fin->avvist_av_fin", "under_vurdering_fin->ferdigbehandlet_fin", "under_vurdering_fin->sendt_til_fin",
-            "returnert_til_fag->under_arbeid",
+            "returnert_til_fag->klarert",
             "ferdigbehandlet_fin->sendt_til_regjeringen", "ferdigbehandlet_fin->under_vurdering_fin",
             "sendt_til_regjeringen->regjeringsbehandlet", "sendt_til_regjeringen->ferdigbehandlet_fin",
         ],

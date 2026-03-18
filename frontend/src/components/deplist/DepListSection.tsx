@@ -1,8 +1,7 @@
 import type { DepartmentListSection, CaseConclusion } from '../../lib/types';
-import { headingClass, parseConfig } from './deplistUtils';
+import { headingClass } from './deplistUtils';
 import { DepListContentEditor } from './DepListContentEditor';
 import { DepListCaseGroup } from './DepListCaseGroup';
-import { DepListFigure } from './DepListFigure';
 
 interface DepListSectionProps {
   section: DepartmentListSection;
@@ -16,7 +15,6 @@ interface DepListSectionProps {
   onConclusionAdd?: (caseId: string, text: string) => void;
   onConclusionUpdate?: (conclusionId: string, text: string) => void;
   onConclusionDelete?: (conclusionId: string) => void;
-  onFigureUpload?: (sectionId: string, file: File) => void;
 }
 
 export function DepListSection({
@@ -31,11 +29,9 @@ export function DepListSection({
   onConclusionAdd,
   onConclusionUpdate,
   onConclusionDelete,
-  onFigureUpload,
 }: DepListSectionProps) {
   const sType = section.sectionType;
   const hClass = headingClass(section.headingStyle, sType);
-  const config = parseConfig(section.contentJson);
 
   return (
     <div className="dl-section" id={`section-${section.id}`}>
@@ -63,20 +59,6 @@ export function DepListSection({
           initialContent={section.contentJson}
           editable={editable}
           onUpdate={(json) => onSectionContentChange?.(section.id, json)}
-        />
-      )}
-
-      {sType === 'figure_placeholder' && (
-        <DepListFigure
-          fileUrl={config.file_url as string | undefined}
-          caption={config.caption as string | undefined}
-          widthPercent={config.width_percent as number | undefined}
-          editable={editable}
-          onUpload={(file) => onFigureUpload?.(section.id, file)}
-          onCaptionChange={(caption) => {
-            const updated = { ...config, caption };
-            onSectionContentChange?.(section.id, JSON.stringify(updated));
-          }}
         />
       )}
 
@@ -116,7 +98,6 @@ export function DepListSection({
               onConclusionAdd={onConclusionAdd}
               onConclusionUpdate={onConclusionUpdate}
               onConclusionDelete={onConclusionDelete}
-              onFigureUpload={onFigureUpload}
             />
           ))}
         </div>

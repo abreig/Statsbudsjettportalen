@@ -235,6 +235,10 @@ export interface DepartmentListCaseEntry {
   finAmount: number | null;
   govAmount: number | null;
   overrideContent: string | null;
+  finAssessment: string | null;
+  finVerbal: string | null;
+  finRConclusion: string | null;
+  proposalText: string | null;
 }
 
 export interface CaseConclusion {

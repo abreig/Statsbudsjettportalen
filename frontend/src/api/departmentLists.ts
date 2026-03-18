@@ -30,6 +30,7 @@ export async function fetchTemplate(id: string): Promise<DepartmentListTemplate>
 }
 
 export interface TemplateSectionInput {
+  id?: string | null;  // Existing section ID — sent to enable server-side upsert (preserves DepartmentListSection links)
   titleTemplate: string;
   headingStyle: string;
   sectionType: string;
@@ -220,26 +221,6 @@ export async function replaceConclusions(
 
 export async function autoPlaceCases(listId: string): Promise<{ placed: number }> {
   const { data } = await apiClient.post<{ placed: number }>(`/department-lists/${listId}/auto-place`);
-  return data;
-}
-
-// ===== Figures =====
-
-export async function uploadFigure(
-  listId: string,
-  sectionId: string,
-  file: File,
-  caption?: string,
-): Promise<{ fileUrl: string }> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('sectionId', sectionId);
-  if (caption) formData.append('caption', caption);
-  const { data } = await apiClient.post<{ fileUrl: string }>(
-    `/department-lists/${listId}/figures`,
-    formData,
-    { headers: { 'Content-Type': 'multipart/form-data' } }
-  );
   return data;
 }
 

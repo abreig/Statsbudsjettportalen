@@ -16,7 +16,8 @@ public record TemplateSectionCreateDto(
     string SectionType,
     int SortOrder,
     string? Config,
-    List<TemplateSectionCreateDto>? Children
+    List<TemplateSectionCreateDto>? Children,
+    Guid? Id = null // Optional: provided for existing sections to enable upsert
 );
 
 public record TemplateUpdateDto(
@@ -107,7 +108,11 @@ public record DepartmentListCaseEntryResponseDto(
     long? Amount,
     long? FinAmount,
     long? GovAmount,
-    string? OverrideContent
+    string? OverrideContent,
+    string? FinAssessment,
+    string? FinVerbal,
+    string? FinRConclusion,
+    string? ProposalText
 );
 
 public record DepartmentListSectionUpdateDto(

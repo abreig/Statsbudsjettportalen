@@ -13,14 +13,37 @@ FAG-FIN datautveksling med 10 P0/P1 brukerhistorier:
 
 | Komponent | Teknologi |
 |-----------|-----------|
-| Frontend | React 18 + TypeScript + Vite |
+| Frontend | React 19 + TypeScript + Vite |
 | UI-bibliotek | Aksel (NAV) |
 | State Management | Zustand + TanStack Query |
 | Styling | Tailwind CSS + Aksel CSS |
 | Backend | .NET 8 (ASP.NET Core Web API) |
 | ORM | Entity Framework Core + Npgsql |
 | Database | PostgreSQL 16 |
+| Cache | Redis 7 |
 | Autentisering | Mock JWT (Entra ID i produksjon) |
+
+## VS Code-oppgaver
+
+Alle vanlige operasjoner er tilgjengelige via **Ctrl+Shift+P → Tasks: Run Task**. Standardoppgaven (Ctrl+Shift+B) starter backend og frontend parallelt.
+
+| Oppgave | Beskrivelse |
+|---------|-------------|
+| **Oppsett: installer alle avhengigheter** | Første gangs oppsett — kjør `npm install` og `dotnet restore` parallelt |
+| **Oppsett: npm install (frontend)** | Installer npm-pakker i `frontend/` |
+| **Oppsett: dotnet restore (backend)** | Gjenopprett NuGet-pakker |
+| **Start hele appen (backend + frontend)** | Start begge dev-servere parallelt *(standard, Ctrl+Shift+B)* |
+| **Backend: dotnet run** | Kun backend på port 5000 |
+| **Frontend: npm run dev** | Kun frontend på port 5173 |
+| **Backend: dotnet watch (hot reload)** | Backend med automatisk reload ved kodeendringer |
+| **Bygg: frontend (produksjon)** | `npm run build` — produksjonsbygd frontend |
+| **Bygg: backend (produksjon)** | `dotnet build -c Release` |
+| **Lint: frontend** | Kjør ESLint på frontend-koden |
+| **Docker: start tjenester (postgres + redis)** | Start PostgreSQL og Redis i bakgrunnen med Docker Compose |
+| **Docker: stopp tjenester** | Stopp Docker-tjenestene |
+| **Docker: bygg og start hele appen** | Bygg og start hele stacken via Docker Compose |
+| **Database: nullstill (ved oppstart)** | Wipe og re-seed database ved backend-oppstart |
+| **Database: nullstill via API** | Nullstill uten omstart (backend må kjøre, logger inn som admin automatisk) |
 
 ## Komme i gang
 
@@ -31,10 +54,12 @@ Raskeste måte å komme i gang — ingen lokal installasjon nødvendig.
 1. Gå til repositoriet på GitHub
 2. Klikk **Code** → **Codespaces** → **Create codespace on main**
 3. Vent til devcontainer bygges ferdig (ca. 2-3 min). PostgreSQL, .NET 8 og Node 22 installeres automatisk.
-4. Start backend og frontend i to terminaler:
+4. Start backend og frontend via VS Code: **Ctrl+Shift+B** (eller **Ctrl+Shift+P → Tasks: Run Build Task → Start hele appen**).
+
+   Alternativt i to terminaler:
 
 ```bash
-# Terminal 1 – Backend (bruk --project så du slipper å tenke på riktig mappe)
+# Terminal 1 – Backend
 dotnet run --project backend/Statsbudsjettportalen.Api
 ```
 
@@ -45,8 +70,6 @@ npm run dev --prefix frontend
 
 5. Codespaces åpner automatisk frontend-URLen (port 5173) i nettleseren. API-kall proxies automatisk til backend via Vite.
 
-> **Tips:** Du kan også starte begge med én kommando via VS Code: **Ctrl+Shift+P** → **Tasks: Run Build Task** → velg **Start hele appen (backend + frontend)**.
-
 > **Merk:** Dersom port 5173 ikke åpnes automatisk, gå til **Ports**-panelet (nederst i VS Code), høyreklikk port 5173, velg **Open in Browser**.
 
 ### Alternativ B: Lokal utvikling
@@ -55,40 +78,49 @@ npm run dev --prefix frontend
 
 - Node.js 18+ (`node --version`)
 - .NET 8 SDK (`dotnet --version`)
-- PostgreSQL 16 (lokal installasjon eller Docker)
+- Docker Desktop
 
-#### 1. Database
+> **Merk om porter:** Prosjektet bruker PostgreSQL på port **5433** (ikke standard 5432) for å unngå konflikt med andre prosjekter du måtte ha kjørende lokalt.
 
-```bash
-# Start PostgreSQL og opprett database
-psql -U postgres -c "CREATE ROLE statsbudsjett WITH LOGIN PASSWORD 'localdev' CREATEDB SUPERUSER;"
-psql -U postgres -c "CREATE DATABASE statsbudsjett OWNER statsbudsjett;"
-```
-
-Eller med Docker:
-```bash
-docker compose up -d
-```
-
-#### 2. Backend
+#### 1. Første gangs oppsett
 
 ```bash
-cd backend/Statsbudsjettportalen.Api
-dotnet restore
-dotnet run
+# Via VS Code (anbefalt):
+#   Ctrl+Shift+P → Tasks: Run Task → Oppsett: installer alle avhengigheter
+
+# Eller manuelt:
+npm install --prefix frontend
+dotnet restore backend/Statsbudsjettportalen.Api
 ```
 
-API-dokumentasjon: http://localhost:5000/swagger
-
-#### 3. Frontend
+#### 2. Start database-tjenester
 
 ```bash
-cd frontend
-npm install
-npm run dev
+# Via VS Code:
+#   Ctrl+Shift+P → Tasks: Run Task → Docker: start tjenester (postgres + redis)
+
+# Eller manuelt (starter kun infrastruktur — ikke app-containeren):
+docker compose up -d db pgbouncer redis
 ```
 
-Applikasjonen: http://localhost:5173
+PostgreSQL er tilgjengelig på `localhost:5433`, Redis på `localhost:6379`.
+
+#### 3. Start appen
+
+```bash
+# Via VS Code (anbefalt):
+#   Ctrl+Shift+B  — starter backend og frontend parallelt
+
+# Eller to terminaler:
+dotnet run --project backend/Statsbudsjettportalen.Api   # http://localhost:5000/swagger
+npm run dev --prefix frontend                            # http://localhost:5173
+```
+
+Databasemigreringer og seed-data kjøres automatisk ved første oppstart.
+
+#### Debugging
+
+Åpne **Run and Debug** (Ctrl+Shift+D) og velg **«Backend: Start og debug»** for å starte backend med breakpoint-støtte. Krever C# DevKit-extension.
 
 ## Testbrukere
 
@@ -268,10 +300,10 @@ Legg til disse GitHub Secrets:
 
 ## Dokumentasjon
 
-- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - Prosjektoversikt
-- [POC_SCOPE.md](POC_SCOPE.md) - POC-scope og brukerhistorier
-- [TECHNICAL_STACK.md](TECHNICAL_STACK.md) - Teknologivalg og arkitektur
-- [USER_STORIES.md](USER_STORIES.md) - Brukerhistorier
-- [UX_STRATEGY.md](UX_STRATEGY.md) - UX-strategi og designtokens
-- [TEST_DATA.md](TEST_DATA.md) - Syntetisk testdata
-- [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) - Utviklingsplan
+- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - Prosjektoversikt og fasestatus
+- [USER_STORIES.md](USER_STORIES.md) - Brukerhistorier og implementeringsstatus
+- [TECHNICAL_STACK.md](TECHNICAL_STACK.md) - Teknologivalg, arkitektur og databaseskjema
+- [UX_STRATEGY.md](UX_STRATEGY.md) - UX-strategi og designsystem
+- [Statsbudsjettportalen_Fase2_Utviklingsplan.md](Statsbudsjettportalen_Fase2_Utviklingsplan.md) - Fase 2: Word-funksjonalitet (✅ fullført)
+- [Utviklingsplan_Departementsliste_v2.md](Utviklingsplan_Departementsliste_v2.md) - Fase A: Departementsliste (✅ fullført)
+- [Utviklingsplan_Ytelse_og_Skalerbarhet.md](Utviklingsplan_Ytelse_og_Skalerbarhet.md) - Fase Y: Ytelse og skalerbarhet (✅ fullført)

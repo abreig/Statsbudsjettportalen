@@ -1,13 +1,67 @@
 {
   "version": "2.0.0",
   "tasks": [
+    // ─── FØRSTE GANGS OPPSETT ────────────────────────────────────────────────
+    {
+      "label": "Oppsett: installer alle avhengigheter",
+      "dependsOn": [
+        "Oppsett: npm install (frontend)",
+        "Oppsett: dotnet restore (backend)"
+      ],
+      "dependsOrder": "parallel",
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Oppsett: npm install (frontend)",
+      "type": "shell",
+      "command": "npm install --prefix frontend",
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "setup"
+      }
+    },
+    {
+      "label": "Oppsett: dotnet restore (backend)",
+      "type": "shell",
+      "command": "dotnet restore backend/Statsbudsjettportalen.Api",
+      "group": "none",
+      "problemMatcher": ["$msCompile"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "setup"
+      }
+    },
+
+    // ─── UTVIKLING ───────────────────────────────────────────────────────────
+    {
+      "label": "Start hele appen (backend + frontend)",
+      "dependsOn": [
+        "Backend: dotnet run",
+        "Frontend: npm run dev"
+      ],
+      "dependsOrder": "parallel",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
     {
       "label": "Backend: dotnet run",
       "type": "shell",
       "command": "dotnet run --project backend/Statsbudsjettportalen.Api",
       "group": "build",
       "isBackground": true,
-      "problemMatcher": [],
+      "problemMatcher": ["$msCompile"],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated",
@@ -28,27 +82,110 @@
       }
     },
     {
-      "label": "Start hele appen (backend + frontend)",
-      "dependsOn": [
-        "Backend: dotnet run",
-        "Frontend: npm run dev"
-      ],
-      "dependsOrder": "parallel",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "problemMatcher": []
+      "label": "Backend: dotnet watch (hot reload)",
+      "type": "shell",
+      "command": "dotnet watch run --project backend/Statsbudsjettportalen.Api",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": ["$msCompile"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "dev"
+      }
+    },
+
+    // ─── BYGGING ─────────────────────────────────────────────────────────────
+    {
+      "label": "Bygg: frontend (produksjon)",
+      "type": "shell",
+      "command": "npm run build --prefix frontend",
+      "group": "build",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
     },
     {
-      "label": "Nullstill database",
+      "label": "Bygg: backend (produksjon)",
       "type": "shell",
-      "command": "RESET_DATABASE=true dotnet run --project backend/Statsbudsjettportalen.Api -- --urls=''",
+      "command": "dotnet build backend/Statsbudsjettportalen.Api -c Release",
+      "group": "build",
+      "problemMatcher": ["$msCompile"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Lint: frontend",
+      "type": "shell",
+      "command": "npm run lint --prefix frontend",
+      "group": "test",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+
+    // ─── DOCKER ──────────────────────────────────────────────────────────────
+    {
+      "label": "Docker: start tjenester (postgres + redis)",
+      "type": "shell",
+      "command": "docker compose up -d db redis",
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Docker: stopp tjenester",
+      "type": "shell",
+      "command": "docker compose down",
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Docker: bygg og start hele appen",
+      "type": "shell",
+      "command": "docker compose up --build",
       "group": "none",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always",
         "panel": "dedicated"
+      }
+    },
+
+    // ─── DATABASE ────────────────────────────────────────────────────────────
+    {
+      "label": "Database: nullstill (ved oppstart)",
+      "type": "shell",
+      "command": "RESET_DATABASE=true dotnet run --project backend/Statsbudsjettportalen.Api",
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated"
+      }
+    },
+    {
+      "label": "Database: nullstill via API (backend må kjøre)",
+      "type": "shell",
+      "command": "TOKEN=$(curl -s -X POST http://localhost:5000/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"admin@test.no\"}' | python3 -c \"import sys,json; print(json.load(sys.stdin)['token'])\") && curl -s -X POST http://localhost:5000/api/admin/reset-database -H \"Authorization: Bearer $TOKEN\" && echo 'Database nullstilt'",
+      "group": "none",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
       }
     }
   ]

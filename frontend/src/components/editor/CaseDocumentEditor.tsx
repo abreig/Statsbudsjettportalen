@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import type { JSONContent } from '@tiptap/core';
+import { FocusModeOverlay } from './FocusModeOverlay';
 
 import { CaseDocument, CaseSection, SectionTitle, SectionContent } from './CaseDocumentSchema';
 import { InsertionMark } from './marks/InsertionMark';
@@ -28,6 +29,10 @@ interface CaseDocumentEditorProps {
   onSetTrackMode?: (mode: TrackMode) => void;
   currentUser?: { id: string; name: string };
   onEditorReady?: (editor: import('@tiptap/react').Editor) => void;
+  focusMode?: boolean;
+  onToggleFocusMode?: () => void;
+  onSave?: () => void;
+  saving?: boolean;
 }
 
 export function CaseDocumentEditor({
@@ -41,6 +46,10 @@ export function CaseDocumentEditor({
   onSetTrackMode,
   currentUser,
   onEditorReady,
+  focusMode = false,
+  onToggleFocusMode,
+  onSave,
+  saving = false,
 }: CaseDocumentEditorProps) {
   const onUpdateRef = useRef(onUpdate);
   onUpdateRef.current = onUpdate;
@@ -133,6 +142,8 @@ export function CaseDocumentEditor({
 
   // Update content when initialContent changes (e.g., after server reload)
   const contentKey = useRef<string>('');
+  const trackChangesEnabledRef = useRef(trackChangesEnabled);
+  trackChangesEnabledRef.current = trackChangesEnabled;
   useEffect(() => {
     if (!editor) return;
     const newKey = JSON.stringify(initialContent);
@@ -141,28 +152,45 @@ export function CaseDocumentEditor({
       // Only update if the editor content differs (avoid cursor jumps)
       const currentJson = JSON.stringify(editor.getJSON());
       if (currentJson !== newKey) {
-        editor.commands.setContent(initialContent);
+        // Temporarily disable tracking so setContent doesn't mark the entire
+        // document as an "insertion" via appendTransaction
+        editor.commands.setTrackingEnabled(false);
+        editor.commands.setContent(initialContent, false);
+        if (trackChangesEnabledRef.current) {
+          editor.commands.setTrackingEnabled(true);
+        }
       }
     }
   }, [editor, initialContent]);
 
-  // CSS class for track mode
-  const modeClass = trackChangesEnabled ? `track-mode-${trackMode}` : '';
+  // CSS class for track mode — applied regardless of whether tracking is on,
+  // so that existing marks in the document can be shown/hidden via mode.
+  const modeClass = `track-mode-${trackMode}`;
 
   return (
-    <div className={`case-document-wrapper rounded-lg border border-gray-200 bg-white ${modeClass}`}>
-      {editable && (
-        <EditorToolbar
-          editor={editor}
-          trackingEnabled={trackChangesEnabled}
-          trackMode={trackMode}
-          onToggleTracking={onToggleTracking}
-          onSetTrackMode={onSetTrackMode}
-        />
-      )}
-      <div className="px-8 py-6">
-        <EditorContent editor={editor} />
+    <FocusModeOverlay
+      active={focusMode}
+      onExit={onToggleFocusMode ?? (() => {})}
+      onSave={onSave}
+      saving={saving}
+      maxWidth="860px"
+    >
+      <div className={`case-document-wrapper rounded-lg border border-gray-200 bg-white ${modeClass}`}>
+        {editable && (
+          <EditorToolbar
+            editor={editor}
+            trackingEnabled={trackChangesEnabled}
+            trackMode={trackMode}
+            onToggleTracking={onToggleTracking}
+            onSetTrackMode={onSetTrackMode}
+            focusMode={focusMode}
+            onToggleFocusMode={onToggleFocusMode}
+          />
+        )}
+        <div className="px-8 py-6">
+          <EditorContent editor={editor} />
+        </div>
       </div>
-    </div>
+    </FocusModeOverlay>
   );
 }

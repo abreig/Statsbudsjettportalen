@@ -2,6 +2,8 @@
 
 Brukerhistoriene er organisert etter fase og brukergruppe. Hver historie følger formatet: *Som [rolle], ønsker jeg [handling], slik at [verdi].*
 
+**Status per mars 2026:** POC, Fase 1, Fase 2, Fase Y og Fase A er fullført. US-01 til US-33 er implementert.
+
 ## Brukerroller
 
 | Rolle | Beskrivelse |
@@ -15,7 +17,7 @@ Brukerhistoriene er organisert etter fase og brukergruppe. Hver historie følger
 | **Arkivansvarlig** | Eksportere versjonslogger og sette arkivpunkter. |
 | **Administrator** | Administrere budsjettrunder, brukere, maler og systeminnstillinger. |
 
-## POC og Fase 1 - Grunnfunksjonalitet
+## POC og Fase 1 - Grunnfunksjonalitet ✅ Fullført
 
 ### Fagdepartementene (FAG)
 
@@ -218,7 +220,7 @@ Brukerhistoriene er organisert etter fase og brukergruppe. Hver historie følger
 
 ---
 
-## Fase 2 - Word-funksjonalitet
+## Fase 2 - Word-funksjonalitet ✅ Fullført
 
 #### US-17: Samtidig redigering
 
@@ -259,30 +261,32 @@ Brukerhistoriene er organisert etter fase og brukergruppe. Hver historie følger
 
 ---
 
-## MoSCoW-prioritering for Fase 1
+## Implementeringsstatus (per mars 2026)
 
-| Prioritet | Funksjonalitet | Ref. |
-|-----------|---------------|------|
-| **Must have** | Opprette sak med forhåndsdefinerte felt per sakstype | US-02 |
-| **Must have** | Saksoversikt med filtrering og søk | US-03 |
-| **Must have** | Detaljvisning og redigering av saker | US-04 |
-| **Must have** | Saksflyt: sende til avklaring, godkjenne, returnere | US-05 |
-| **Must have** | Sende samlet innspill til FIN | US-06 |
-| **Must have** | FINs vurdering og forslag til verbalkonklusjon | US-10 |
-| **Must have** | Versjonering av alle endringer | US-16 |
-| **Must have** | Velge budsjettrunde | US-01 |
-| **Should have** | Eksport til Word og Excel | US-07 |
-| **Should have** | Generere departementsliste fra mal | US-15 |
-| **Should have** | Spørsmål og svar mellom FIN og FAG | US-12 |
-| **Should have** | Returnere saker til FAG med begrunnelse | US-11 |
-| **Should have** | Intern avklaring i FIN | US-13 |
-| **Could have** | Vedlegg til saker | US-08 |
-| **Could have** | Opprette egne saker i FIN | US-14 |
-| **Could have** | Arkivpunkter med eksport | US-16 |
-| **Won't have** | Samtidig redigering | US-17 (Fase 2) |
-| **Won't have** | Spor endringer i tekst | US-18 (Fase 2) |
-| **Won't have** | Kommentarer på tekstpassasjer | US-19 (Fase 2) |
-| **Won't have** | Avstemming FIA Budsys / BudMod | US-22/23 (Fase 2) |
+| Funksjonalitet | Ref. | Status |
+|---------------|------|--------|
+| Velge budsjettrunde | US-01 | ✅ |
+| Opprette sak med forhåndsdefinerte felt per sakstype | US-02 | ✅ |
+| Saksoversikt med filtrering og søk | US-03 | ✅ |
+| Detaljvisning og redigering av saker | US-04 | ✅ |
+| Saksflyt: sende til avklaring, godkjenne, returnere | US-05 | ✅ |
+| Sende samlet innspill til FIN | US-06 | ✅ |
+| Eksport til Word | US-07 | ✅ |
+| Vedlegg til saker | US-08 | ✅ |
+| Se innspill fra fagdepartementene | US-09 | ✅ |
+| FINs vurdering og forslag til verbalkonklusjon | US-10 | ✅ |
+| Returnere saker til FAG med begrunnelse | US-11 | ✅ |
+| Spørsmål og svar mellom FIN og FAG | US-12 | ✅ |
+| Intern avklaring i FIN | US-13 | ✅ |
+| Opprette egne saker i FIN | US-14 | ✅ |
+| Generere departementsliste fra mal | US-15 | ✅ |
+| Versjonering og versjonslogg | US-16 | ✅ |
+| Samtidig redigering | US-17 | 🔲 Planlagt (Fase 3) |
+| Spor endringer i tekst | US-18 | ✅ |
+| Kommentarer på tekstpassasjer | US-19 | ✅ |
+| Retur med Word-funksjonalitet | US-24 | ✅ |
+| WYSIWYG departementsliste | US-25–33 | ✅ |
+| Avstemming FIA Budsys / BudMod | US-22/23 | 🔲 Planlagt (Fase 3) |
 
 ## JTBD til brukerhistorier (sporbarhet)
 

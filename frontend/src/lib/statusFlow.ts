@@ -68,7 +68,7 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
   godkjent_pol: ['sendt_til_fin', 'under_arbeid', 'til_avklaring', 'klarert'],
   sendt_til_fin: ['under_vurdering_fin', 'godkjent_pol', 'klarert'],
   under_vurdering_fin: ['returnert_til_fag', 'avvist_av_fin', 'ferdigbehandlet_fin', 'sendt_til_fin'],
-  returnert_til_fag: ['under_arbeid'],
+  returnert_til_fag: ['klarert'],
   avvist_av_fin: [],
   ferdigbehandlet_fin: ['sendt_til_regjeringen', 'under_vurdering_fin'],
   sendt_til_regjeringen: ['regjeringsbehandlet', 'ferdigbehandlet_fin'],
@@ -81,6 +81,7 @@ const FAG_LEADER_TRANSITIONS = new Set([
   'klarert->godkjent_pol', 'klarert->under_arbeid', 'klarert->til_avklaring',
   'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
   'sendt_til_fin->godkjent_pol',
+  'returnert_til_fag->klarert',
 ]);
 
 const FIN_LEADER_TRANSITIONS = new Set([
@@ -94,6 +95,7 @@ const FIN_LEADER_TRANSITIONS = new Set([
 const ROLE_TRANSITIONS: Record<string, Set<string>> = {
   saksbehandler_fag: new Set([
     'draft->under_arbeid', 'under_arbeid->til_avklaring', 'under_arbeid->draft',
+    'returnert_til_fag->klarert',
   ]),
   budsjettenhet_fag: FAG_LEADER_TRANSITIONS,
   underdirektor_fag: FAG_LEADER_TRANSITIONS,
@@ -122,7 +124,7 @@ const ROLE_TRANSITIONS: Record<string, Set<string>> = {
     'godkjent_pol->sendt_til_fin', 'godkjent_pol->under_arbeid', 'godkjent_pol->til_avklaring', 'godkjent_pol->klarert',
     'sendt_til_fin->under_vurdering_fin', 'sendt_til_fin->godkjent_pol', 'sendt_til_fin->klarert',
     'under_vurdering_fin->returnert_til_fag', 'under_vurdering_fin->avvist_av_fin', 'under_vurdering_fin->ferdigbehandlet_fin', 'under_vurdering_fin->sendt_til_fin',
-    'returnert_til_fag->under_arbeid',
+    'returnert_til_fag->klarert',
     'ferdigbehandlet_fin->sendt_til_regjeringen', 'ferdigbehandlet_fin->under_vurdering_fin',
     'sendt_til_regjeringen->regjeringsbehandlet', 'sendt_til_regjeringen->ferdigbehandlet_fin',
   ]),
