@@ -11,8 +11,8 @@ import {
   Tag,
   ConfirmationPanel,
 } from '@navikt/ds-react';
-import { Plus, FileText } from 'lucide-react';
-import { useDepartmentLists, useCreateDepartmentList, useTemplates } from '../hooks/useDepartmentLists.ts';
+import { Plus, FileText, Trash2 } from 'lucide-react';
+import { useDepartmentLists, useCreateDepartmentList, useDeleteDepartmentList, useTemplates } from '../hooks/useDepartmentLists.ts';
 import { useDepartments } from '../hooks/useDepartments.ts';
 import { useAuthStore } from '../stores/authStore.ts';
 import { useUiStore } from '../stores/uiStore.ts';
@@ -49,11 +49,13 @@ export function DepartmentListsPage() {
   const { data: departments } = useDepartments();
   const createMut = useCreateDepartmentList();
 
+  const deleteMut = useDeleteDepartmentList();
   const [showCreate, setShowCreate] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedDept, setSelectedDept] = useState(isFin ? '' : (user?.departmentId ?? ''));
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleCreate = () => {
     const deptId = isFin ? selectedDept : (user?.departmentId ?? '');
@@ -253,41 +255,84 @@ export function DepartmentListsPage() {
             </Table.Header>
             <Table.Body>
               {lists.map((dl) => (
-                <Table.Row
-                  key={dl.id}
-                  className="cursor-pointer hover:bg-gray-50"
-                  onClick={() => navigate(`/department-lists/${dl.id}`)}
-                >
-                  <Table.DataCell className="font-medium text-[var(--color-primary)]">
-                    {dl.templateName}
-                  </Table.DataCell>
-                  <Table.DataCell>
-                    {dl.departmentCode} — {dl.departmentName}
-                  </Table.DataCell>
-                  <Table.DataCell>
-                    <Tag
-                      variant={STATUS_VARIANTS[dl.status] ?? 'neutral'}
-                      size="xsmall"
-                    >
-                      {STATUS_LABELS[dl.status] ?? dl.status}
-                    </Tag>
-                  </Table.DataCell>
-                  <Table.DataCell>{formatDate(dl.createdAt)}</Table.DataCell>
-                  <Table.DataCell>{formatDate(dl.updatedAt)}</Table.DataCell>
-                  <Table.DataCell>
-                    <Button
-                      size="xsmall"
-                      variant="tertiary"
-                      icon={<FileText size={14} />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/department-lists/${dl.id}`);
-                      }}
-                    >
-                      Åpne
-                    </Button>
-                  </Table.DataCell>
-                </Table.Row>
+                <>
+                  <Table.Row
+                    key={dl.id}
+                    className="cursor-pointer hover:bg-gray-50"
+                    onClick={() => navigate(`/department-lists/${dl.id}`)}
+                  >
+                    <Table.DataCell className="font-medium text-[var(--color-primary)]">
+                      {dl.templateName}
+                    </Table.DataCell>
+                    <Table.DataCell>
+                      {dl.departmentCode} — {dl.departmentName}
+                    </Table.DataCell>
+                    <Table.DataCell>
+                      <Tag
+                        variant={STATUS_VARIANTS[dl.status] ?? 'neutral'}
+                        size="xsmall"
+                      >
+                        {STATUS_LABELS[dl.status] ?? dl.status}
+                      </Tag>
+                    </Table.DataCell>
+                    <Table.DataCell>{formatDate(dl.createdAt)}</Table.DataCell>
+                    <Table.DataCell>{formatDate(dl.updatedAt)}</Table.DataCell>
+                    <Table.DataCell>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          size="xsmall"
+                          variant="tertiary"
+                          icon={<FileText size={14} />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/department-lists/${dl.id}`);
+                          }}
+                        >
+                          Åpne
+                        </Button>
+                        {canCreate && (
+                          <Button
+                            size="xsmall"
+                            variant="tertiary"
+                            icon={<Trash2 size={14} />}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmDeleteId(dl.id);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </Table.DataCell>
+                  </Table.Row>
+                  {confirmDeleteId === dl.id && (
+                    <Table.Row key={`${dl.id}-confirm`}>
+                      <Table.DataCell colSpan={6}>
+                        <div className="flex items-center gap-3 py-1">
+                          <span className="text-sm text-gray-700">
+                            Slette «{dl.templateName}» for {dl.departmentCode}? Dette kan ikke angres.
+                          </span>
+                          <Button
+                            size="xsmall"
+                            variant="danger"
+                            loading={deleteMut.isPending}
+                            onClick={() => {
+                              deleteMut.mutate(dl.id, { onSuccess: () => setConfirmDeleteId(null) });
+                            }}
+                          >
+                            Slett
+                          </Button>
+                          <Button
+                            size="xsmall"
+                            variant="tertiary"
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Avbryt
+                          </Button>
+                        </div>
+                      </Table.DataCell>
+                    </Table.Row>
+                  )}
+                </>
               ))}
             </Table.Body>
           </Table>

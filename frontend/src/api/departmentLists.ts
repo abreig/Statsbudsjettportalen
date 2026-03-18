@@ -141,6 +141,10 @@ export async function createDepartmentList(payload: DepartmentListCreatePayload)
   return data;
 }
 
+export async function deleteDepartmentList(id: string): Promise<void> {
+  await apiClient.delete(`/department-lists/${id}`);
+}
+
 export async function updateDepartmentListStatus(id: string, status: string): Promise<DepartmentList> {
   const { data } = await apiClient.put<DepartmentList>(`/department-lists/${id}/status`, { status });
   return data;

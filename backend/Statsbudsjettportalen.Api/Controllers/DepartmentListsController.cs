@@ -376,6 +376,17 @@ public class DepartmentListsController : ControllerBase
 
     // ===== Word Export =====
 
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        var dl = await _db.DepartmentLists.FindAsync(id);
+        if (dl == null) return NotFound();
+
+        _db.DepartmentLists.Remove(dl);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
     [HttpGet("{listId}/export/word")]
     public async Task<IActionResult> ExportWord(Guid listId)
     {

@@ -9,6 +9,7 @@ import {
   fetchDepartmentLists,
   fetchDepartmentList,
   createDepartmentList,
+  deleteDepartmentList,
   fetchConclusions,
   createConclusion,
   updateConclusion,
@@ -95,6 +96,16 @@ export function useCreateDepartmentList() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: DepartmentListCreatePayload) => createDepartmentList(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['department-lists'] });
+    },
+  });
+}
+
+export function useDeleteDepartmentList() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteDepartmentList(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['department-lists'] });
     },

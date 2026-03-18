@@ -35,7 +35,19 @@ public static class SeedData
     ];
 
     private static readonly string[] CaseTypes = ["satsingsforslag", "budsjettiltak", "teknisk_justering", "andre_saker"];
-    private static readonly string[] Statuses = ["draft", "under_arbeid", "til_avklaring", "klarert", "godkjent_pol", "sendt_til_fin", "under_vurdering_fin", "ferdigbehandlet_fin", "sendt_til_regjeringen", "returnert_til_fag"];
+
+    // Status distribution for AUG round (30 cases per dept):
+    // 20% klarert, 20% godkjent_pol, 30% sendt_til_fin, 20% under_vurdering_fin, 10% ferdigbehandlet_fin
+    private static readonly string[] AugStatuses =
+    [
+        "klarert","klarert","klarert","klarert","klarert","klarert",                              // 0–5  (20%)
+        "godkjent_pol","godkjent_pol","godkjent_pol","godkjent_pol","godkjent_pol","godkjent_pol",// 6–11 (20%)
+        "sendt_til_fin","sendt_til_fin","sendt_til_fin","sendt_til_fin","sendt_til_fin",
+        "sendt_til_fin","sendt_til_fin","sendt_til_fin","sendt_til_fin",                          // 12–20 (30%)
+        "under_vurdering_fin","under_vurdering_fin","under_vurdering_fin",
+        "under_vurdering_fin","under_vurdering_fin","under_vurdering_fin",                        // 21–26 (20%)
+        "ferdigbehandlet_fin","ferdigbehandlet_fin","ferdigbehandlet_fin",                        // 27–29 (10%)
+    ];
 
     // Division names per department code
     private static readonly Dictionary<string, string[]> DeptDivisions = new()
@@ -91,6 +103,109 @@ public static class SeedData
         ["UD"]  = ["utviklingshjelp", "humanitær bistand", "FN-bidrag", "EØS-midler", "utenrikstjenesten", "eksportkontroll", "freds- og forsoningsarbeid", "nordområdepolitikk"],
         ["FIN-FAG"] = ["skatteøkonomi", "makroøkonomisk modellering", "statsregnskapet", "pengepolitikk", "finansmarkedsregulering", "offentlige innkjøp", "økonomiske prognoser", "statsgjeld"],
     };
+
+    // ── Rich text content variants ───────────────────────────────
+    private static readonly string[] ProposalTextVariants =
+    [
+        "Departementet foreslår å øke bevilgningen med {0} mill. kroner for budsjettåret 2027. Styrkingen er en del av regjeringens satsing innen sektoren og vil bidra til å nå de overordnede målene i langtidsplanen for perioden 2024–2027. Tiltaket er prioritert av departementet og anses som avgjørende for å opprettholde og videreutvikle kapasiteten.",
+        "Det foreslås bevilget {0} mill. kroner til tiltaket. Midlene vil styrke kapasiteten og legge til rette for nødvendig omstilling i tråd med regjeringens politiske plattform. Departementet har i samråd med berørte etater vurdert behovet som reelt og presserende.",
+        "Departementet fremmer forslag om å styrke sektoren med {0} mill. kroner. Bakgrunnen er en betydelig økning i aktivitetsnivå og etterspørsel de siste tre årene, som krever at ressursene justeres tilsvarende. Tiltaket er nøye utredet og vurdert som samfunnsøkonomisk lønnsomt.",
+        "Forslaget innebærer en bevilgning på {0} mill. kroner for 2027. Midlene går til å opprettholde og forbedre kvaliteten på offentlige tjenester innen dette fagområdet. Departementet har gjennomgått eksisterende kapasitet og konkluderer med at ytterligere ressurser er påkrevd.",
+        "Det foreslås økt bevilgning med {0} mill. kroner. Tiltaket er en oppfølging av Stortingets anmodningsvedtak og regjeringens forpliktelser i budsjetterklæringen. Gjennomføringen koordineres med relevante underliggende etater.",
+        "Departementet anbefaler en styrking på {0} mill. kroner. Satsingen er forankret i regjeringens strategi og ivaretar behovet for økt innsats innen et prioritert politikkområde. Ressursene vil gå til styrket drift og målrettede tiltak i tråd med Stortingets prioriteringer.",
+    ];
+
+    private static readonly string[] JustificationVariants =
+    [
+        "Behovet for styrking er grundig utredet i departementets fagrapport. Analysen viser at dagens bevilgningsnivå ikke er tilstrekkelig for å møte det økte aktivitetsbehovet. Antall brukere av ordningen har økt med 18 prosent de siste tre årene, og uten styrking vil kapasitetsproblemer forverres ytterligere. Tiltaket er i tråd med prioriteringene i regjeringsplattformen.",
+        "Begrunnelsen bygger på en helhetlig gjennomgang av sektoren. Eksisterende ressurser er ikke tilstrekkelige til å håndtere veksten i etterspørsel og de økte kravene til kvalitet og kompetanse. Styrkingen er kostnadseffektiv sammenlignet med alternativet om å la problemene hope seg opp.",
+        "Departementet har gjennomført en bred konsultasjonsprosess med fagmiljøer, brukerorganisasjoner og underliggende etater. Det er bred enighet om at ressursnivået ikke er tilpasset dagens behov. Tiltaket er støttet av faglige råd og er i tråd med internasjonale anbefalinger på området.",
+        "Tiltaket er begrunnet i dokumenterte behov og reell kapasitetsmangel. Interne analyser viser et gap mellom oppdrag og ressurser som påvirker leveransekvaliteten negativt. Styrking vil gi direkte gevinster i form av bedre tjenester og økt måloppnåelse.",
+        "Gjeldende bevilgning er ikke justert for prisvekst og aktivitetsøkning over en lengre periode. Den reelle kjøpekraften har falt med om lag 12 prosent siden siste større gjennomgang. Tiltaket retter opp denne skjevheten og bringer ressursnivået i tråd med faktiske behov.",
+        "Styrkingen er motivert av Riksrevisjonens merknader og anbefalinger fra den siste forvaltningsrevisjonen av sektoren. Departementet har fulgt opp disse anbefalingene og konkluderer med at økte midler er det mest effektive virkemiddelet for å lukke avvikene.",
+    ];
+
+    private static readonly string[] VerbalConclusionVariants =
+    [
+        "Regjeringen øker bevilgningen med {0} mill. kroner. Styrkingen vil bidra til bedre kapasitet og kvalitet i tjenestene innen sektoren, og er i tråd med regjeringens ambisjoner for budsjettet.",
+        "Det bevilges {0} mill. kroner til formålet. Midlene vil styrke arbeidet og legge til rette for at departementet kan nå sine sektormål i planperioden.",
+        "Bevilgningen økes med {0} mill. kroner som ledd i en målrettet satsing. Tiltaket er en oppfølging av vedtatte mål og vil bidra til merkbar bedring i tjenesteleveransen.",
+        "Regjeringen foreslår å bevilge {0} mill. kroner. Satsingen er begrunnet i dokumenterte behov og vil gi positive effekter for sluttbrukerne innen budsjettåret.",
+    ];
+
+    private static readonly string[] SocioeconomicVariants =
+    [
+        "Tiltaket er vurdert i henhold til kravene i utredningsinstruksen. Nytten er anslått å overstige kostnadene over en tiårsperiode. Det er ikke gjennomført full konseptvalgutredning, da tiltaket ikke overskrider grenseverdiene i statlig prosjektmodell.",
+        "En kvalitativ kost-nytte-vurdering tilsier at tiltaket er samfunnsøkonomisk lønnsomt. Positiv effekter oppnås gjennom reduserte kostnader for brukerne, økt verdiskaping og unngåtte fremtidige kostnader ved passivitet.",
+        "Samfunnsøkonomisk analyse er gjennomført i tråd med Finansdepartementets veileder. Tiltaket har en beregnet netto nåverdi på om lag {0} mill. kroner over analyseperioden, med klare positive effekter for berørte grupper.",
+        "Tiltaket ble vurdert opp mot nullalternativet. Beregningene viser at kostnadene ved å ikke gjennomføre tiltaket over tid er betydelig høyere enn investeringskostnaden. Analysen er dokumentert i vedlegg til budsjettet.",
+    ];
+
+    private static readonly string[] GoalIndicatorVariants =
+    [
+        "Mål: Økt kapasitet og kvalitet i tjenestene. Indikatorer: (1) Andel henvendelser behandlet innen fristen (mål: 90 %), (2) Brukertilfredshet (mål: over 80 % fornøyde), (3) Saksbehandlingstid (mål: redusert med 20 %).",
+        "Resultatmål: Styrket kapasitet og bedre måloppnåelse. Målindikatorer: (1) Antall mottakere av tjenesten (øke med 15 % innen 2028), (2) Kvalitetsindeks (mål: forbedret med 10 poeng), (3) Ventetid (mål: redusert til under 30 dager).",
+        "Mål: Forbedret tjenesteleveranse og økt brukernytte. Indikatorer: (1) Dekningsgrad for målgruppen (mål: 85 %), (2) Effektivitetsmåling (mål: 10 % effektiviseringsgevinst), (3) Antall avvik (mål: redusert med 25 %).",
+    ];
+
+    private static readonly string[] BenefitPlanVariants =
+    [
+        "Gevinster realiseres løpende fra 2027. Ansvarlig etat rapporterer om måloppnåelse i de årlige tildelingsbrevene. Evalueringsrapport legges frem innen 31. desember 2028.",
+        "Gevinstene vil komme gradvis gjennom perioden 2027–2029. Departementet vil følge opp etaten gjennom etatsstyringen og kreve rapportering på definerte indikatorer i virksomhetsplanen.",
+        "Forventet gevinst er dokumentert i vedlagt gevinstplan. Realisering skjer gjennom tydelig ansvarsdeling mellom etatsledelse og fagavdelinger, med kvartalsvise statusmøter og egenvurdering.",
+    ];
+
+    private static readonly string[] FinAssessmentVariants =
+    [
+        "FIN vurderer forslaget som godt begrunnet og finner at de faglige argumentene er solide. Tiltakets omfang er rimelig sett i lys av dokumenterte behov. FIN anbefaler at forslaget innvilges med den omsøkte rammen.",
+        "Finansdepartementet har gått gjennom saksdokumentene og mener at begrunnelsen er tilfredsstillende. FIN vil likevel påpeke at prioritering av midler bør ses i sammenheng med øvrige tiltak i sektoren. Tilrådingen er en delvis innvilgelse på 70 prosent av omsøkt beløp.",
+        "FIN stiller seg positiv til forslaget, men ber om ytterligere dokumentasjon på kostnadsanslaget. Under forutsetning av at denne fremlegges, anbefaler FIN å stille midlene til disposisjon i 2027-budsjettet.",
+        "Departementet har nøye vurdert forslaget og konstaterer at behovene er godt dokumentert. FINs tilrådning er at bevilgningen økes i tråd med forslaget. Midlene forutsettes benyttet til de angitte formålene.",
+        "FIN har gjennomgått forslaget og noterer at det bygger på solide faglige vurderinger. Det er likevel noe usikkerhet knyttet til kostnadsanslagene for år 2 og 3. FIN anbefaler bevilgning for 2027, med evaluering innen utgangen av 2028.",
+    ];
+
+    private static readonly string[] FinVerbalVariants =
+    [
+        "FIN tilrår at bevilgningen økes. Styrkingen er godt begrunnet og i tråd med regjeringens prioriteringer.",
+        "Finansdepartementet tilrår bevilgning i tråd med departementets forslag. Tiltaket støtter opp om sektormålene og er innenfor budsjettrammene.",
+        "FIN anbefaler å gi tilslutning til forslaget. Ressursene vil bidra til nødvendig kapasitetsøkning og styrket måloppnåelse.",
+    ];
+
+    private static readonly string[] FinRConclusionVariants =
+    [
+        "FIN tilrår at det bevilges midler til tiltaket i 2027-budsjettet, og at departementet gis fullmakt til å fordele midlene i tråd med inngåtte avtaler.",
+        "Finansdepartementet gir sin tilslutning til forslaget. Det tas forbehold om at den endelige bevilgning fastsettes i statsbudsjettet.",
+        "FIN anbefaler å innvilge forslaget med de angitte vilkår. Departementet bes rapportere om måloppnåelse i neste budsjettrunde.",
+    ];
+
+    // Q&A pairs (question index → [question, answer])
+    private static readonly (string Q, string A)[] QaVariants =
+    [
+        (
+            "Kan departementet redegjøre nærmere for det faktiske ressursbehovet og hva som ligger til grunn for kostnadsanslaget på det omsøkte beløpet?",
+            "Kostnadsanslaget er basert på grundige beregninger gjennomført av departementet i samarbeid med relevante etater. Anslaget inkluderer lønnskostnader, driftskostnader og investeringer i nødvendig infrastruktur. Vi viser til vedlagte beregningsgrunnlag og faglig rapport som underbygger tallene."
+        ),
+        (
+            "Har departementet vurdert alternative tilnærminger, og er det mulig å realisere tiltaket med lavere ressursbruk?",
+            "Ja, departementet har vurdert tre alternative modeller. Den valgte løsningen er den mest kostnadseffektive etter en helhetlig vurdering. Billigere alternativer ble forkastet fordi de ikke ville gi tilstrekkelig effekt eller medføre uakseptabel risiko for måloppnåelse."
+        ),
+        (
+            "Hva er risikoen ved ikke å gjennomføre tiltaket, og kan departementet kvantifisere konsekvensene?",
+            "Uten styrking vil kapasiteten falle under kritisk nivå innen 2028. Konsekvensene er konkret anslått til økte utgifter på sikt gjennom opphopning av restanser, potensielle erstatningskrav og lavere brukertilfredshet. Departementet anslår at alternativkostnaden over fem år er omlag 40 % høyere enn investeringen i tiltaket."
+        ),
+        (
+            "Kan departementet klargjøre hvordan tiltaket forholder seg til øvrige prioriteringer innen sektoren, og er det vurdert opp mot andre satsingsforslag?",
+            "Tiltaket er vurdert i en porteføljesammenheng og er prioritert høyest av fagavdelingen grunnet dokumentert behov og høy samfunnsnytte. Det er ikke motstridende interesser med øvrige forslag – disse adresserer ulike deler av sektoren og kan gjennomføres parallelt uten ressurskonflikter."
+        ),
+        (
+            "Hvilke milepæler og leveranser kan departementet forplikte seg til dersom tiltaket innvilges, og på hvilken tidslinje?",
+            "Departementet kan levere følgende milepæler: Q1 2027: Etablering av styringsgruppe og detaljert gjennomføringsplan. Q2 2027: Oppstart av tiltak. Q4 2027: Rapportering på første halvårs resultater. Full effekt forventes innen utgangen av 2028. Vi forplikter oss til å rapportere kvartalsvis til FIN."
+        ),
+        (
+            "Er det dokumentert at underliggende etater har nødvendig kapasitet til å ta imot og forvalte de økte midlene på en god måte?",
+            "Departementet har gjennomført en kapasitetsvurdering av de berørte etatene. Konklusjonen er at etatene har tilstrekkelig styringskapasitet, men vil ha behov for styrket bemanning ved en større bevilgning. Det er lagt inn midler til økt administrativ kapasitet i anslaget for å sikre god forvaltning av ressursene."
+        ),
+    ];
 
     // ── FIN section structure ───────────────────────────────────
     private record FinSectionDef(string Section, string[] DeptCodes,
@@ -175,9 +290,35 @@ public static class SeedData
 
     private static readonly string[] FagDeptCodes = ["AID", "BFD", "DFD", "ED", "FD", "HOD", "JD", "KLD", "KDD", "KUD", "KD", "LMD", "NFD", "SD", "UD", "FIN-FAG"];
 
+    // Helper to build a minimal TipTap doc JSON for DepartmentListSection content
+    private static string MakeTipTapDoc(params string[] paragraphs) =>
+        JsonSerializer.Serialize(new
+        {
+            type = "doc",
+            content = paragraphs.Select(p => new
+            {
+                type = "paragraph",
+                content = new[] { new { type = "text", text = p } }
+            }).ToArray()
+        });
+
+    private static string Pick(string[] arr, int seed) => arr[((seed % arr.Length) + arr.Length) % arr.Length];
+
     /// <summary>Drops all data and re-seeds from scratch.</summary>
     public static async Task ResetAndReseedAsync(AppDbContext db)
     {
+        // Reset the section counter so IDs are deterministic across resets
+        _sectionCounter = 0;
+
+        // Delete in dependency order (children first)
+        db.DepartmentListCaseEntries.RemoveRange(db.DepartmentListCaseEntries);
+        db.DepartmentListFigures.RemoveRange(db.DepartmentListFigures);
+        db.DepartmentListSections.RemoveRange(db.DepartmentListSections);
+        db.DepartmentLists.RemoveRange(db.DepartmentLists);
+        db.DepartmentListTemplateSections.RemoveRange(db.DepartmentListTemplateSections);
+        db.DepartmentListTemplates.RemoveRange(db.DepartmentListTemplates);
+        // Break the Case ↔ CaseContent circular FK (Cases.LatestContentId → CaseContents)
+        await db.Database.ExecuteSqlRawAsync("UPDATE \"Cases\" SET \"LatestContentId\" = NULL");
         db.RoundFieldOverrides.RemoveRange(db.RoundFieldOverrides);
         db.CaseOpinions.RemoveRange(db.CaseOpinions);
         db.Attachments.RemoveRange(db.Attachments);
@@ -296,6 +437,9 @@ public static class SeedData
             });
         }
 
+        // Build FIN saksbehandler→dept mapping as we create users
+        var finSaksbehandlerByDept = new Dictionary<string, Guid>();
+
         // ── FIN users ──────────────────────────────────
         foreach (var sec in FinSectionDefs)
         {
@@ -341,7 +485,11 @@ public static class SeedData
                     Division = "Budsjettavdelingen", Section = sec.Section,
                 });
                 foreach (var dc in sb.Depts)
+                {
                     AddAssignment(sbId, dc, dc == sb.Depts[0]);
+                    if (!finSaksbehandlerByDept.ContainsKey(dc))
+                        finSaksbehandlerByDept[dc] = sbId;
+                }
             }
         }
 
@@ -382,6 +530,9 @@ public static class SeedData
         });
 
         // ── FAG users (6 per department) ──────────────────
+        // Map: deptCode → [fagId, budsjettId]
+        var fagUserByDept = new Dictionary<string, (Guid FagId, Guid BudsjettId)>();
+
         for (var dIdx = 0; dIdx < FagDeptCodes.Length; dIdx++)
         {
             var deptCode = FagDeptCodes[dIdx];
@@ -391,10 +542,11 @@ public static class SeedData
             var code = deptCode.ToLower();
 
             // 0: Saksbehandler
+            var fagId = NextUserId();
             var sbResolved = RoleResolver.Resolve("Seniorrådgiver", deptCode);
             userEntities.Add(new User
             {
-                Id = NextUserId(), Email = $"fag.{code}@test.no",
+                Id = fagId, Email = $"fag.{code}@test.no",
                 FullName = $"{names[0].First} {names[0].Last}",
                 DepartmentId = deptId, Role = sbResolved.Role,
                 JobTitle = "Seniorrådgiver", LeaderLevel = null,
@@ -402,15 +554,18 @@ public static class SeedData
             });
 
             // 1: Budsjettenhet
+            var budsjettId = NextUserId();
             var beResolved = RoleResolver.Resolve("Rådgiver", deptCode, isBudsjettenhet: true);
             userEntities.Add(new User
             {
-                Id = NextUserId(), Email = $"budsjett.{code}@test.no",
+                Id = budsjettId, Email = $"budsjett.{code}@test.no",
                 FullName = $"{names[1].First} {names[1].Last}",
                 DepartmentId = deptId, Role = beResolved.Role,
                 JobTitle = "Rådgiver", LeaderLevel = null,
                 Division = divisions.Length > 1 ? divisions[1] : divisions[0], Section = null,
             });
+
+            fagUserByDept[deptCode] = (fagId, budsjettId);
 
             // 2: Underdirektør
             var undResolved = RoleResolver.Resolve("Underdirektør", deptCode);
@@ -474,39 +629,95 @@ public static class SeedData
         };
         db.BudgetRounds.AddRange(roundAug, roundMars);
 
-        // ── Cases (40 per FAG department = 600 total) ───
+        // ── Cases (40 per FAG department = 640 total) ───
         var caseCount = 0;
+        var contentCount = 0;
+        var eventCount = 0;
+        var questionCount = 0;
         var chapters = new[] { "200", "225", "260", "300", "400", "500", "600", "700", "800", "900",
             "1000", "1100", "1200", "1300", "1400", "1500", "1600", "1700", "1800", "1900" };
 
+        // Track all case IDs that end up in FIN for later use in dept lists
+        var finCasesByDept = new Dictionary<string, List<Guid>>();
+
         foreach (var dept in deptEntities.Where(d => d.Code != "FIN"))
         {
-            var fagUser = userEntities.First(u => u.DepartmentId == dept.Id && u.Role == "saksbehandler_fag");
-            var budsjettUser = userEntities.First(u => u.DepartmentId == dept.Id && u.Role == "budsjettenhet_fag");
+            var (fagId, budsjettId) = fagUserByDept[dept.Code];
             var topics = DeptTopics.GetValueOrDefault(dept.Code, ["generelt tiltak", "internt prosjekt", "driftsoptimalisering"]);
             var divisions = DeptDivisions.GetValueOrDefault(dept.Code, ["Fagavdelingen"]);
+            var finSbId = finSaksbehandlerByDept.GetValueOrDefault(dept.Code, ekspSjefId);
+
+            finCasesByDept[dept.Code] = [];
 
             for (var i = 0; i < 40; i++)
             {
                 caseCount++;
                 var caseType = CaseTypes[i % CaseTypes.Length];
                 var isMarsRound = i >= 30;
+                var isAndreSaker = caseType == "andre_saker";
+
                 string status;
                 if (isMarsRound)
                     status = "regjeringsbehandlet";
                 else
-                    status = Statuses[i % Statuses.Length];
+                    status = AugStatuses[i];
+
+                var isFinStatus = status is "sendt_til_fin" or "under_vurdering_fin" or "ferdigbehandlet_fin";
 
                 var topic = topics[i % topics.Length];
                 var template = CaseNameTemplates[i % CaseNameTemplates.Length];
                 var caseName = string.Format(template, topic);
                 var chapter = chapters[i % chapters.Length];
                 var post = ((i % 9) * 10 + 1).ToString("D2");
-                var isAndreSaker = caseType == "andre_saker";
-                var amount = isAndreSaker ? (long?)null : (long)((i + 1) * 10000 * (i % 3 == 0 ? -1 : 1));
+                var amount = isAndreSaker ? (long?)null : (long)((i + 1) * 15000 + (i % 3 == 0 ? -1 : 1) * (i + 1) * 3000);
+                var finAmount = isFinStatus && !isAndreSaker ? (long?)(amount! * 85 / 100) : null;
+                var govAmount = status == "ferdigbehandlet_fin" && !isAndreSaker ? (long?)(amount! * 90 / 100) : null;
 
                 var caseId = G(40, caseCount);
-                var assignedTo = (i % Statuses.Length) >= 3 ? budsjettUser.Id : fagUser.Id;
+                var caseCreatedAt = SeedDate.AddDays(caseCount / 3);
+                var caseUpdatedAt = isFinStatus
+                    ? caseCreatedAt.AddDays(14)
+                    : caseCreatedAt.AddDays(7);
+
+                var assignedTo = isFinStatus ? budsjettId : (i % 3 == 0 ? fagId : budsjettId);
+
+                int numVersions = status switch
+                {
+                    "klarert" => 2,
+                    "godkjent_pol" => 2,
+                    "sendt_til_fin" => 3,
+                    "under_vurdering_fin" => 4,
+                    "ferdigbehandlet_fin" => 4,
+                    "regjeringsbehandlet" => 2,
+                    _ => 1,
+                };
+
+                // Seed = deterministic mix of dept and case index
+                var seed = (Array.IndexOf(FagDeptCodes, dept.Code) * 7 + i);
+
+                // Version 1 content — initial draft
+                var v1ProposalText = (caseType != "teknisk_justering" && caseType != "andre_saker")
+                    ? $"UTKAST: {caseName}. Departementet vurderer å fremme forslag om styrking av {topic}."
+                    : null;
+                var v1Justification = $"Foreløpig begrunnelse: {caseName.ToLower()} er identifisert som et prioritert behov av fagavdelingen.";
+
+                // Latest content — fully filled
+                var latestProposalText = (caseType != "teknisk_justering")
+                    ? string.Format(Pick(ProposalTextVariants, seed), Math.Abs(amount ?? 50) / 1_000_000)
+                    : null;
+                var latestJustification = Pick(JustificationVariants, seed + 1);
+                var latestVerbalConclusion = (caseType is "satsingsforslag" or "andre_saker")
+                    ? string.Format(Pick(VerbalConclusionVariants, seed + 2), Math.Abs(amount ?? 50) / 1_000_000)
+                    : null;
+                var latestSocioeconomic = caseType == "satsingsforslag"
+                    ? string.Format(Pick(SocioeconomicVariants, seed + 3), Math.Abs(amount ?? 50) / 1_000_000 * 3)
+                    : null;
+                var latestGoalIndicator = caseType == "satsingsforslag" ? Pick(GoalIndicatorVariants, seed + 4) : null;
+                var latestBenefitPlan = caseType == "satsingsforslag" ? Pick(BenefitPlanVariants, seed + 5) : null;
+                var latestComment = (i % 5 == 0) ? "Intern merknad: Koordinert med tilgrensende tiltak i sektoren. Tallgrunnlag bekreftet av budsjettenheten." : null;
+                var latestFinAssessment = isFinStatus ? Pick(FinAssessmentVariants, seed + 6) : null;
+                var latestFinVerbal = isFinStatus ? Pick(FinVerbalVariants, seed + 7) : null;
+                var latestFinRConclusion = isFinStatus ? Pick(FinRConclusionVariants, seed + 8) : null;
 
                 db.Cases.Add(new Case
                 {
@@ -517,51 +728,201 @@ public static class SeedData
                     Chapter = isAndreSaker ? null : chapter,
                     Post = isAndreSaker ? null : post,
                     Amount = amount,
+                    FinAmount = finAmount,
+                    GovAmount = govAmount,
                     CaseType = caseType,
                     Status = status,
                     AssignedTo = assignedTo,
-                    CreatedBy = fagUser.Id,
+                    FinAssignedTo = isFinStatus ? finSbId : null,
+                    CreatedBy = fagId,
                     ResponsibleDivision = divisions[i % divisions.Length],
-                    Version = 1,
-                    CreatedAt = SeedDate.AddDays(caseCount),
-                    UpdatedAt = SeedDate.AddDays(caseCount).AddHours(caseCount % 24),
+                    PriorityNumber = caseType == "satsingsforslag" ? (i % 8 + 1) : null,
+                    FinListPlacement = (caseType == "satsingsforslag" && i % 3 != 2) ? "a_list" : null,
+                    Version = numVersions,
+                    // LatestContentId set via SQL after SaveChanges to avoid circular FK on insert
+                    CreatedAt = caseCreatedAt,
+                    UpdatedAt = caseUpdatedAt,
                 });
 
-                db.CaseContents.Add(new CaseContent
+                if (isFinStatus) finCasesByDept[dept.Code].Add(caseId);
+
+                // ── Content versions ───────────────────────────
+                for (var v = 1; v <= numVersions; v++)
                 {
-                    Id = G(50, caseCount),
-                    CaseId = caseId,
-                    Version = 1,
-                    CaseName = caseName,
-                    Chapter = isAndreSaker ? null : chapter,
-                    Post = isAndreSaker ? null : post,
-                    Amount = amount,
-                    Status = status,
-                    ProposalText = caseType != "teknisk_justering"
-                        ? $"Forslag: {caseName}. Dette er et forslag knyttet til {dept.Name}."
-                        : null,
-                    Justification = $"Begrunnelse for {caseName.ToLower()}. Tiltaket er nødvendig for å oppnå målene i {dept.Code}s sektor.",
-                    Comment = i % 5 == 0 ? "Intern kommentar: sjekk tallgrunnlag." : null,
-                    CreatedBy = fagUser.Id,
-                    CreatedAt = SeedDate.AddDays(caseCount),
-                });
+                    contentCount++;
+                    var isLatest = v == numVersions;
+                    var vDate = caseCreatedAt.AddDays((v - 1) * 5);
+                    var vStatus = v < numVersions ? "under_arbeid" : status;
+                    var vCreatedBy = (v == 1) ? fagId : budsjettId;
 
+                    db.CaseContents.Add(new CaseContent
+                    {
+                        Id = G(50, contentCount),
+                        CaseId = caseId,
+                        Version = v,
+                        CaseName = caseName,
+                        Chapter = isAndreSaker ? null : chapter,
+                        Post = isAndreSaker ? null : post,
+                        Amount = amount,
+                        FinAmount = isLatest ? finAmount : null,
+                        Status = vStatus,
+                        ProposalText = isLatest ? latestProposalText : (v == 1 ? v1ProposalText : latestProposalText),
+                        Justification = isLatest ? latestJustification : (v == 1 ? v1Justification : latestJustification),
+                        VerbalConclusion = (isLatest || v >= 2) ? latestVerbalConclusion : null,
+                        SocioeconomicAnalysis = (isLatest || v >= 3) ? latestSocioeconomic : null,
+                        GoalIndicator = (isLatest || v >= 3) ? latestGoalIndicator : null,
+                        BenefitPlan = (isLatest || v >= 3) ? latestBenefitPlan : null,
+                        Comment = isLatest ? latestComment : null,
+                        FinAssessment = isLatest ? latestFinAssessment : null,
+                        FinVerbal = isLatest ? latestFinVerbal : null,
+                        FinRConclusion = isLatest ? latestFinRConclusion : null,
+                        CreatedBy = vCreatedBy,
+                        CreatedAt = vDate,
+                    });
+                }
+
+                // ── Case event: created ────────────────────────
+                eventCount++;
                 db.CaseEvents.Add(new CaseEvent
                 {
-                    Id = G(60, caseCount),
+                    Id = G(60, eventCount),
                     CaseId = caseId,
                     EventType = "created",
-                    UserId = fagUser.Id,
+                    UserId = fagId,
                     EventData = JsonSerializer.Serialize(new { case_name = caseName, case_type = caseType }),
-                    CreatedAt = SeedDate.AddDays(caseCount),
+                    CreatedAt = caseCreatedAt,
                 });
+
+                // ── Case event: status transitions ─────────────
+                if (status != "under_arbeid" && !isMarsRound)
+                {
+                    eventCount++;
+                    db.CaseEvents.Add(new CaseEvent
+                    {
+                        Id = G(60, eventCount),
+                        CaseId = caseId,
+                        EventType = "status_changed",
+                        UserId = budsjettId,
+                        EventData = JsonSerializer.Serialize(new { from = "under_arbeid", to = "klarert" }),
+                        CreatedAt = caseCreatedAt.AddDays(6),
+                    });
+                }
+
+                if (status is "godkjent_pol" or "sendt_til_fin" or "under_vurdering_fin" or "ferdigbehandlet_fin")
+                {
+                    eventCount++;
+                    db.CaseEvents.Add(new CaseEvent
+                    {
+                        Id = G(60, eventCount),
+                        CaseId = caseId,
+                        EventType = "status_changed",
+                        UserId = budsjettId,
+                        EventData = JsonSerializer.Serialize(new { from = "klarert", to = "godkjent_pol" }),
+                        CreatedAt = caseCreatedAt.AddDays(10),
+                    });
+                }
+
+                if (status is "sendt_til_fin" or "under_vurdering_fin" or "ferdigbehandlet_fin")
+                {
+                    eventCount++;
+                    db.CaseEvents.Add(new CaseEvent
+                    {
+                        Id = G(60, eventCount),
+                        CaseId = caseId,
+                        EventType = "status_changed",
+                        UserId = budsjettId,
+                        EventData = JsonSerializer.Serialize(new { from = "godkjent_pol", to = "sendt_til_fin" }),
+                        CreatedAt = caseCreatedAt.AddDays(15),
+                    });
+                }
+
+                if (status is "under_vurdering_fin" or "ferdigbehandlet_fin")
+                {
+                    eventCount++;
+                    db.CaseEvents.Add(new CaseEvent
+                    {
+                        Id = G(60, eventCount),
+                        CaseId = caseId,
+                        EventType = "status_changed",
+                        UserId = finSbId,
+                        EventData = JsonSerializer.Serialize(new { from = "sendt_til_fin", to = "under_vurdering_fin" }),
+                        CreatedAt = caseCreatedAt.AddDays(18),
+                    });
+                }
+
+                if (status == "ferdigbehandlet_fin")
+                {
+                    eventCount++;
+                    db.CaseEvents.Add(new CaseEvent
+                    {
+                        Id = G(60, eventCount),
+                        CaseId = caseId,
+                        EventType = "status_changed",
+                        UserId = finSbId,
+                        EventData = JsonSerializer.Serialize(new { from = "under_vurdering_fin", to = "ferdigbehandlet_fin" }),
+                        CreatedAt = caseCreatedAt.AddDays(28),
+                    });
+                }
+
+                // ── Q&A threads for FIN cases ──────────────────
+                if (isFinStatus)
+                {
+                    int numQuestions = status switch
+                    {
+                        "sendt_til_fin" => 3,
+                        "under_vurdering_fin" => 4,
+                        "ferdigbehandlet_fin" => 3,
+                        _ => 0,
+                    };
+
+                    for (var q = 0; q < numQuestions; q++)
+                    {
+                        questionCount++;
+                        var qa = QaVariants[(seed + q) % QaVariants.Length];
+                        var qDate = caseCreatedAt.AddDays(20 + q * 2);
+
+                        // For ferdigbehandlet: all answered. For under_vurdering: 3 of 4 answered. For sendt_til_fin: 2 of 3 answered.
+                        bool isAnswered = status switch
+                        {
+                            "ferdigbehandlet_fin" => true,
+                            "under_vurdering_fin" => q < 3,
+                            "sendt_til_fin" => q < 2,
+                            _ => false,
+                        };
+
+                        db.Questions.Add(new Question
+                        {
+                            Id = G(70, questionCount),
+                            CaseId = caseId,
+                            AskedBy = finSbId,
+                            QuestionText = qa.Q,
+                            AnswerText = isAnswered ? qa.A : null,
+                            AnsweredBy = isAnswered ? fagId : null,
+                            CreatedAt = qDate,
+                            AnsweredAt = isAnswered ? qDate.AddDays(3) : null,
+                        });
+                    }
+                }
             }
         }
 
         await db.SaveChangesAsync();
 
+        // Resolve LatestContentId: set each Case's pointer to its highest-version CaseContent
+        await db.Database.ExecuteSqlRawAsync(
+            """
+            UPDATE "Cases"
+            SET "LatestContentId" = cc."Id"
+            FROM "CaseContents" cc
+            WHERE cc."CaseId" = "Cases"."Id"
+              AND cc."Version" = "Cases"."Version"
+            """);
+
         // ===== Seed Department List Template: Mars Conference =====
         await SeedMarsConferenceTemplate(db);
+
+        // ===== Seed Department List Instances =====
+        await SeedDepartmentListInstances(db, deptByCode, finCasesByDept, adminId, G(30, 2));
     }
 
     private static async Task SeedMarsConferenceTemplate(AppDbContext db)
@@ -708,6 +1069,113 @@ public static class SeedData
             "{case_name}",
             "Deplisteoverskrift3", "case_entry_template",
             @"{""heading_format"":""{case_name}"",""fields"":[{""key"":""proposal_text"",""render_as"":""paragraph""}]}");
+
+        await db.SaveChangesAsync();
+    }
+
+    private static async Task SeedDepartmentListInstances(
+        AppDbContext db,
+        Dictionary<string, Department> deptByCode,
+        Dictionary<string, List<Guid>> finCasesByDept,
+        Guid createdBy,
+        Guid marsRoundId)
+    {
+        if (await db.DepartmentLists.AnyAsync()) return;
+
+        var templateId = G(80, 1);
+
+        // 5 departments to create lists for
+        var listDeptCodes = new[] { "AID", "HOD", "KD", "NFD", "SD" };
+
+        // Template section IDs (matches SeedMarsConferenceTemplate section counter 1..21)
+        // Map: position index → template section ID
+        // Parent relationships (by position index, 0-based):
+        // 0:null, 1:0, 2:1, 3:1, 4:1, 5:1, 6:0, 7:6, 8:6, 9:8, 10:8, 11:8, 12:6, 13:12, 14:12, 15:12, 16:12, 17:0, 18:17, 19:0, 20:19
+        var templateSectionIds = Enumerable.Range(1, 21).Select(n => G(81, n)).ToArray();
+        var sectionParentIdxMap = new int?[] { null, 0, 1, 1, 1, 1, 0, 6, 6, 8, 8, 8, 6, 12, 12, 12, 12, 0, 17, 0, 19 };
+        var sectionSortOrders = Enumerable.Range(1, 21).ToArray();
+
+        // Free-text content for sections at positions 4 and 5 (indices 4, 5 → sortOrder 5, 6)
+        var freetextContentByDeptCode = new Dictionary<string, (string Structural, string Priorities)>
+        {
+            ["AID"] = (
+                "Arbeids- og inkluderingsdepartementet (AID) har de siste fire årene gjennomført en bred modernisering av arbeidsmarkedstiltakene, med særlig vekt på digitalisering av NAV og styrket inkluderingsinnsats. Budsjettutviklingen viser en moderat realvekst i perioden, med økt prioritering av tjenester til utsatte grupper.",
+                "I 2027 prioriterer AID tre satsinger: (1) Styrket digitalisering av NAV-tjenestene, (2) Økt innsats for inkludering av innvandrere i arbeidslivet, (3) Videreføring av dagpengeordningen med oppdaterte satser. FIN anbefaler at satsingsforslag 1 og 2 innvilges med redusert ramme på til sammen 85 mill. kroner."
+            ),
+            ["HOD"] = (
+                "Helse- og omsorgsdepartementet (HOD) har i fireårsperioden 2024–2027 gjennomført en historisk satsing på sykehusøkonomi, psykisk helse og fastlegeordningen. Reelle driftsutgifter er økt med 4,2 prosent i perioden, finansiert gjennom en kombinasjon av økte bevilgninger og effektiviseringstiltak.",
+                "HODs prioriteringer for 2027 er: (1) Styrket kapasitet i psykisk helsevern – satsing på 120 mill. kroner, (2) Fastlegeordningens bærekraft – 65 mill. kroner til rekrutteringstiltak, (3) Teknologiløft i spesialisthelsetjenesten – 90 mill. kroner. FIN tilrår satsing 1 og 2 i sin helhet og satsing 3 med 80 % av omsøkt beløp."
+            ),
+            ["KD"] = (
+                "Kunnskapsdepartementet (KD) har i perioden 2024–2027 økt satsingen på forskning og høyere utdanning med om lag 3,8 prosent realt. Studentvelferd og fagskoler har mottatt særlig styrking, mens grunnopplæringen har hatt mer moderat vekst grunnet demografiske forhold.",
+                "KDs prioriteringer for 2027: (1) Styrket studentvelferd og hybeltilbud – 85 mill. kroner, (2) Kompetansereformen og etter- og videreutdanning – 110 mill. kroner, (3) Kvalitetsløft i fagskolesektoren – 45 mill. kroner. FIN anbefaler alle tre satsingsforslag, med en samlet ramme på 220 mill. kroner (95 % av omsøkt)."
+            ),
+            ["NFD"] = (
+                "Nærings- og fiskeridepartementet (NFD) forvalter en bred portefølje av nærings- og innovasjonspolitiske virkemidler. I perioden 2024–2027 er Innovasjon Norges rammer styrket og havbrukstilsynet modernisert. Eksportfremme og grønn industriomstilling er løftet som strategiske satsingsområder.",
+                "NFDs prioriteringer for 2027: (1) Styrket Innovasjon Norge – økt bevilgning med 95 mill. kroner, (2) Havbrukskontroll og bærekraftsvurdering – 35 mill. kroner, (3) Grønn industriomstilling og mineralnæring – 75 mill. kroner. FIN tilrår satsingsforslag 1 fullt ut og satsingsforslag 3 med 80 % av omsøkt beløp."
+            ),
+            ["SD"] = (
+                "Samferdselsdepartementet (SD) forvalter store investeringer i veg, bane og kollektivtransport. Perioden 2024–2027 er preget av igangsetting av store prosjekter under Nasjonal transportplan, med til dels krevende kostnadsstyring. Jernbane og klimavennlig transport har blitt styrket som politisk prioritet.",
+                "SDs prioriteringer for 2027: (1) Jernbaneinvesteringer i tråd med NTP – 430 mill. kroner (A-listen), (2) Kollektivtransport og nullutslippsferjestøtte – 120 mill. kroner, (3) Trafikksikkerhetstiltak på riksveg – 65 mill. kroner. FIN tilrår alle tre satsingsforslag, men anbefaler at satsing 1 ses i sammenheng med pågående KVU-prosesser."
+            ),
+        };
+
+        var depListSectionCount = 0;
+
+        for (var listIdx = 0; listIdx < listDeptCodes.Length; listIdx++)
+        {
+            var deptCode = listDeptCodes[listIdx];
+            var dept = deptByCode[deptCode];
+            var listId = G(82, listIdx + 1);
+            var isCompleted = listIdx < 2; // First two lists are "in_progress", rest are "draft"... actually let's vary
+            var listStatus = listIdx switch { 0 => "in_progress", 1 => "in_progress", 2 => "in_progress", _ => "draft" };
+
+            db.DepartmentLists.Add(new DepartmentList
+            {
+                Id = listId,
+                TemplateId = templateId,
+                BudgetRoundId = marsRoundId,
+                DepartmentId = dept.Id,
+                Status = listStatus,
+                CreatedBy = createdBy,
+                CreatedAt = SeedDate.AddDays(listIdx + 1),
+                UpdatedAt = SeedDate.AddDays(listIdx + 5),
+            });
+
+            // Create one DepartmentListSection per template section
+            var dlSectionIdMap = new Guid[21]; // index → created section ID
+            for (var secIdx = 0; secIdx < 21; secIdx++)
+            {
+                depListSectionCount++;
+                var dlSecId = G(83, depListSectionCount);
+                dlSectionIdMap[secIdx] = dlSecId;
+
+                var parentIdx = sectionParentIdxMap[secIdx];
+                var parentDlSecId = parentIdx.HasValue ? dlSectionIdMap[parentIdx.Value] : (Guid?)null;
+
+                // Determine if this is a freetext section that should have content
+                // Sections at secIdx 4 and 5 are freetext (sortOrder 5 and 6)
+                string? contentJson = null;
+                if (freetextContentByDeptCode.TryGetValue(deptCode, out var ftContent))
+                {
+                    if (secIdx == 4) // "Overordnet om strukturarbeid og prioriteringer"
+                        contentJson = MakeTipTapDoc(ftContent.Structural);
+                    else if (secIdx == 5) // "Utdypende om utvalgte budsjettprioriteringer"
+                        contentJson = MakeTipTapDoc(ftContent.Priorities);
+                }
+
+                db.DepartmentListSections.Add(new DepartmentListSection
+                {
+                    Id = dlSecId,
+                    DepartmentListId = listId,
+                    TemplateSectionId = templateSectionIds[secIdx],
+                    ParentId = parentDlSecId,
+                    Title = null, // resolved at render time
+                    SortOrder = sectionSortOrders[secIdx],
+                    ContentJson = contentJson,
+                });
+            }
+        }
 
         await db.SaveChangesAsync();
     }

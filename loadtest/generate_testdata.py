@@ -14,8 +14,8 @@ import string
 import sys
 import time
 
-DEPARTMENTS = ["kld", "ud", "jd", "hod", "kd", "sd", "nfd", "bfd",
-               "aid", "lmd", "kud", "fd", "ofd", "eid", "did"]
+DEPARTMENTS = ["aid", "bfd", "dfd", "ed", "fd", "hod", "jd", "kd",
+               "kdd", "kld", "kud", "lmd", "nfd", "sd", "ud"]
 
 CASE_TYPES = ["budsjettforslag", "tilleggsbevilgning", "omfordeling", "oppfolging"]
 
@@ -65,8 +65,7 @@ def main():
 
     # Login as admin
     resp = session.post(f"{base}/api/auth/login", json={
-        "email": "admin@fin.dep.no",
-        "password": "Test1234!"
+        "email": "admin@test.no",
     })
     if resp.status_code != 200:
         print(f"Login failed: {resp.status_code} {resp.text}")
@@ -87,7 +86,7 @@ def main():
 
     # Get departments
     depts = session.get(f"{base}/api/departments").json()
-    dept_map = {d["code"]: d["id"] for d in depts}
+    dept_map = {d["code"].lower(): d["id"] for d in depts}
 
     total_versions = 0
     start = time.time()
