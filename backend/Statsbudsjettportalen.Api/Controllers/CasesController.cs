@@ -201,12 +201,23 @@ public class CasesController : ControllerBase
         [FromQuery] Guid? department_id,
         [FromQuery] int? year)
     {
+        var userRole = MockAuth.GetUserRole(User);
+        var userDeptId = MockAuth.GetDepartmentId(User);
+
         var query = _db.Cases
             .Include(c => c.Department)
             .Include(c => c.ContentVersions)
             .Include(c => c.BudgetRound)
             .Where(c => c.BudgetRound.Status == "closed")
             .AsQueryable();
+
+        // FAG-brukere ser kun eget departement, unntatt budsjettenhet og departementsråd
+        if (_workflow.IsFagRole(userRole)
+            && userRole != "budsjettenhet_fag"
+            && userRole != "departementsraad_fag")
+        {
+            query = query.Where(c => c.DepartmentId == userDeptId);
+        }
 
         if (department_id.HasValue)
             query = query.Where(c => c.DepartmentId == department_id.Value);

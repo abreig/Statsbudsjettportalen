@@ -4,6 +4,7 @@ import { Button, Modal, TextField, Loader, Label } from '@navikt/ds-react';
 import type { Editor } from '@tiptap/react';
 import { fetchCase, saveContent, saveDocument } from '../../api/cases';
 import { DepListContentEditor } from './DepListContentEditor';
+import { EditorToolbar } from '../editor/EditorToolbar';
 import { textToParagraphs } from '../editor/documentUtils';
 import { CommentPanel } from '../editor/CommentPanel';
 import {
@@ -17,6 +18,7 @@ import {
 import { useAuthStore } from '../../stores/authStore';
 import type { CaseComment } from '../../api/comments';
 import type { JSONContent } from '@tiptap/core';
+import type { TrackMode } from '../editor/TrackChangesExtension';
 
 interface DepListCaseEditModalProps {
   open: boolean;
@@ -101,9 +103,11 @@ export function DepListCaseEditModal({ open, onClose, caseId, caseName }: DepLis
   const [finRConclusionJson, setFinRConclusionJson] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Track the most recently focused editor to wire CommentPanel
+  // Track the most recently focused editor to wire toolbar + CommentPanel
   const [activeEditor, setActiveEditor] = useState<Editor | null>(null);
   const [activeCommentId, setActiveCommentId] = useState<string | null>(null);
+  const [trackingEnabled, setTrackingEnabled] = useState(false);
+  const [trackMode, setTrackMode] = useState<TrackMode>('editing');
 
   const handleFocus = useCallback((editor: Editor) => {
     setActiveEditor(editor);
@@ -198,7 +202,19 @@ export function DepListCaseEditModal({ open, onClose, caseId, caseName }: DepLis
             <Loader size="medium" title="Laster sak..." />
           </div>
         ) : (
-          <div className="flex gap-6">
+          <div className="space-y-4">
+            {/* Toolbar */}
+            <div className="sticky top-0 z-10 -mx-6 -mt-2 rounded-b border-b border-gray-200 bg-white shadow-sm">
+              <EditorToolbar
+                editor={activeEditor}
+                trackingEnabled={trackingEnabled}
+                trackMode={trackMode}
+                onToggleTracking={() => setTrackingEnabled((v) => !v)}
+                onSetTrackMode={setTrackMode}
+              />
+            </div>
+
+            <div className="flex gap-6">
             {/* Left column: fields */}
             <div className="min-w-0 flex-1 space-y-5">
               <TextField
@@ -266,6 +282,7 @@ export function DepListCaseEditModal({ open, onClose, caseId, caseName }: DepLis
                 onDelete={handleDelete}
               />
             </div>
+          </div>
           </div>
         )}
       </Modal.Body>

@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore.ts';
-import { canCreateCase, canSubmitToFin, isFinRole, isFagRole, isAdmin } from '../../lib/roles.ts';
+import { canCreateCase, canSubmitToFin, isFinRole, isFinLeader, isFagRole, isAdmin } from '../../lib/roles.ts';
 import {
   LayoutList,
   PlusCircle,
@@ -90,7 +90,7 @@ export function Sidebar() {
       to: '/admin/templates',
       label: 'Deplistemaler',
       icon: <Building2 size={20} />,
-      show: isAdmin(role) || (isFinRole(role) && !isFagRole(role)),
+      show: isAdmin(role) || isFinLeader(role),
     },
   ];
 

@@ -11,7 +11,7 @@ public static class SeedData
     private static Guid G(int ns, int idx) =>
         new($"{ns:D8}-0000-0000-0000-{idx:D12}");
 
-    private static readonly DateTime SeedDate = new(2026, 1, 15, 10, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime SeedDate = new(2025, 12, 1, 10, 0, 0, DateTimeKind.Utc);
 
     private static readonly (string Code, string Name)[] Departments =
     [
@@ -674,7 +674,7 @@ public static class SeedData
                 var govAmount = status == "ferdigbehandlet_fin" && !isAndreSaker ? (long?)(amount! * 90 / 100) : null;
 
                 var caseId = G(40, caseCount);
-                var caseCreatedAt = SeedDate.AddDays(caseCount / 3);
+                var caseCreatedAt = SeedDate.AddDays(caseCount / 10);
                 var caseUpdatedAt = isFinStatus
                     ? caseCreatedAt.AddDays(14)
                     : caseCreatedAt.AddDays(7);

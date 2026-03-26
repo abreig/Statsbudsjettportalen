@@ -34,6 +34,8 @@ import {
 import type { TemplateSectionInput } from '../api/departmentLists';
 import type { DepartmentListTemplate, DepartmentListTemplateSection } from '../lib/types';
 import { useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../stores/authStore';
+import { isAdmin, isFinLeader } from '../lib/roles';
 
 const SECTION_TYPES = [
   { value: 'department_header', label: 'Departementsoverskrift' },
@@ -115,6 +117,9 @@ function newEditableSection(): EditableSection {
 }
 
 export function AdminTemplatesPage() {
+  const user = useAuthStore((s) => s.user);
+  const role = user?.role ?? '';
+
   const { data: templates, isLoading, error } = useTemplates();
   const createMut = useCreateTemplate();
   const deleteMut = useDeleteTemplate();
@@ -124,6 +129,7 @@ export function AdminTemplatesPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<DepartmentListTemplate | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Template form state
   const [name, setName] = useState('');
@@ -158,6 +164,7 @@ export function AdminTemplatesPage() {
 
   const handleSave = useCallback(async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       // Renumber sort orders
       const renumbered = sections.map((s, i) => ({ ...s, sortOrder: i + 1 }));
@@ -184,6 +191,9 @@ export function AdminTemplatesPage() {
       setEditing(null);
       setShowCreate(false);
       resetForm();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Ukjent feil';
+      setSaveError(`Kunne ikke lagre malen: ${msg}`);
     } finally {
       setSaving(false);
     }
@@ -248,6 +258,10 @@ export function AdminTemplatesPage() {
   }, []);
 
   const isEditing = editing !== null || showCreate;
+
+  if (!isAdmin(role) && !isFinLeader(role)) {
+    return <Alert variant="warning">Du har ikke tilgang til denne siden.</Alert>;
+  }
 
   if (isLoading) return <div className="flex justify-center p-12"><Loader size="xlarge" /></div>;
   if (error) return <Alert variant="error">Kunne ikke laste maler</Alert>;
@@ -403,6 +417,10 @@ export function AdminTemplatesPage() {
               ))}
             </div>
           </div>
+
+          {saveError && (
+            <Alert variant="error" size="small">{saveError}</Alert>
+          )}
 
           <div className="flex justify-end gap-2 border-t pt-4">
             <Button

@@ -45,13 +45,16 @@ public class ExportJobService : BackgroundService
             try
             {
                 await ProcessPendingJobsAsync(stoppingToken);
+                await Task.Delay(2000, stoppingToken); // poll every 2 seconds
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in export job processing loop");
             }
-
-            await Task.Delay(2000, stoppingToken); // poll every 2 seconds
         }
     }
 

@@ -5,6 +5,7 @@ using Statsbudsjettportalen.Api.Data;
 using Statsbudsjettportalen.Api.DTOs;
 using Statsbudsjettportalen.Api.Middleware;
 using Statsbudsjettportalen.Api.Models;
+using Statsbudsjettportalen.Api.Services;
 
 namespace Statsbudsjettportalen.Api.Controllers;
 
@@ -14,11 +15,16 @@ namespace Statsbudsjettportalen.Api.Controllers;
 public class DepartmentListTemplatesController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly WorkflowService _workflow;
 
-    public DepartmentListTemplatesController(AppDbContext db)
+    public DepartmentListTemplatesController(AppDbContext db, WorkflowService workflow)
     {
         _db = db;
+        _workflow = workflow;
     }
+
+    private bool CanManageTemplates(string role) =>
+        role == "administrator" || _workflow.IsFinLeader(role);
 
     [HttpGet]
     public async Task<ActionResult<List<TemplateResponseDto>>> GetAll(
@@ -58,7 +64,7 @@ public class DepartmentListTemplatesController : ControllerBase
         var userId = MockAuth.GetUserId(User);
         var userRole = MockAuth.GetUserRole(User);
 
-        if (userRole != "administrator" && userRole != "leder_fin")
+        if (!CanManageTemplates(userRole))
             return Forbid();
 
         var template = new DepartmentListTemplate
@@ -94,7 +100,7 @@ public class DepartmentListTemplatesController : ControllerBase
     public async Task<ActionResult<TemplateResponseDto>> Update(Guid id, [FromBody] TemplateUpdateDto dto)
     {
         var userRole = MockAuth.GetUserRole(User);
-        if (userRole != "administrator" && userRole != "leder_fin")
+        if (!CanManageTemplates(userRole))
             return Forbid();
 
         var template = await _db.DepartmentListTemplates.FindAsync(id);
@@ -139,7 +145,7 @@ public class DepartmentListTemplatesController : ControllerBase
         Guid templateId, [FromBody] TemplateSectionCreateDto dto)
     {
         var userRole = MockAuth.GetUserRole(User);
-        if (userRole != "administrator" && userRole != "leder_fin")
+        if (!CanManageTemplates(userRole))
             return Forbid();
 
         var template = await _db.DepartmentListTemplates.FindAsync(templateId);
@@ -175,7 +181,7 @@ public class DepartmentListTemplatesController : ControllerBase
         Guid templateId, Guid sectionId, [FromBody] TemplateSectionUpdateDto dto)
     {
         var userRole = MockAuth.GetUserRole(User);
-        if (userRole != "administrator" && userRole != "leder_fin")
+        if (!CanManageTemplates(userRole))
             return Forbid();
 
         var section = await _db.DepartmentListTemplateSections
@@ -200,7 +206,7 @@ public class DepartmentListTemplatesController : ControllerBase
     public async Task<IActionResult> DeleteSection(Guid templateId, Guid sectionId)
     {
         var userRole = MockAuth.GetUserRole(User);
-        if (userRole != "administrator" && userRole != "leder_fin")
+        if (!CanManageTemplates(userRole))
             return Forbid();
 
         var section = await _db.DepartmentListTemplateSections
@@ -228,7 +234,7 @@ public class DepartmentListTemplatesController : ControllerBase
         Guid templateId, [FromBody] List<TemplateSectionCreateDto> sections)
     {
         var userRole = MockAuth.GetUserRole(User);
-        if (userRole != "administrator" && userRole != "leder_fin")
+        if (!CanManageTemplates(userRole))
             return Forbid();
 
         var template = await _db.DepartmentListTemplates
