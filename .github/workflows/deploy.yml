@@ -1,31 +1,38 @@
-name: Build and Deploy to Azure Web App
+name: Build and Deploy to Azure
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
+
 env:
-  AZURE_WEBAPP_NAME: statsbudsjettportalen  # Change to your Azure Web App name
   IMAGE_NAME: statsbudsjettportalen
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: dev
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Log in to Azure Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.ACR_LOGIN_SERVER }}
-          username: ${{ secrets.ACR_USERNAME }}
-          password: ${{ secrets.ACR_PASSWORD }}
+        run: az acr login --name ${{ secrets.CONTAINER_REGISTRY_URL }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
@@ -33,14 +40,14 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-            ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
+            ${{ secrets.CONTAINER_REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+            ${{ secrets.CONTAINER_REGISTRY_URL }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Deploy to Azure Web App
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          images: ${{ secrets.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+      - name: Deploy to Azure Container App
+        run: |
+          az containerapp update \
+            --name statsbudsjettportalen \
+            --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+            --image ${{ secrets.CONTAINER_REGISTRY_URL }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
