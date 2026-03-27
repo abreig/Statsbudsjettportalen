@@ -246,7 +246,21 @@ app.UseRateLimiter();
 
 // Serve React frontend from wwwroot
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+
+        // Force download for uploaded SVGs to prevent XSS
+        var path = ctx.Context.Request.Path.Value ?? "";
+        if (path.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase) &&
+            path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers["Content-Disposition"] = "attachment";
+        }
+    },
+});
 
 // Enhanced health check (checks DB + Redis connectivity)
 app.MapGet("/api/health", async (AppDbContext db, IDistributedCache cache) =>

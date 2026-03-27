@@ -10,7 +10,8 @@ public static class SvgSanitizer
 {
     private static readonly HashSet<string> DangerousElements =
     [
-        "script", "use", "iframe", "object", "embed", "foreignobject", "animate",
+        "script", "use", "iframe", "object", "embed", "foreignobject",
+        "animate", "animateMotion", "animateTransform", "set",
     ];
 
     /// <summary>
@@ -53,6 +54,23 @@ public static class SvgSanitizer
 
             foreach (var attr in dangerousAttrs)
                 attr.Remove();
+        }
+
+        // Strip javascript:/data: URIs from <a> href attributes
+        foreach (var el in doc.Descendants()
+            .Where(e => e.Name.LocalName.Equals("a", StringComparison.OrdinalIgnoreCase)))
+        {
+            var href = el.Attributes()
+                .FirstOrDefault(a => a.Name.LocalName.Equals("href", StringComparison.OrdinalIgnoreCase));
+            if (href == null) continue;
+
+            var val = href.Value.Trim();
+            if (!val.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !val.StartsWith("https://", StringComparison.OrdinalIgnoreCase) &&
+                !val.StartsWith("#", StringComparison.Ordinal))
+            {
+                href.Remove();
+            }
         }
 
         return doc.ToString();

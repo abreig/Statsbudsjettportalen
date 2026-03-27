@@ -12,13 +12,21 @@ namespace Statsbudsjettportalen.Api.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly IWebHostEnvironment _env;
 
-    public AuthController(AppDbContext db) => _db = db;
+    public AuthController(AppDbContext db, IWebHostEnvironment env)
+    {
+        _db = db;
+        _env = env;
+    }
 
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<ActionResult<LoginResponse>> Login([FromBody] LoginRequest request)
     {
+        if (!_env.IsDevelopment())
+            return NotFound();
+
         var user = await _db.Users
             .Include(u => u.Department)
             .Include(u => u.DepartmentAssignments)
@@ -54,6 +62,9 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<List<UserDto>>> GetUsers()
     {
+        if (!_env.IsDevelopment())
+            return NotFound();
+
         var users = await _db.Users
             .Include(u => u.Department)
             .Include(u => u.DepartmentAssignments)
